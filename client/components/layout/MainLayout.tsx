@@ -1,0 +1,211 @@
+import React, { useState } from 'react';
+import { HeaderBar } from './HeaderBar';
+import { LeftSidebar } from './LeftSidebar';
+import { EditorCanvas } from './EditorCanvas';
+import { RightDiscussionSidebar } from './RightDiscussionSidebar';
+import { Modal } from '../ui/Modal';
+import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
+import { AppTheme } from '../../App';
+import { 
+  Download, 
+  ShieldCheck, 
+  Copy, 
+  Check, 
+  FileText, 
+  Code, 
+  Lock
+} from 'lucide-react';
+
+export interface MainLayoutProps {
+  theme: AppTheme;
+  onThemeChange: (theme: AppTheme) => void;
+}
+
+export const MainLayout: React.FC<MainLayoutProps> = ({
+  theme,
+  onThemeChange
+}) => {
+  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
+  const [activeDocId, setActiveDocId] = useState('doc-welcome');
+
+  // Modals state
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isSandboxModalOpen, setIsSandboxModalOpen] = useState(false);
+  const [recipientKeyInput, setRecipientKeyInput] = useState('');
+  const [copiedKey, setCopiedKey] = useState(false);
+
+  const mockPublicECDHKey = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE7rB4K9zW1p5qLm3...';
+
+  const copyPublicKey = () => {
+    navigator.clipboard?.writeText(mockPublicECDHKey);
+    setCopiedKey(true);
+    setTimeout(() => setCopiedKey(false), 2000);
+  };
+
+  return (
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-theme-bg text-theme-text font-sans">
+      {/* 1. Header Bar */}
+      <HeaderBar
+        theme={theme}
+        onThemeChange={onThemeChange}
+        isLeftSidebarOpen={isLeftSidebarOpen}
+        onToggleLeftSidebar={() => setIsLeftSidebarOpen(prev => !prev)}
+        isRightSidebarOpen={isRightSidebarOpen}
+        onToggleRightSidebar={() => setIsRightSidebarOpen(prev => !prev)}
+        onOpenShareModal={() => setIsShareModalOpen(true)}
+        onOpenExportModal={() => setIsExportModalOpen(true)}
+        onOpenSandboxModal={() => setIsSandboxModalOpen(true)}
+        activeCollaboratorCount={2}
+      />
+
+      {/* 2. Main 3-Pane Body */}
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Left Navigation Sidebar */}
+        <LeftSidebar
+          isOpen={isLeftSidebarOpen}
+          activeDocId={activeDocId}
+          onSelectDoc={(id) => setActiveDocId(id)}
+          onCreateDoc={() => console.log('Create doc')}
+          onCreateFolder={() => console.log('Create folder')}
+        />
+
+        {/* Center Editor Canvas */}
+        <EditorCanvas
+          documentId={activeDocId}
+          documentTitle="Chào mừng đến VaultSync"
+          folderName="Kiến Trúc Cốt Lõi"
+          onAddInlineComment={() => setIsRightSidebarOpen(true)}
+        />
+
+        {/* Right Discussion & Chat Sidebar */}
+        <RightDiscussionSidebar
+          isOpen={isRightSidebarOpen}
+          onClose={() => setIsRightSidebarOpen(false)}
+          activeDocumentTitle="Chào mừng đến VaultSync"
+        />
+      </div>
+
+      {/* MODAL 1: Chia Sẻ Khóa Tài Liệu (E2EE Envelope Sharing) */}
+      <Modal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        title="Chia Sẻ Tài Liệu An Toàn (E2EE Key Exchange)"
+        description="Mã hóa Khóa Tài liệu (DEK) bằng Khóa Công khai (ECDH P-256) của người nhận."
+        footer={
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setIsShareModalOpen(false)}>Hủy</Button>
+            <Button variant="primary" size="sm" onClick={() => setIsShareModalOpen(false)}>Bọc & Gửi Khóa</Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="font-medium text-theme-text">Khóa Công Khai Của Bạn (ECDH P-256):</label>
+            <div className="flex items-center gap-2">
+              <Input value={mockPublicECDHKey} readOnly className="font-mono text-[11px]" />
+              <Button variant="secondary" size="icon" onClick={copyPublicKey} title="Sao chép">
+                {copiedKey ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+              </Button>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="font-medium text-theme-text">Nhập Khóa Công Khai Của Thành Viên Mới:</label>
+            <Input 
+              placeholder="Dán mã khóa công khai (JWK / SPKI Base64)..." 
+              value={recipientKeyInput}
+              onChange={(e) => setRecipientKeyInput(e.target.value)}
+            />
+          </div>
+
+          <div className="bg-theme-card p-3 rounded-lg border border-theme-border flex items-start gap-2.5 text-[11px] text-theme-text-muted">
+            <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+            <span>Server chỉ lưu trữ bản mã của khóa (Wrapped Key Envelope). Không ai có thể giải mã ngoại trừ người giữ Private Key tương ứng.</span>
+          </div>
+        </div>
+      </Modal>
+
+      {/* MODAL 2: Xuất Dữ Liệu Đa Định Dạng */}
+      <Modal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        title="Xuất Dữ Liệu Tài Liệu"
+        description="Xuất nội dung đã giải mã hoặc tạo bản sao lưu mã hóa hoàn toàn."
+        footer={
+          <Button variant="ghost" size="sm" onClick={() => setIsExportModalOpen(false)}>Đóng</Button>
+        }
+      >
+        <div className="grid grid-cols-1 gap-2.5">
+          <button 
+            onClick={() => setIsExportModalOpen(false)}
+            className="flex items-center justify-between p-3 rounded-lg bg-theme-card hover:bg-theme-card-hover border border-theme-border transition-colors text-left cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <FileText className="w-5 h-5 text-theme-accent" />
+              <div>
+                <div className="font-medium text-theme-text text-xs">Xuất Markdown (.md)</div>
+                <div className="text-[11px] text-theme-text-muted">Kèm siêu dữ liệu YAML frontmatter</div>
+              </div>
+            </div>
+            <Download className="w-4 h-4 text-theme-text-muted" />
+          </button>
+
+          <button 
+            onClick={() => setIsExportModalOpen(false)}
+            className="flex items-center justify-between p-3 rounded-lg bg-theme-card hover:bg-theme-card-hover border border-theme-border transition-colors text-left cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <Code className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+              <div>
+                <div className="font-medium text-theme-text text-xs">Xuất Trang HTML Độc Lập (.html)</div>
+                <div className="text-[11px] text-theme-text-muted">Tích hợp sẵn CSS để xem offline ở bất kỳ đâu</div>
+              </div>
+            </div>
+            <Download className="w-4 h-4 text-theme-text-muted" />
+          </button>
+
+          <button 
+            onClick={() => setIsExportModalOpen(false)}
+            className="flex items-center justify-between p-3 rounded-lg bg-theme-card hover:bg-theme-card-hover border border-theme-border transition-colors text-left cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <Lock className="w-5 h-5 text-indigo-500" />
+              <div>
+                <div className="font-medium text-theme-text text-xs">Bản Sao Lưu Mã Hóa (.vault)</div>
+                <div className="text-[11px] text-theme-text-muted">Bản nhị phân nguyên vẹn có chữ ký HMAC-SHA256</div>
+              </div>
+            </div>
+            <Download className="w-4 h-4 text-theme-text-muted" />
+          </button>
+        </div>
+      </Modal>
+
+      {/* MODAL 3: 1-Click Guest Sandbox Demo */}
+      <Modal
+        isOpen={isSandboxModalOpen}
+        onClose={() => setIsSandboxModalOpen(false)}
+        title="1-Click Guest Sandbox (Dành Cho Nhà Tuyển Dụng)"
+        description="Trải nghiệm cộng tác 2 người dùng song song tức thì không cần đăng ký tài khoản."
+        footer={
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setIsSandboxModalOpen(false)}>Đóng</Button>
+            <Button variant="primary" size="sm" onClick={() => setIsSandboxModalOpen(false)}>Khởi Động 2 Tab Mô Phỏng</Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3 text-xs leading-relaxed text-theme-text-secondary">
+          <p>
+            Chế độ Sandbox tự động sinh ra 2 định danh tạm thời trong bộ nhớ RAM: <strong>Alice (Bạn)</strong> và <strong>Bob (Cộng tác viên mô phỏng)</strong> cùng kết nối vào một tài liệu Yjs CRDTs.
+          </p>
+          <div className="bg-theme-card p-3 rounded-lg border border-theme-border flex items-center justify-between font-mono text-[11px]">
+            <span>Độ trễ đồng bộ E2EE:</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">&lt; 15ms (Local Loopback)</span>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+};

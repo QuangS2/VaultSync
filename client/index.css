@@ -1,0 +1,85 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ☀️ Sun Theme (Tone Kem Sữa & Trắng Ngà - Tinh tế, ấm áp, thanh lịch) */
+  :root, [data-theme="sun"] {
+    --theme-bg: #fbf9f5;
+    --theme-bg-subtle: #ffffff;
+    --theme-card: #ffffff;
+    --theme-card-hover: #f5f0e6;
+    --theme-border: #e8e2d5;
+    --theme-border-subtle: #f2ede2;
+    --theme-text: #1c1917;
+    --theme-text-secondary: #57534e;
+    --theme-text-muted: #8c827a;
+    --theme-accent: #2563eb;
+    --theme-accent-subtle: #f0f5ff;
+    --theme-accent-hover: #1d4ed8;
+    --theme-success: #059669;
+    --theme-success-subtle: #ecfdf5;
+    --theme-warning: #d97706;
+  }
+
+  /* ☁️ Cloud Theme (Màu Mây Trắng Xám - Sáng dịu mát, không chói và không âm u) */
+  [data-theme="cloud"] {
+    --theme-bg: #e8edf3;
+    --theme-bg-subtle: #f3f6f9;
+    --theme-card: #ffffff;
+    --theme-card-hover: #dfe5ec;
+    --theme-border: #cbd4df;
+    --theme-border-subtle: #dbe2eb;
+    --theme-text: #1e293b;
+    --theme-text-secondary: #475569;
+    --theme-text-muted: #64748b;
+    --theme-accent: #0284c7;
+    --theme-accent-subtle: #e0f2fe;
+    --theme-accent-hover: #0369a1;
+    --theme-success: #059669;
+    --theme-success-subtle: #ecfdf5;
+    --theme-warning: #d97706;
+  }
+
+  /* 🌙 Night Theme (Deep Obsidian Slate - Đêm đen sâu chuẩn công nghệ) */
+  [data-theme="night"] {
+    --theme-bg: #0b0e14;
+    --theme-bg-subtle: #11151f;
+    --theme-card: #151a26;
+    --theme-card-hover: #1c2333;
+    --theme-border: #232a3b;
+    --theme-border-subtle: #19202f;
+    --theme-text: #f8fafc;
+    --theme-text-secondary: #94a3b8;
+    --theme-text-muted: #64748b;
+    --theme-accent: #38bdf8;
+    --theme-accent-subtle: rgba(56, 189, 248, 0.12);
+    --theme-accent-hover: #0284c7;
+    --theme-success: #10b981;
+    --theme-success-subtle: rgba(16, 185, 129, 0.12);
+    --theme-warning: #f59e0b;
+  }
+
+  body {
+    background-color: var(--theme-bg);
+    color: var(--theme-text);
+    font-family: 'Inter', sans-serif;
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Ergonomic Crisp Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--theme-border);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--theme-text-muted);
+  }
+}
