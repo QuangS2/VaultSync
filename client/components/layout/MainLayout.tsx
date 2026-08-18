@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HeaderBar } from './HeaderBar';
 import { LeftSidebar } from './LeftSidebar';
 import { EditorCanvas } from './EditorCanvas';
@@ -7,6 +7,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { CryptoPlaygroundModal } from '../crypto/CryptoPlaygroundModal';
+import { TreeStateManager } from '../../lib/tree/tree-state-manager';
 import { AppTheme } from '../../App';
 import {
   Download,
@@ -27,10 +28,24 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   theme,
   onThemeChange
 }) => {
+  const [treeManager] = useState(() => new TreeStateManager());
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
   const [activeDocId, setActiveDocId] = useState('doc-welcome');
   const [exportDocTitle, setExportDocTitle] = useState('Chào mừng đến VaultSync');
+  const [, setTreeVersion] = useState(0);
+
+  useEffect(() => {
+    const unobserve = treeManager.observe(() => {
+      setTreeVersion(v => v + 1);
+    });
+    return () => unobserve();
+  }, [treeManager]);
+
+  const activeItem = treeManager.getItem(activeDocId);
+  const activeDocTitle = activeItem?.name || 'Chào mừng đến VaultSync';
+  const parentFolder = activeItem?.parentId ? treeManager.getItem(activeItem.parentId) : null;
+  const folderName = parentFolder?.name || 'Engineering Vault';
 
   // Modals state
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -44,6 +59,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     setActiveDocId(docId);
     setExportDocTitle(docTitle);
     setIsExportModalOpen(true);
+  };
+
+  const handleTitleChange = (newTitle: string) => {
+    if (activeDocId) {
+      treeManager.renameItem(activeDocId, newTitle);
+    }
   };
 
   const mockPublicECDHKey = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE7rB4K9zW1p5qLm3...';
@@ -66,7 +87,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         onToggleRightSidebar={() => setIsRightSidebarOpen(prev => !prev)}
         onOpenShareModal={() => setIsShareModalOpen(true)}
         onOpenExportModal={() => {
-          setExportDocTitle('Chào mừng đến VaultSync');
+          setExportDocTitle(activeDocTitle);
           setIsExportModalOpen(true);
         }}
         onOpenSandboxModal={() => setIsSandboxModalOpen(true)}
@@ -82,21 +103,23 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           activeDocId={activeDocId}
           onSelectDoc={(id) => setActiveDocId(id)}
           onExportDoc={handleExportDoc}
+          treeManager={treeManager}
         />
 
         {/* Center Editor Canvas */}
         <EditorCanvas
           documentId={activeDocId}
-          documentTitle="Chào mừng đến VaultSync"
-          folderName="Kiến Trúc Cốt Lõi"
+          documentTitle={activeDocTitle}
+          folderName={folderName}
           onAddInlineComment={() => setIsRightSidebarOpen(true)}
+          onTitleChange={handleTitleChange}
         />
 
         {/* Right Discussion & Chat Sidebar */}
         <RightDiscussionSidebar
           isOpen={isRightSidebarOpen}
           onClose={() => setIsRightSidebarOpen(false)}
-          activeDocumentTitle="Chào mừng đến VaultSync"
+          activeDocumentTitle={activeDocTitle}
         />
       </div>
 
