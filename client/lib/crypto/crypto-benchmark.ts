@@ -1,6 +1,6 @@
 /**
- * Real-Time Web Crypto Performance Benchmark & Validation Suite
- * Measures AES-256-GCM throughput, PBKDF2 600k rounds in Web Worker, ECDH Key Agreement, and ECDSA Signatures.
+ * Real-Time Web Crypto & Encrypted Storage Performance Benchmark Suite
+ * Measures AES-256-GCM throughput, PBKDF2 Web Worker, ECDH, ECDSA, and Encrypted IndexedDB Storage.
  */
 
 import { WebCryptoEngine } from './web-crypto-engine';
@@ -8,6 +8,7 @@ import { NonceManager } from './nonce-manager';
 import { KeyDerivation } from './key-derivation';
 import { IdentityKeys } from './identity-keys';
 import { WorkerCryptoClient } from './worker-client';
+import { EncryptedIndexedDBStorage } from '../storage/encrypted-indexeddb-storage';
 import { ChunkType, CryptoBenchmarkResult } from './types';
 import { BinaryUtils } from './binary-utils';
 
@@ -20,13 +21,15 @@ export interface CryptoTestSuiteResult {
   pbkdf2WorkerPass: boolean;
   ecdhSharedSecretPass: boolean;
   ecdsaSignaturePass: boolean;
+  storageColdBootPass: boolean;
+  storageCompactionPass: boolean;
   benchmark: CryptoBenchmarkResult;
   details: string[];
 }
 
 export class CryptoBenchmark {
   /**
-   * Runs the full validation suite including Task 1.1 and Task 1.2 components.
+   * Runs the full validation suite including Task 1.1, Task 1.2, and Task 1.3 components.
    */
   public static async runSuite(): Promise<CryptoTestSuiteResult> {
     const details: string[] = [];
@@ -37,6 +40,8 @@ export class CryptoBenchmark {
     let pbkdf2WorkerPass = false;
     let ecdhSharedSecretPass = false;
     let ecdsaSignaturePass = false;
+    let storageColdBootPass = false;
+    let storageCompactionPass = false;
 
     // --- TEST 1: Key Generation & Encrypt/Decrypt Round-Trip ---
     try {
@@ -115,7 +120,7 @@ export class CryptoBenchmark {
         details.push('❌ Test 4: Lỗi chuyển đổi nhị phân.');
       }
 
-      // --- TEST 5 (TASK 1.2): PBKDF2 600,000 Rounds in Web Worker ---
+      // --- TEST 5: PBKDF2 600,000 Rounds in Web Worker ---
       const salt = KeyDerivation.generateSalt(16);
       const pbkdf2Res = await WorkerCryptoClient.derivePBKDF2InBackground(
         'super-secret-user-passphrase-vaultsync',
@@ -130,7 +135,7 @@ export class CryptoBenchmark {
         details.push('❌ Test 5: PBKDF2 derivation thất bại.');
       }
 
-      // --- TEST 6 (TASK 1.2): ECDH P-256 Shared Secret Agreement (Alice & Bob) ---
+      // --- TEST 6: ECDH P-256 Shared Secret Agreement (Alice & Bob) ---
       const aliceKeys = await IdentityKeys.generateECDHKeyPair();
       const bobKeys = await IdentityKeys.generateECDHKeyPair();
 
@@ -147,14 +152,12 @@ export class CryptoBenchmark {
         details.push('❌ Test 6: ECDH Shared Secret không khớp giữa hai bên.');
       }
 
-      // --- TEST 7 (TASK 1.2): ECDSA P-256 Digital Signature & Tamper Detection ---
+      // --- TEST 7: ECDSA P-256 Digital Signature & Tamper Detection ---
       const ecdsaKeys = await IdentityKeys.generateECDSAKeyPair();
       const messageToSign = BinaryUtils.stringToBytes('CRDT Document Update #42 signed by Alice');
       const signature = await IdentityKeys.signData(ecdsaKeys.privateKey, messageToSign);
 
       const validSig = await IdentityKeys.verifySignature(ecdsaKeys.publicKey, signature, messageToSign);
-
-      // Thử giả mạo chữ ký
       const tamperedMessage = BinaryUtils.stringToBytes('CRDT Document Update #42 tampered by Attacker');
       const tamperedSigCheck = await IdentityKeys.verifySignature(ecdsaKeys.publicKey, signature, tamperedMessage);
 
@@ -164,6 +167,50 @@ export class CryptoBenchmark {
       } else {
         details.push('❌ Test 7: Lỗi xác thực chữ ký ECDSA.');
       }
+
+      // --- TEST 8 (TASK 1.3): Encrypted IndexedDB Cold Boot Recovery ---
+      const storage = new EncryptedIndexedDBStorage(0x99999999);
+      const testDocId = `test_doc_${Date.now()}`;
+      const originalUpdates = [
+        'Khởi tạo tài liệu CRDT Yjs',
+        'Alice chèn đoạn văn bản số 1',
+        'Bob thêm bình luận neo vị trí',
+        'Cập nhật vector clock client=2, clock=15'
+      ];
+
+      for (const str of originalUpdates) {
+        const bytes = BinaryUtils.stringToBytes(str);
+        await storage.saveEncryptedUpdate(testDocId, bytes, key);
+      }
+
+      // Replay cold boot load
+      const loaded = await storage.loadDocumentState(testDocId, key);
+      const recoveredStrings = loaded.updates.map(u => BinaryUtils.bytesToString(u));
+
+      const isColdBootMatch = originalUpdates.every((val, idx) => val === recoveredStrings[idx]);
+      if (isColdBootMatch && loaded.updates.length === 4) {
+        storageColdBootPass = true;
+        details.push('✅ Test 8: Encrypted IndexedDB Cold Boot: Khôi phục 4/4 bản cập nhật mã hóa chính xác 100%.');
+      } else {
+        details.push('❌ Test 8: Lỗi khôi phục dữ liệu từ IndexedDB.');
+      }
+
+      // --- TEST 9 (TASK 1.3): Storage Compaction into Snapshot ---
+      const mergedText = 'Bản Snapshot Tổng Hợp Đã Nén: ' + originalUpdates.join(' | ');
+      await storage.compactDocumentSnapshot(testDocId, BinaryUtils.stringToBytes(mergedText), key);
+
+      const compactedState = await storage.loadDocumentState(testDocId, key);
+      const recoveredSnapshotText = compactedState.snapshot ? BinaryUtils.bytesToString(compactedState.snapshot) : '';
+
+      if (recoveredSnapshotText === mergedText && compactedState.updates.length === 0) {
+        storageCompactionPass = true;
+        details.push('✅ Test 9: Storage Compaction: Gom gọn updates thành 1 Snapshot mã hóa thành công, dọn dẹp sạch sẽ deltas cũ.');
+      } else {
+        details.push('❌ Test 9: Lỗi Compaction gom dữ liệu snapshot.');
+      }
+
+      // Clean up test document
+      await storage.deleteDocument(testDocId);
 
       // --- BENCHMARK: AES-256-GCM Throughput & Latency ---
       const payloadSize = 64 * 1024;
@@ -198,7 +245,9 @@ export class CryptoBenchmark {
         binaryCodecPass &&
         pbkdf2WorkerPass &&
         ecdhSharedSecretPass &&
-        ecdsaSignaturePass;
+        ecdsaSignaturePass &&
+        storageColdBootPass &&
+        storageCompactionPass;
 
       return {
         allPassed,
@@ -209,6 +258,8 @@ export class CryptoBenchmark {
         pbkdf2WorkerPass,
         ecdhSharedSecretPass,
         ecdsaSignaturePass,
+        storageColdBootPass,
+        storageCompactionPass,
         benchmark: benchmarkResult,
         details
       };
@@ -223,6 +274,8 @@ export class CryptoBenchmark {
         pbkdf2WorkerPass,
         ecdhSharedSecretPass,
         ecdsaSignaturePass,
+        storageColdBootPass: false,
+        storageCompactionPass: false,
         benchmark: { operation: 'Failed', iterations: 0, totalTimeMs: 0, opsPerSec: 0, throughputMBps: 0 },
         details
       };

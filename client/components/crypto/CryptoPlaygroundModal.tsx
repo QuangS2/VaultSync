@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Play, 
   Cpu, 
@@ -9,7 +9,12 @@ import {
   KeyRound, 
   FileSignature, 
   Share2, 
-  Sparkles 
+  Sparkles,
+  HardDrive,
+  Database,
+  Archive,
+  Trash2,
+  Eye
 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -22,6 +27,8 @@ import { NonceManager } from '../../lib/crypto/nonce-manager';
 import { WorkerCryptoClient } from '../../lib/crypto/worker-client';
 import { KeyDerivation } from '../../lib/crypto/key-derivation';
 import { IdentityKeys, ECDHKeyPair, ECDSAKeyPair } from '../../lib/crypto/identity-keys';
+import { EncryptedIndexedDBStorage } from '../../lib/storage/encrypted-indexeddb-storage';
+import { StorageStats } from '../../lib/storage/types';
 import { ChunkType } from '../../lib/crypto/types';
 
 export interface CryptoPlaygroundModalProps {
@@ -33,7 +40,7 @@ export const CryptoPlaygroundModal: React.FC<CryptoPlaygroundModalProps> = ({
   isOpen,
   onClose
 }) => {
-  const [activeTab, setActiveTab] = useState<'aes' | 'pbkdf2' | 'ecdh' | 'ecdsa'>('aes');
+  const [activeTab, setActiveTab] = useState<'aes' | 'pbkdf2' | 'ecdh' | 'ecdsa' | 'storage'>('aes');
   const [isRunning, setIsRunning] = useState(false);
   const [suiteResult, setSuiteResult] = useState<CryptoTestSuiteResult | null>(null);
 
@@ -63,11 +70,40 @@ export const CryptoPlaygroundModal: React.FC<CryptoPlaygroundModalProps> = ({
   const [signatureHex, setSignatureHex] = useState<string | null>(null);
   const [sigVerifyResult, setSigVerifyResult] = useState<{ isValid: boolean; message: string } | null>(null);
 
+  // Tab 5: Encrypted IndexedDB Storage Lab
+  const [storage] = useState(() => new EncryptedIndexedDBStorage(0x77777777));
+  const [storageStats, setStorageStats] = useState<StorageStats | null>(null);
+  const [storageDocId, setStorageDocId] = useState('doc-engineering-spec');
+  const [updateInputText, setUpdateInputText] = useState('CRDT Delta: Thêm kiến trúc Zero-Knowledge Storage');
+  const [loadedStorageState, setLoadedStorageState] = useState<{ snapshot?: string | undefined; updates: string[] } | null>(null);
+  const [rawStorageInspector, setRawStorageInspector] = useState<{
+    updates: Array<{ chunkIndex: number; ivHex: string; ciphertextHex: string; tagHex: string }>;
+    snapshot?: { epoch: number; ivHex: string; ciphertextHex: string; tagHex: string } | undefined;
+  } | null>(null);
+
+  const refreshStorageStats = async () => {
+    try {
+      const stats = await storage.getStorageStats();
+      setStorageStats(stats);
+      const inspector = await storage.inspectRawStorage(storageDocId);
+      setRawStorageInspector(inspector);
+    } catch (e) {
+      console.error('Failed to load storage stats:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen && activeTab === 'storage') {
+      refreshStorageStats();
+    }
+  }, [isOpen, activeTab, storageDocId]);
+
   const runFullSuite = async () => {
     setIsRunning(true);
     try {
       const result = await CryptoBenchmark.runSuite();
       setSuiteResult(result);
+      await refreshStorageStats();
     } finally {
       setIsRunning(false);
     }
@@ -201,20 +237,17 @@ export const CryptoPlaygroundModal: React.FC<CryptoPlaygroundModalProps> = ({
   };
 
   const handleSignMessage = async () => {
-    if (!ecdsaKeys) {
-      const keys = await IdentityKeys.generateECDSAKeyPair();
-      const spki = await IdentityKeys.exportPublicKeySPKI(keys.publicKey);
-      setEcdsaKeys({ keys, pubSPKI: spki });
-      const bytes = BinaryUtils.stringToBytes(docSignText);
-      const sig = await IdentityKeys.signData(keys.privateKey, bytes);
-      setSignatureHex(BinaryUtils.bufferToHex(sig));
-      setSigVerifyResult(null);
-    } else {
-      const bytes = BinaryUtils.stringToBytes(docSignText);
-      const sig = await IdentityKeys.signData(ecdsaKeys.keys.privateKey, bytes);
-      setSignatureHex(BinaryUtils.bufferToHex(sig));
-      setSigVerifyResult(null);
+    let keys = ecdsaKeys?.keys;
+    if (!keys) {
+      const newKeys = await IdentityKeys.generateECDSAKeyPair();
+      const spki = await IdentityKeys.exportPublicKeySPKI(newKeys.publicKey);
+      setEcdsaKeys({ keys: newKeys, pubSPKI: spki });
+      keys = newKeys;
     }
+    const bytes = BinaryUtils.stringToBytes(docSignText);
+    const sig = await IdentityKeys.signData(keys.privateKey, bytes);
+    setSignatureHex(BinaryUtils.bufferToHex(sig));
+    setSigVerifyResult(null);
   };
 
   const handleVerifySig = async (tamper: boolean) => {
@@ -233,12 +266,56 @@ export const CryptoPlaygroundModal: React.FC<CryptoPlaygroundModalProps> = ({
     });
   };
 
+  // --- Storage Handlers ---
+  const handleSaveEncryptedUpdate = async () => {
+    let key = activeKey;
+    if (!key) {
+      key = await WebCryptoEngine.generateAESGCMKey();
+      setActiveKey(key);
+    }
+    const bytes = BinaryUtils.stringToBytes(updateInputText);
+    await storage.saveEncryptedUpdate(storageDocId, bytes, key);
+    await refreshStorageStats();
+  };
+
+  const handleLoadStorageColdBoot = async () => {
+    let key = activeKey;
+    if (!key) {
+      key = await WebCryptoEngine.generateAESGCMKey();
+      setActiveKey(key);
+    }
+    const state = await storage.loadDocumentState(storageDocId, key);
+    setLoadedStorageState({
+      snapshot: state.snapshot ? BinaryUtils.bytesToString(state.snapshot) : undefined,
+      updates: state.updates.map(u => BinaryUtils.bytesToString(u))
+    });
+  };
+
+  const handleCompactStorage = async () => {
+    let key = activeKey;
+    if (!key) {
+      key = await WebCryptoEngine.generateAESGCMKey();
+      setActiveKey(key);
+    }
+    const state = await storage.loadDocumentState(storageDocId, key);
+    const merged = 'Compacted Snapshot @ ' + new Date().toLocaleTimeString() + ' [Merged ' + state.updates.length + ' updates]: ' + state.updates.join(' -> ');
+    await storage.compactDocumentSnapshot(storageDocId, BinaryUtils.stringToBytes(merged), key);
+    await refreshStorageStats();
+    await handleLoadStorageColdBoot();
+  };
+
+  const handleClearStorage = async () => {
+    await storage.clearAllStorage();
+    setLoadedStorageState(null);
+    await refreshStorageStats();
+  };
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Trung Tâm Mật Mã Học (Zero-Knowledge Cryptographic Core)"
-      description="Kiểm thử toàn diện AES-256-GCM, PBKDF2 600k rounds trong Web Worker, ECDH P-256 và ECDSA Digital Signatures."
+      title="Trung Tâm Mật Mã Học & Lưu Trữ Mã Hóa (Zero-Knowledge Engine)"
+      description="Kiểm thử toàn diện AES-256-GCM, PBKDF2 Web Worker, ECDH P-256, ECDSA Signatures và Encrypted IndexedDB."
       maxWidth="lg"
       footer={
         <div className="flex items-center justify-between w-full">
@@ -256,10 +333,10 @@ export const CryptoPlaygroundModal: React.FC<CryptoPlaygroundModalProps> = ({
           <div>
             <div className="font-semibold text-xs text-theme-text flex items-center gap-1.5">
               <Activity className="w-4 h-4 text-theme-accent" />
-              <span>Bộ Kiểm Thử Tự Động Toàn Diện (7 Test Suites)</span>
+              <span>Bộ Kiểm Thử Tự Động Toàn Diện (9 Test Suites)</span>
             </div>
             <p className="text-[11px] text-theme-text-muted mt-0.5">
-              Chạy đồng thời kiểm thử AES-GCM, AAD Tamper, Monotonic Nonce, PBKDF2 Web Worker, ECDH và ECDSA.
+              Chạy tự động kiểm thử AES-GCM, AAD Tamper, Monotonic Nonce, PBKDF2 Worker, ECDH, ECDSA, và Encrypted IndexedDB Storage.
             </p>
           </div>
 
@@ -282,7 +359,7 @@ export const CryptoPlaygroundModal: React.FC<CryptoPlaygroundModalProps> = ({
               <span className="font-semibold text-xs text-theme-text flex items-center gap-2">
                 <span>Kết Quả Kiểm Thử:</span>
                 {suiteResult.allPassed ? (
-                  <Badge variant="success" size="sm">TẤT CẢ VƯỢT QUA (7/7)</Badge>
+                  <Badge variant="success" size="sm">TẤT CẢ VƯỢT QUA (9/9)</Badge>
                 ) : (
                   <Badge variant="warning" size="sm">CÓ LỖI</Badge>
                 )}
@@ -300,9 +377,9 @@ export const CryptoPlaygroundModal: React.FC<CryptoPlaygroundModalProps> = ({
           </div>
         )}
 
-        {/* 4 Interactive Lab Tabs */}
+        {/* 5 Interactive Lab Tabs */}
         <div className="flex flex-col gap-3">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 bg-theme-card p-1 rounded-lg border border-theme-border text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-1 bg-theme-card p-1 rounded-lg border border-theme-border text-xs">
             <button
               onClick={() => setActiveTab('aes')}
               className={`py-1.5 px-2 rounded-md font-medium transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${activeTab === 'aes' ? 'bg-theme-bg-subtle text-theme-text shadow-xs' : 'text-theme-text-muted hover:text-theme-text'}`}
@@ -316,7 +393,7 @@ export const CryptoPlaygroundModal: React.FC<CryptoPlaygroundModalProps> = ({
               className={`py-1.5 px-2 rounded-md font-medium transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${activeTab === 'pbkdf2' ? 'bg-theme-bg-subtle text-theme-text shadow-xs' : 'text-theme-text-muted hover:text-theme-text'}`}
             >
               <KeyRound className="w-3.5 h-3.5 text-amber-500" />
-              <span>PBKDF2 Worker</span>
+              <span>PBKDF2</span>
             </button>
 
             <button
@@ -332,7 +409,15 @@ export const CryptoPlaygroundModal: React.FC<CryptoPlaygroundModalProps> = ({
               className={`py-1.5 px-2 rounded-md font-medium transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${activeTab === 'ecdsa' ? 'bg-theme-bg-subtle text-theme-text shadow-xs' : 'text-theme-text-muted hover:text-theme-text'}`}
             >
               <FileSignature className="w-3.5 h-3.5 text-emerald-500" />
-              <span>ECDSA Ký Số</span>
+              <span>ECDSA Ký</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('storage')}
+              className={`py-1.5 px-2 rounded-md font-medium transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${activeTab === 'storage' ? 'bg-theme-bg-subtle text-theme-text shadow-xs' : 'text-theme-text-muted hover:text-theme-text'}`}
+            >
+              <HardDrive className="w-3.5 h-3.5 text-indigo-500" />
+              <span>IndexedDB</span>
             </button>
           </div>
 
@@ -546,6 +631,120 @@ export const CryptoPlaygroundModal: React.FC<CryptoPlaygroundModalProps> = ({
                 <div className={`p-2.5 rounded-lg text-xs flex items-center gap-2 ${sigVerifyResult.isValid ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400' : 'bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400'}`}>
                   {sigVerifyResult.isValid ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
                   <span>{sigVerifyResult.message}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 5: Encrypted IndexedDB Storage */}
+          {activeTab === 'storage' && (
+            <div className="flex flex-col gap-4 p-3 bg-theme-card/60 rounded-xl border border-theme-border">
+              {/* Storage Stats Banner */}
+              <div className="flex items-center justify-between bg-theme-card p-3 rounded-lg border border-theme-border text-xs">
+                <div className="flex items-center gap-2">
+                  <Database className="w-4 h-4 text-indigo-500" />
+                  <span className="font-semibold text-theme-text">IndexedDB Store:</span>
+                  <Badge variant="outline" size="sm">VaultSync_Encrypted_Store</Badge>
+                </div>
+                {storageStats && (
+                  <div className="flex items-center gap-3 text-[11px] font-mono text-theme-text-secondary">
+                    <span>Docs: <strong>{storageStats.totalDocuments}</strong></span>
+                    <span>Updates: <strong>{storageStats.totalUpdatesCount}</strong></span>
+                    <span>Snapshots: <strong>{storageStats.totalSnapshotsCount}</strong></span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">{storageStats.formattedSize}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Controls */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="sm:col-span-2 flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-theme-text">Nội Dung Bản Ghi Delta Cần Lưu Mã Hóa:</label>
+                  <Input value={updateInputText} onChange={(e) => setUpdateInputText(e.target.value)} />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-theme-text">Mã Tài Liệu (docId):</label>
+                  <Input value={storageDocId} onChange={(e) => setStorageDocId(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button variant="primary" size="sm" onClick={handleSaveEncryptedUpdate}>
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Ghi Update Mã Hóa Vào DB</span>
+                </Button>
+                <Button variant="secondary" size="sm" onClick={handleLoadStorageColdBoot}>
+                  <HardDrive className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Khôi Phục Offline (Cold Boot)</span>
+                </Button>
+                <Button variant="secondary" size="sm" onClick={handleCompactStorage}>
+                  <Archive className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Gom Snapshot (Compaction)</span>
+                </Button>
+                <Button variant="danger" size="sm" onClick={handleClearStorage}>
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Xóa Hết DB</span>
+                </Button>
+              </div>
+
+              {/* Cold Boot Recovery Output */}
+              {loadedStorageState && (
+                <div className="bg-theme-bg p-3 rounded-lg border border-theme-border flex flex-col gap-2 font-mono text-[11px]">
+                  <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-semibold">
+                    <span className="flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Khôi Phục Trạng Thái Tài Liệu Thành Công:
+                    </span>
+                    <span>{loadedStorageState.updates.length} Updates {loadedStorageState.snapshot ? '+ 1 Snapshot' : ''}</span>
+                  </div>
+                  {loadedStorageState.snapshot && (
+                    <div className="bg-amber-500/10 border border-amber-500/30 p-2 rounded text-amber-700 dark:text-amber-300">
+                      <strong>Snapshot:</strong> {loadedStorageState.snapshot}
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-1 text-theme-text-secondary">
+                    {loadedStorageState.updates.map((u, i) => (
+                      <div key={i} className="pl-2 border-l-2 border-theme-accent">
+                        Update #{i + 1}: {u}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Zero-Knowledge Raw Storage Transparency Inspector */}
+              {rawStorageInspector && (rawStorageInspector.updates.length > 0 || rawStorageInspector.snapshot) && (
+                <div className="bg-theme-card p-3 rounded-lg border border-theme-border flex flex-col gap-2 font-mono text-[11px]">
+                  <div className="flex items-center justify-between text-theme-text-muted">
+                    <span className="flex items-center gap-1.5">
+                      <Eye className="w-3.5 h-3.5 text-theme-accent" />
+                      Kiểm Tra Dữ Liệu Thô Trên Ổ Đĩa (Zero-Knowledge Verified):
+                    </span>
+                    <Badge variant="success" size="sm">100% AES-GCM Encrypted</Badge>
+                  </div>
+
+                  {rawStorageInspector.snapshot && (
+                    <div className="p-2 rounded bg-theme-bg border border-theme-border flex flex-col gap-0.5 break-all">
+                      <strong className="text-amber-500">Encrypted Snapshot [Epoch {rawStorageInspector.snapshot.epoch}]:</strong>
+                      <div><span className="text-theme-text-muted">IV:</span> {rawStorageInspector.snapshot.ivHex}</div>
+                      <div><span className="text-theme-text-muted">Cipher:</span> {rawStorageInspector.snapshot.ciphertextHex.substring(0, 48)}...</div>
+                      <div><span className="text-theme-text-muted">Tag:</span> {rawStorageInspector.snapshot.tagHex}</div>
+                    </div>
+                  )}
+
+                  {rawStorageInspector.updates.slice(0, 3).map((u) => (
+                    <div key={u.chunkIndex} className="p-2 rounded bg-theme-bg border border-theme-border flex flex-col gap-0.5 break-all">
+                      <strong className="text-sky-500">Encrypted Chunk #{u.chunkIndex}:</strong>
+                      <div><span className="text-theme-text-muted">IV:</span> {u.ivHex}</div>
+                      <div><span className="text-theme-text-muted">Cipher:</span> {u.ciphertextHex.substring(0, 48)}...</div>
+                      <div><span className="text-theme-text-muted">Tag:</span> {u.tagHex}</div>
+                    </div>
+                  ))}
+                  {rawStorageInspector.updates.length > 3 && (
+                    <div className="text-[10px] text-theme-text-muted text-center italic">
+                      + {rawStorageInspector.updates.length - 3} bản ghi mã hóa khác...
+                    </div>
+                  )}
                 </div>
               )}
             </div>
