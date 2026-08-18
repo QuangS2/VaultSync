@@ -6,6 +6,7 @@ import { RightDiscussionSidebar } from './RightDiscussionSidebar';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { CryptoPlaygroundModal } from '../crypto/CryptoPlaygroundModal';
 import { AppTheme } from '../../App';
 import { 
   Download, 
@@ -34,6 +35,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isSandboxModalOpen, setIsSandboxModalOpen] = useState(false);
+  const [isCryptoModalOpen, setIsCryptoModalOpen] = useState(false);
   const [recipientKeyInput, setRecipientKeyInput] = useState('');
   const [copiedKey, setCopiedKey] = useState(false);
 
@@ -58,6 +60,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         onOpenShareModal={() => setIsShareModalOpen(true)}
         onOpenExportModal={() => setIsExportModalOpen(true)}
         onOpenSandboxModal={() => setIsSandboxModalOpen(true)}
+        onOpenCryptoModal={() => setIsCryptoModalOpen(true)}
         activeCollaboratorCount={2}
       />
 
@@ -88,7 +91,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         />
       </div>
 
-      {/* MODAL 1: Chia Sẻ Khóa Tài Liệu (E2EE Envelope Sharing) */}
+      {/* MODAL: WebCrypto Playground & Benchmark Center */}
+      <CryptoPlaygroundModal
+        isOpen={isCryptoModalOpen}
+        onClose={() => setIsCryptoModalOpen(false)}
+      />
+
+      {/* MODAL: Chia Sẻ Khóa Tài Liệu (E2EE Envelope Sharing) */}
       <Modal
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
@@ -128,7 +137,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         </div>
       </Modal>
 
-      {/* MODAL 2: Xuất Dữ Liệu Đa Định Dạng */}
+      {/* MODAL: Xuất Dữ Liệu Đa Định Dạng */}
       <Modal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
@@ -183,7 +192,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         </div>
       </Modal>
 
-      {/* MODAL 3: 1-Click Guest Sandbox Demo */}
+      {/* MODAL: 1-Click Guest Sandbox Demo */}
       <Modal
         isOpen={isSandboxModalOpen}
         onClose={() => setIsSandboxModalOpen(false)}

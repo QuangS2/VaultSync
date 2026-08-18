@@ -9,7 +9,8 @@ import {
   PanelLeft, 
   ShieldCheck,
   Download,
-  Sparkles
+  Sparkles,
+  Cpu
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -25,6 +26,7 @@ export interface HeaderBarProps {
   onOpenShareModal: () => void;
   onOpenExportModal: () => void;
   onOpenSandboxModal: () => void;
+  onOpenCryptoModal: () => void;
   activeCollaboratorCount?: number;
 }
 
@@ -38,6 +40,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onOpenShareModal,
   onOpenExportModal,
   onOpenSandboxModal,
+  onOpenCryptoModal,
   activeCollaboratorCount = 2
 }) => {
   return (
@@ -63,22 +66,36 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         </div>
       </div>
 
-      {/* Center: Security Badge & Live Sync Indicator */}
+      {/* Center: Security Badge & WebCrypto Playground Trigger */}
       <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-theme-card border border-theme-border text-xs font-mono">
+        <button
+          onClick={onOpenCryptoModal}
+          title="Mở Trung Tâm Kiểm Thử Mật Mã (WebCrypto Playground)"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-theme-card hover:bg-theme-card-hover border border-theme-border text-xs font-mono transition-colors cursor-pointer"
+        >
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-          <span className="text-theme-text-secondary hidden sm:inline">Zero-Knowledge:</span>
-          <span className="text-emerald-600 dark:text-emerald-400 font-medium">Verified</span>
-        </div>
+          <span className="text-theme-text-secondary hidden sm:inline">WebCrypto:</span>
+          <span className="text-emerald-600 dark:text-emerald-400 font-medium">AES-NI Verified</span>
+        </button>
 
         <div className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded-md bg-theme-card border border-theme-border text-[11px] text-theme-text-muted">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span>{activeCollaboratorCount} người đang online</span>
+          <span>{activeCollaboratorCount} người online</span>
         </div>
       </div>
 
-      {/* Right Controls: Sandbox, Share, Export, Theme, and Discussion Toggle */}
+      {/* Right Controls: Crypto Test, Sandbox, Share, Export, Theme, and Discussion Toggle */}
       <div className="flex items-center gap-2">
+        <Button 
+          variant="secondary" 
+          size="sm" 
+          onClick={onOpenCryptoModal}
+          className="text-theme-text-secondary border-theme-border hover:text-theme-text hidden md:inline-flex"
+        >
+          <Cpu className="w-3.5 h-3.5 text-theme-accent" />
+          <span>Test Crypto</span>
+        </Button>
+
         {/* Recruiter 1-Click Sandbox Demo Button */}
         <Button 
           variant="secondary" 
