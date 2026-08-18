@@ -11,6 +11,9 @@ export interface FileSystemItem {
   name: string;
   type: FileSystemItemType;
   icon?: string | undefined;
+  isFavorite?: boolean | undefined;
+  isTrash?: boolean | undefined;
+  trashedAt?: number | undefined;
   createdAt: number;
   updatedAt: number;
   order: number;
@@ -22,6 +25,13 @@ export interface TreeNode extends FileSystemItem {
   isExpanded?: boolean;
 }
 
+export type ContextMenuTargetType = 'document' | 'folder' | 'root';
+
+export interface ContextMenuPosition {
+  x: number;
+  y: number;
+}
+
 export interface TreeValidationResult {
   allPassed: boolean;
   treeHierarchyPass: boolean;
@@ -30,3 +40,4 @@ export interface TreeValidationResult {
   concurrentReorderPass: boolean;
   details: string[];
 }
+

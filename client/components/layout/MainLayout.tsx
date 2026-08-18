@@ -30,6 +30,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
   const [activeDocId, setActiveDocId] = useState('doc-welcome');
+  const [exportDocTitle, setExportDocTitle] = useState('Chào mừng đến VaultSync');
 
   // Modals state
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -38,6 +39,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [isCryptoModalOpen, setIsCryptoModalOpen] = useState(false);
   const [recipientKeyInput, setRecipientKeyInput] = useState('');
   const [copiedKey, setCopiedKey] = useState(false);
+
+  const handleExportDoc = (docId: string, docTitle: string) => {
+    setActiveDocId(docId);
+    setExportDocTitle(docTitle);
+    setIsExportModalOpen(true);
+  };
 
   const mockPublicECDHKey = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE7rB4K9zW1p5qLm3...';
 
@@ -58,7 +65,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         isRightSidebarOpen={isRightSidebarOpen}
         onToggleRightSidebar={() => setIsRightSidebarOpen(prev => !prev)}
         onOpenShareModal={() => setIsShareModalOpen(true)}
-        onOpenExportModal={() => setIsExportModalOpen(true)}
+        onOpenExportModal={() => {
+          setExportDocTitle('Chào mừng đến VaultSync');
+          setIsExportModalOpen(true);
+        }}
         onOpenSandboxModal={() => setIsSandboxModalOpen(true)}
         onOpenCryptoModal={() => setIsCryptoModalOpen(true)}
         activeCollaboratorCount={2}
@@ -71,8 +81,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           isOpen={isLeftSidebarOpen}
           activeDocId={activeDocId}
           onSelectDoc={(id) => setActiveDocId(id)}
-          onCreateDoc={() => console.log('Create doc')}
-          onCreateFolder={() => console.log('Create folder')}
+          onExportDoc={handleExportDoc}
         />
 
         {/* Center Editor Canvas */}
@@ -141,8 +150,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       <Modal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
-        title="Xuất Dữ Liệu Tài Liệu"
-        description="Xuất nội dung đã giải mã hoặc tạo bản sao lưu mã hóa hoàn toàn."
+        title={`Xuất Dữ Liệu: ${exportDocTitle}`}
+        description="Xuất nội dung đã giải mã hoặc tạo bản sao lưu mã hóa nhị phân an toàn."
         footer={
           <Button variant="ghost" size="sm" onClick={() => setIsExportModalOpen(false)}>Đóng</Button>
         }

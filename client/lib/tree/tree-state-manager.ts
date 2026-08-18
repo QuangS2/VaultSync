@@ -209,9 +209,16 @@ export class TreeStateManager {
   }
 
   /**
-   * Recursively deletes an item and all its descendant children.
+   * Recursively deletes an item and all its descendant children permanently.
    */
   public deleteItem(id: string): boolean {
+    return this.permanentDelete(id);
+  }
+
+  /**
+   * Permanently deletes an item from the CRDT map.
+   */
+  public permanentDelete(id: string): boolean {
     const item = this.yMap.get(id);
     if (!item) return false;
 
@@ -225,6 +232,66 @@ export class TreeStateManager {
     });
 
     return true;
+  }
+
+  /**
+   * Moves an item and its descendants to Trash.
+   */
+  public moveToTrash(id: string): boolean {
+    const item = this.yMap.get(id);
+    if (!item) return false;
+
+    this.yDoc.transact(() => {
+      const now = Date.now();
+      const descendants = this.getAllDescendantIds(id);
+      for (const descId of descendants) {
+        const desc = this.yMap.get(descId);
+        if (desc) {
+          this.yMap.set(descId, { ...desc, isTrash: true, trashedAt: now, updatedAt: now });
+        }
+      }
+      this.yMap.set(id, { ...item, isTrash: true, trashedAt: now, updatedAt: now });
+    });
+
+    return true;
+  }
+
+  /**
+   * Restores an item and its descendants from Trash.
+   */
+  public restoreFromTrash(id: string): boolean {
+    const item = this.yMap.get(id);
+    if (!item) return false;
+
+    this.yDoc.transact(() => {
+      const now = Date.now();
+      const descendants = this.getAllDescendantIds(id);
+      for (const descId of descendants) {
+        const desc = this.yMap.get(descId);
+        if (desc) {
+          this.yMap.set(descId, { ...desc, isTrash: false, trashedAt: undefined, updatedAt: now });
+        }
+      }
+      this.yMap.set(id, { ...item, isTrash: false, trashedAt: undefined, updatedAt: now });
+    });
+
+    return true;
+  }
+
+  /**
+   * Toggles favorite status on an item.
+   */
+  public toggleFavorite(id: string): boolean {
+    const item = this.yMap.get(id);
+    if (!item) return false;
+
+    const newFav = !item.isFavorite;
+    this.yMap.set(id, {
+      ...item,
+      isFavorite: newFav,
+      updatedAt: Date.now()
+    });
+    return newFav;
   }
 
   /**
@@ -242,6 +309,9 @@ export class TreeStateManager {
       ...item,
       id: newId,
       name: `${item.name} (Bản sao)`,
+      isFavorite: false,
+      isTrash: false,
+      trashedAt: undefined,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       order: item.order + 5
@@ -268,6 +338,9 @@ export class TreeStateManager {
         ...child,
         id: childNewId,
         parentId: newParentId,
+        isFavorite: false,
+        isTrash: false,
+        trashedAt: undefined,
         createdAt: Date.now(),
         updatedAt: Date.now()
       };
@@ -279,10 +352,34 @@ export class TreeStateManager {
   }
 
   /**
+   * Returns all folder IDs in the workspace.
+   */
+  public getAllFolderIds(): string[] {
+    return Array.from(this.yMap.values())
+      .filter(item => item.type === 'folder' && !item.isTrash)
+      .map(item => item.id);
+  }
+
+  /**
+   * Returns all trashed items.
+   */
+  public getTrashItems(): FileSystemItem[] {
+    return Array.from(this.yMap.values()).filter(item => Boolean(item.isTrash));
+  }
+
+  /**
+   * Returns all favorite items.
+   */
+  public getFavoriteItems(): FileSystemItem[] {
+    return Array.from(this.yMap.values()).filter(item => Boolean(item.isFavorite) && !item.isTrash);
+  }
+
+  /**
    * Builds a full nested hierarchical tree of TreeNode elements.
    */
-  public getTree(expandedIds?: Set<string>): TreeNode[] {
-    const allItems: FileSystemItem[] = Array.from(this.yMap.values());
+  public getTree(expandedIds?: Set<string>, includeTrash: boolean = false): TreeNode[] {
+    const allItems: FileSystemItem[] = Array.from(this.yMap.values())
+      .filter(item => includeTrash ? true : !item.isTrash);
     return this.buildTreeNodes(allItems, null, 0, expandedIds);
   }
 

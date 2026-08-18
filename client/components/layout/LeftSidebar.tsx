@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FileText, 
   Search, 
@@ -15,8 +15,7 @@ export interface LeftSidebarProps {
   isOpen: boolean;
   activeDocId: string;
   onSelectDoc: (id: string) => void;
-  onCreateDoc?: (folderId?: string) => void;
-  onCreateFolder?: () => void;
+  onExportDoc?: (docId: string, docTitle: string) => void;
   treeManager?: TreeStateManager;
 }
 
@@ -24,14 +23,34 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   isOpen,
   activeDocId,
   onSelectDoc,
+  onExportDoc,
   treeManager: externalTreeManager
 }) => {
   const [treeManager] = useState(() => externalTreeManager || new TreeStateManager());
   const [searchQuery, setSearchQuery] = useState('');
+  const [viewFilter, setViewFilter] = useState<'all' | 'favorites' | 'trash'>('all');
+  const [counts, setCounts] = useState({
+    all: 0,
+    favorites: 0,
+    trash: 0
+  });
+
+  const updateCounts = () => {
+    const all = treeManager.getAllItems().filter(i => i.type === 'document' && !i.isTrash).length;
+    const favorites = treeManager.getFavoriteItems().length;
+    const trash = treeManager.getTrashItems().length;
+    setCounts({ all, favorites, trash });
+  };
+
+  useEffect(() => {
+    updateCounts();
+    const unobserve = treeManager.observe(() => {
+      updateCounts();
+    });
+    return () => unobserve();
+  }, [treeManager]);
 
   if (!isOpen) return null;
-
-  const totalDocumentsCount = treeManager.getAllItems().filter(i => i.type === 'document').length;
 
   return (
     <aside className="w-64 bg-theme-bg-subtle border-r border-theme-border flex flex-col shrink-0 select-none h-full transition-all duration-200">
@@ -58,25 +77,49 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
       {/* Quick Filter Navigation */}
       <div className="px-2 py-2 border-b border-theme-border flex flex-col gap-0.5 text-xs text-theme-text-secondary">
-        <button className="flex items-center justify-between px-2.5 py-1.5 rounded-md hover:bg-theme-card-hover text-theme-text font-medium transition-colors cursor-pointer">
+        <button 
+          onClick={() => setViewFilter('all')}
+          className={`flex items-center justify-between px-2.5 py-1.5 rounded-md transition-colors cursor-pointer ${
+            viewFilter === 'all' 
+              ? 'bg-theme-card-hover text-theme-text font-medium' 
+              : 'hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text'
+          }`}
+        >
           <div className="flex items-center gap-2">
             <FileText className="w-3.5 h-3.5 text-theme-accent" />
             <span>Tất cả ghi chú</span>
           </div>
-          <span className="text-[10px] font-mono text-theme-text-muted">{totalDocumentsCount}</span>
+          <span className="text-[10px] font-mono text-theme-text-muted">{counts.all}</span>
         </button>
-        <button className="flex items-center justify-between px-2.5 py-1.5 rounded-md hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text transition-colors cursor-pointer">
+
+        <button 
+          onClick={() => setViewFilter('favorites')}
+          className={`flex items-center justify-between px-2.5 py-1.5 rounded-md transition-colors cursor-pointer ${
+            viewFilter === 'favorites' 
+              ? 'bg-theme-card-hover text-theme-text font-medium' 
+              : 'hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text'
+          }`}
+        >
           <div className="flex items-center gap-2">
-            <Star className="w-3.5 h-3.5 text-amber-500" />
+            <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
             <span>Yêu thích</span>
           </div>
-          <span className="text-[10px] font-mono text-theme-text-muted">3</span>
+          <span className="text-[10px] font-mono text-theme-text-muted">{counts.favorites}</span>
         </button>
-        <button className="flex items-center justify-between px-2.5 py-1.5 rounded-md hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text transition-colors cursor-pointer">
+
+        <button 
+          onClick={() => setViewFilter('trash')}
+          className={`flex items-center justify-between px-2.5 py-1.5 rounded-md transition-colors cursor-pointer ${
+            viewFilter === 'trash' 
+              ? 'bg-theme-card-hover text-theme-text font-medium' 
+              : 'hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text'
+          }`}
+        >
           <div className="flex items-center gap-2">
-            <Trash2 className="w-3.5 h-3.5 text-theme-text-muted" />
+            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
             <span>Thùng rác</span>
           </div>
+          <span className="text-[10px] font-mono text-theme-text-muted">{counts.trash}</span>
         </button>
       </div>
 
@@ -86,7 +129,9 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
           treeManager={treeManager}
           activeDocId={activeDocId}
           onSelectDoc={onSelectDoc}
+          onExportDoc={onExportDoc}
           searchQuery={searchQuery}
+          viewFilter={viewFilter}
         />
       </div>
 
