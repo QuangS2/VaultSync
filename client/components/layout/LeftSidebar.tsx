@@ -1,87 +1,37 @@
 import React, { useState } from 'react';
-import {
-  Folder,
-  FileText,
-  ChevronRight,
-  ChevronDown,
-  Search,
-  Star,
-  Trash2,
-  HardDrive,
-  FolderPlus,
-  FilePlus
+import { 
+  FileText, 
+  Search, 
+  Star, 
+  Trash2, 
+  HardDrive
 } from 'lucide-react';
 import { Input } from '../ui/Input';
 import { Badge } from '../ui/Badge';
-
-export interface DocumentItem {
-  id: string;
-  title: string;
-  type: 'document' | 'folder';
-  children?: DocumentItem[];
-  isExpanded?: boolean;
-  isFavorite?: boolean;
-}
+import { TreeView } from '../tree/TreeView';
+import { TreeStateManager } from '../../lib/tree/tree-state-manager';
 
 export interface LeftSidebarProps {
   isOpen: boolean;
   activeDocId: string;
   onSelectDoc: (id: string) => void;
-  onCreateDoc: (folderId?: string) => void;
-  onCreateFolder: () => void;
+  onCreateDoc?: (folderId?: string) => void;
+  onCreateFolder?: () => void;
+  treeManager?: TreeStateManager;
 }
 
 export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   isOpen,
   activeDocId,
   onSelectDoc,
-  onCreateDoc,
-  onCreateFolder
+  treeManager: externalTreeManager
 }) => {
+  const [treeManager] = useState(() => externalTreeManager || new TreeStateManager());
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
-    'folder-core': true,
-    'folder-crypto': true,
-    'folder-guides': false
-  });
-
-  const toggleFolder = (folderId: string) => {
-    setExpandedFolders(prev => ({ ...prev, [folderId]: !prev[folderId] }));
-  };
-
-  const sampleTree: DocumentItem[] = [
-    {
-      id: 'folder-core',
-      title: 'Kiến Trúc Cốt Lõi',
-      type: 'folder',
-      children: [
-        { id: 'doc-welcome', title: 'Chào mừng đến VaultSync', type: 'document' },
-        { id: 'doc-crdt-yjs', title: 'Nguyên lý Yjs & CRDTs', type: 'document' },
-        { id: 'doc-blind-relay', title: 'Giao thức WebSocket Blind Relay', type: 'document' }
-      ]
-    },
-    {
-      id: 'folder-crypto',
-      title: 'Mật Mã Học (E2EE)',
-      type: 'folder',
-      children: [
-        { id: 'doc-envelope', title: 'Phân Tầng Khóa Envelope', type: 'document' },
-        { id: 'doc-webcrypto', title: 'Tăng Tốc Phần Cứng AES-NI', type: 'document' },
-        { id: 'doc-relative-pos', title: 'Neo Vị Trí Relative Positions', type: 'document' }
-      ]
-    },
-    {
-      id: 'folder-guides',
-      title: 'Tài Liệu Hướng Dẫn',
-      type: 'folder',
-      children: [
-        { id: 'doc-recruiter-demo', title: 'Hướng Dẫn Recruiter Sandbox', type: 'document' },
-        { id: 'doc-deployment', title: 'Triển Khai Docker & CI/CD', type: 'document' }
-      ]
-    }
-  ];
 
   if (!isOpen) return null;
+
+  const totalDocumentsCount = treeManager.getAllItems().filter(i => i.type === 'document').length;
 
   return (
     <aside className="w-64 bg-theme-bg-subtle border-r border-theme-border flex flex-col shrink-0 select-none h-full transition-all duration-200">
@@ -93,7 +43,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
           </div>
           <span className="font-semibold text-xs text-theme-text truncate">Engineering Vault</span>
         </div>
-        <Badge variant="outline" size="sm">Local-First</Badge>
+        <Badge variant="outline" size="sm">CRDT Tree</Badge>
       </div>
 
       {/* Quick Search */}
@@ -113,7 +63,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
             <FileText className="w-3.5 h-3.5 text-theme-accent" />
             <span>Tất cả ghi chú</span>
           </div>
-          <span className="text-[10px] font-mono text-theme-text-muted">8</span>
+          <span className="text-[10px] font-mono text-theme-text-muted">{totalDocumentsCount}</span>
         </button>
         <button className="flex items-center justify-between px-2.5 py-1.5 rounded-md hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text transition-colors cursor-pointer">
           <div className="flex items-center gap-2">
@@ -130,71 +80,14 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
         </button>
       </div>
 
-      {/* File Tree Section */}
-      <div className="flex-1 overflow-y-auto p-2 flex flex-col gap-1">
-        <div className="flex items-center justify-between px-2 pt-2 pb-1 text-[11px] font-semibold text-theme-text-muted uppercase tracking-wider">
-          <span>Không Gian Làm Việc</span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => onCreateDoc()}
-              title="Tạo ghi chú mới"
-              className="p-1 rounded hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text cursor-pointer"
-            >
-              <FilePlus className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={onCreateFolder}
-              title="Tạo thư mục mới"
-              className="p-1 rounded hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text cursor-pointer"
-            >
-              <FolderPlus className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Hierarchical Folder & Document Tree Nodes */}
-        {sampleTree.map((folder) => {
-          const isExpanded = expandedFolders[folder.id] ?? false;
-          return (
-            <div key={folder.id} className="flex flex-col">
-              {/* Folder Node */}
-              <button
-                onClick={() => toggleFolder(folder.id)}
-                className="flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-theme-card-hover text-xs font-medium text-theme-text transition-colors cursor-pointer"
-              >
-                <div className="flex items-center gap-1.5 overflow-hidden">
-                  {isExpanded ? (
-                    <ChevronDown className="w-3.5 h-3.5 text-theme-text-muted shrink-0" />
-                  ) : (
-                    <ChevronRight className="w-3.5 h-3.5 text-theme-text-muted shrink-0" />
-                  )}
-                  <Folder className="w-3.5 h-3.5 text-theme-accent shrink-0" />
-                  <span className="truncate">{folder.title}</span>
-                </div>
-                <span className="text-[10px] font-mono text-theme-text-muted">{folder.children?.length}</span>
-              </button>
-
-              {/* Children Documents */}
-              {isExpanded && folder.children && (
-                <div className="ml-4 pl-2 border-l border-theme-border flex flex-col gap-0.5 mt-0.5">
-                  {folder.children.map((doc) => {
-                    const isActive = doc.id === activeDocId;
-                    return (
-                      <button
-                        key={doc.id}
-                        onClick={() => onSelectDoc(doc.id)}
-                        className={`flex items-center gap-2 px-2 py-1 rounded-md text-xs transition-colors cursor-pointer ${isActive ? 'bg-theme-accent-subtle text-theme-accent font-medium' : 'text-theme-text-secondary hover:text-theme-text hover:bg-theme-card-hover'}`}
-                      >
-                        <FileText className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-theme-accent' : 'text-theme-text-muted'}`} />
-                        <span className="truncate">{doc.title}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
+      {/* Main Drag & Drop Tree View */}
+      <div className="flex-1 overflow-y-auto p-1 flex flex-col">
+        <TreeView
+          treeManager={treeManager}
+          activeDocId={activeDocId}
+          onSelectDoc={onSelectDoc}
+          searchQuery={searchQuery}
+        />
       </div>
 
       {/* Footer Storage Stats */}
@@ -203,7 +96,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
           <HardDrive className="w-3.5 h-3.5 text-theme-accent" />
           <span>Mã hóa IndexedDB</span>
         </div>
-        <span className="font-mono text-emerald-600 dark:text-emerald-400">128 KB</span>
+        <span className="font-mono text-emerald-600 dark:text-emerald-400">100% E2EE</span>
       </div>
     </aside>
   );
