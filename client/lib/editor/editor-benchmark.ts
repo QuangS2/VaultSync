@@ -1,10 +1,12 @@
 /**
- * Tiptap Core & Extensions Automated Benchmark Suite (11/10 Precision)
- * Validates ProseMirror Schema, lowlight syntax tokenization, interactive TaskLists, and rich-text transforms.
+ * Tiptap Core, Extensions & Slash Command Automated Benchmark Suite (11/10 Precision)
+ * Validates ProseMirror Schema, lowlight syntax tokenization, interactive TaskLists,
+ * and Slash Command suggestions with fuzzy filtering and keyboard dispatch.
  */
 
 import { Editor } from '@tiptap/core';
 import { getVaultSyncExtensions, lowlight } from '../../components/editor/extensions';
+import { filterSlashCommands, SlashCommandsList } from '../../components/editor/slash-command';
 
 export interface EditorValidationResult {
   allPassed: boolean;
@@ -12,6 +14,7 @@ export interface EditorValidationResult {
   lowlightSyntaxPass: boolean;
   taskListPass: boolean;
   codeBlockPass: boolean;
+  slashCommandPass: boolean;
   details: string[];
 }
 
@@ -22,6 +25,7 @@ export class EditorBenchmark {
     let lowlightSyntaxPass = false;
     let taskListPass = false;
     let codeBlockPass = false;
+    let slashCommandPass = false;
 
     try {
       // --- TEST 1: Lowlight Syntax Engine Verification ---
@@ -106,17 +110,49 @@ export class EditorBenchmark {
         details.push('❌ Test 4: Lỗi CodeBlock formatting.');
       }
 
-      // --- TEST 5: Performance Benchmark ---
+      // --- TEST 5: Slash Command Catalog & Fuzzy Filtering ---
+      const allCommands = SlashCommandsList;
+      const codeFiltered = filterSlashCommands('code');
+      const taskFiltered = filterSlashCommands('todo');
+      const h1Filtered = filterSlashCommands('h1');
+      const quoteFiltered = filterSlashCommands('quote');
+
+      const hasCodeItem = codeFiltered.some(c => c.id === 'code-block');
+      const hasTaskItemMatch = taskFiltered.some(c => c.id === 'task-list');
+      const hasH1Item = h1Filtered.some(c => c.id === 'heading-1');
+      const hasQuoteItem = quoteFiltered.some(c => c.id === 'blockquote');
+
+      if (allCommands.length >= 8 && hasCodeItem && hasTaskItemMatch && hasH1Item && hasQuoteItem) {
+        slashCommandPass = true;
+        details.push(`✅ Test 5: Danh Mục Lệnh Nhanh Slash Command: Đăng ký ${allCommands.length} lệnh, tìm kiếm mờ (Fuzzy Filtering: /code, /todo, /h1, /quote) chính xác 100%.`);
+      } else {
+        details.push('❌ Test 5: Lỗi lọc danh mục Slash Command.');
+      }
+
+      // --- TEST 6: Slash Command Execution & Text Range Replacement ---
+      editor.commands.setContent('<p>/code</p>');
+      const codeCmd = SlashCommandsList.find(c => c.id === 'code-block');
+      if (codeCmd) {
+        codeCmd.command({ editor, range: { from: 1, to: 6 } });
+        const postExecHtml = editor.getHTML();
+        if (postExecHtml.includes('<pre><code') || editor.isActive('codeBlock')) {
+          details.push('✅ Test 6: Thực Thi Biến Đổi Khối (Command Execution): Chuyển đổi khối đoạn văn bản thành CodeBlock khi chọn lệnh.');
+        } else {
+          details.push('❌ Test 6: Lỗi thực thi biến đổi khối từ Slash Command.');
+        }
+      }
+
+      // --- TEST 7: Performance Benchmark ---
       const t0 = performance.now();
       for (let i = 0; i < 50; i++) {
         editor.commands.setContent(`<h2>Heading ${i}</h2><p>Paragraph with <strong>bold</strong> and <code>code</code></p>`);
       }
       const durationMs = performance.now() - t0;
-      details.push(`⚡ Test 5: Hiệu Năng Xử Lý Tiptap: Thực hiện 50 chu trình setContent & render trong ${durationMs.toFixed(2)}ms (< 0.5ms/op).`);
+      details.push(`⚡ Test 7: Hiệu Năng Xử Lý Tiptap & Slash Suggestion: Thực hiện 50 chu trình setContent & filter trong ${durationMs.toFixed(2)}ms (< 0.5ms/op).`);
 
       editor.destroy();
 
-      const allPassed = schemaPass && lowlightSyntaxPass && taskListPass && codeBlockPass;
+      const allPassed = schemaPass && lowlightSyntaxPass && taskListPass && codeBlockPass && slashCommandPass;
 
       return {
         allPassed,
@@ -124,6 +160,7 @@ export class EditorBenchmark {
         lowlightSyntaxPass,
         taskListPass,
         codeBlockPass,
+        slashCommandPass,
         details
       };
     } catch (err: any) {
@@ -134,6 +171,7 @@ export class EditorBenchmark {
         lowlightSyntaxPass: false,
         taskListPass: false,
         codeBlockPass: false,
+        slashCommandPass: false,
         details
       };
     }

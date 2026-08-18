@@ -8,6 +8,7 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { createLowlight, common } from 'lowlight';
+import { SlashCommandExtension } from './slash-command';
 
 // Initialize lowlight syntax engine with standard common languages:
 // javascript, typescript, python, rust, go, sql, json, bash, html, css, markdown, c, cpp, java, yaml, xml
@@ -51,6 +52,7 @@ export function getVaultSyncExtensions() {
       HTMLAttributes: {
         class: 'vaultsync-code-block font-mono text-xs'
       }
-    })
+    }),
+    SlashCommandExtension
   ];
 }
