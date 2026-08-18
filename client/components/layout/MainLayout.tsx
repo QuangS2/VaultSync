@@ -8,13 +8,13 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { CryptoPlaygroundModal } from '../crypto/CryptoPlaygroundModal';
 import { AppTheme } from '../../App';
-import { 
-  Download, 
-  ShieldCheck, 
-  Copy, 
-  Check, 
-  FileText, 
-  Code, 
+import {
+  Download,
+  ShieldCheck,
+  Copy,
+  Check,
+  FileText,
+  Code,
   Lock
 } from 'lucide-react';
 
@@ -123,8 +123,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
           <div className="flex flex-col gap-1.5">
             <label className="font-medium text-theme-text">Nhập Khóa Công Khai Của Thành Viên Mới:</label>
-            <Input 
-              placeholder="Dán mã khóa công khai (JWK / SPKI Base64)..." 
+            <Input
+              placeholder="Dán mã khóa công khai (JWK / SPKI Base64)..."
               value={recipientKeyInput}
               onChange={(e) => setRecipientKeyInput(e.target.value)}
             />
@@ -148,7 +148,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         }
       >
         <div className="grid grid-cols-1 gap-2.5">
-          <button 
+          <button
             onClick={() => setIsExportModalOpen(false)}
             className="flex items-center justify-between p-3 rounded-lg bg-theme-card hover:bg-theme-card-hover border border-theme-border transition-colors text-left cursor-pointer"
           >
@@ -162,7 +162,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             <Download className="w-4 h-4 text-theme-text-muted" />
           </button>
 
-          <button 
+          <button
             onClick={() => setIsExportModalOpen(false)}
             className="flex items-center justify-between p-3 rounded-lg bg-theme-card hover:bg-theme-card-hover border border-theme-border transition-colors text-left cursor-pointer"
           >
@@ -176,7 +176,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             <Download className="w-4 h-4 text-theme-text-muted" />
           </button>
 
-          <button 
+          <button
             onClick={() => setIsExportModalOpen(false)}
             className="flex items-center justify-between p-3 rounded-lg bg-theme-card hover:bg-theme-card-hover border border-theme-border transition-colors text-left cursor-pointer"
           >

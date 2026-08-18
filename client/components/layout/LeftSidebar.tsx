@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { 
-  Folder, 
-  FileText, 
-  ChevronRight, 
-  ChevronDown, 
-  Search, 
-  Star, 
-  Trash2, 
+import {
+  Folder,
+  FileText,
+  ChevronRight,
+  ChevronDown,
+  Search,
+  Star,
+  Trash2,
   HardDrive,
   FolderPlus,
   FilePlus
@@ -135,16 +135,16 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
         <div className="flex items-center justify-between px-2 pt-2 pb-1 text-[11px] font-semibold text-theme-text-muted uppercase tracking-wider">
           <span>Không Gian Làm Việc</span>
           <div className="flex items-center gap-1">
-            <button 
-              onClick={() => onCreateDoc()} 
-              title="Tạo ghi chú mới" 
+            <button
+              onClick={() => onCreateDoc()}
+              title="Tạo ghi chú mới"
               className="p-1 rounded hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text cursor-pointer"
             >
               <FilePlus className="w-3.5 h-3.5" />
             </button>
-            <button 
-              onClick={onCreateFolder} 
-              title="Tạo thư mục mới" 
+            <button
+              onClick={onCreateFolder}
+              title="Tạo thư mục mới"
               className="p-1 rounded hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text cursor-pointer"
             >
               <FolderPlus className="w-3.5 h-3.5" />

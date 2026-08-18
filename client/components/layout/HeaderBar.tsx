@@ -1,12 +1,12 @@
 import React from 'react';
-import { 
-  Lock, 
-  Sun, 
-  Cloud, 
-  Moon, 
-  Share2, 
-  MessageSquare, 
-  PanelLeft, 
+import {
+  Lock,
+  Sun,
+  Cloud,
+  Moon,
+  Share2,
+  MessageSquare,
+  PanelLeft,
   ShieldCheck,
   Download,
   Sparkles,
@@ -86,9 +86,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
       {/* Right Controls: Crypto Test, Sandbox, Share, Export, Theme, and Discussion Toggle */}
       <div className="flex items-center gap-2">
-        <Button 
-          variant="secondary" 
-          size="sm" 
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={onOpenCryptoModal}
           className="text-theme-text-secondary border-theme-border hover:text-theme-text hidden md:inline-flex"
         >
@@ -97,9 +97,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         </Button>
 
         {/* Recruiter 1-Click Sandbox Demo Button */}
-        <Button 
-          variant="secondary" 
-          size="sm" 
+        <Button
+          variant="secondary"
+          size="sm"
           onClick={onOpenSandboxModal}
           className="text-theme-accent border-theme-accent/30 bg-theme-accent-subtle hover:bg-theme-accent-subtle/80 hidden sm:inline-flex"
         >
