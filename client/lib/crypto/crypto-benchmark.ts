@@ -1,10 +1,13 @@
 /**
  * Real-Time Web Crypto Performance Benchmark & Validation Suite
- * Measures AES-256-GCM throughput, key generation latency, and AAD verification speed.
+ * Measures AES-256-GCM throughput, PBKDF2 600k rounds in Web Worker, ECDH Key Agreement, and ECDSA Signatures.
  */
 
 import { WebCryptoEngine } from './web-crypto-engine';
 import { NonceManager } from './nonce-manager';
+import { KeyDerivation } from './key-derivation';
+import { IdentityKeys } from './identity-keys';
+import { WorkerCryptoClient } from './worker-client';
 import { ChunkType, CryptoBenchmarkResult } from './types';
 import { BinaryUtils } from './binary-utils';
 
@@ -14,13 +17,16 @@ export interface CryptoTestSuiteResult {
   aadTamperPass: boolean;
   nonceMonotonicPass: boolean;
   binaryCodecPass: boolean;
+  pbkdf2WorkerPass: boolean;
+  ecdhSharedSecretPass: boolean;
+  ecdsaSignaturePass: boolean;
   benchmark: CryptoBenchmarkResult;
   details: string[];
 }
 
 export class CryptoBenchmark {
   /**
-   * Runs the full validation suite and measures hardware acceleration throughput.
+   * Runs the full validation suite including Task 1.1 and Task 1.2 components.
    */
   public static async runSuite(): Promise<CryptoTestSuiteResult> {
     const details: string[] = [];
@@ -28,6 +34,9 @@ export class CryptoBenchmark {
     let aadTamperPass = false;
     let nonceMonotonicPass = false;
     let binaryCodecPass = false;
+    let pbkdf2WorkerPass = false;
+    let ecdhSharedSecretPass = false;
+    let ecdsaSignaturePass = false;
 
     // --- TEST 1: Key Generation & Encrypt/Decrypt Round-Trip ---
     try {
@@ -54,9 +63,8 @@ export class CryptoBenchmark {
 
       // --- TEST 2: AAD Tamper-Proofing Detection ---
       try {
-        // Cố tình giải mã với documentId khác để kiểm tra tính năng bắt lỗi giả mạo
         const tamperedMeta = {
-          documentId: '99999999-9999-9999-9999-999999999999', // Giả mạo ID tài liệu
+          documentId: '99999999-9999-9999-9999-999999999999',
           epoch: 1,
           chunkType: ChunkType.CRDT_UPDATE
         };
@@ -107,12 +115,62 @@ export class CryptoBenchmark {
         details.push('❌ Test 4: Lỗi chuyển đổi nhị phân.');
       }
 
-      // --- BENCHMARK: Throughput & Latency ---
-      const payloadSize = 64 * 1024; // 64 KB per chunk (typical rich text document size)
+      // --- TEST 5 (TASK 1.2): PBKDF2 600,000 Rounds in Web Worker ---
+      const salt = KeyDerivation.generateSalt(16);
+      const pbkdf2Res = await WorkerCryptoClient.derivePBKDF2InBackground(
+        'super-secret-user-passphrase-vaultsync',
+        salt,
+        600_000
+      );
+
+      if (pbkdf2Res.key && pbkdf2Res.rawKey.length === 32) {
+        pbkdf2WorkerPass = true;
+        details.push(`✅ Test 5: PBKDF2 (600,000 rounds): Hoàn thành trong ${pbkdf2Res.durationMs}ms (Chạy trên Web Worker: ${pbkdf2Res.usedWorker ? 'Có (Non-blocking UI 60 FPS)' : 'Main Thread Fallback'}).`);
+      } else {
+        details.push('❌ Test 5: PBKDF2 derivation thất bại.');
+      }
+
+      // --- TEST 6 (TASK 1.2): ECDH P-256 Shared Secret Agreement (Alice & Bob) ---
+      const aliceKeys = await IdentityKeys.generateECDHKeyPair();
+      const bobKeys = await IdentityKeys.generateECDHKeyPair();
+
+      const aliceSharedKey = await IdentityKeys.computeECDHSharedSecret(aliceKeys.privateKey, bobKeys.publicKey);
+      const bobSharedKey = await IdentityKeys.computeECDHSharedSecret(bobKeys.privateKey, aliceKeys.publicKey);
+
+      const aliceRaw = await WebCryptoEngine.exportRawKey(aliceSharedKey);
+      const bobRaw = await WebCryptoEngine.exportRawKey(bobSharedKey);
+
+      if (BinaryUtils.constantTimeEqual(aliceRaw, bobRaw)) {
+        ecdhSharedSecretPass = true;
+        details.push('✅ Test 6: ECDH P-256 Key Agreement: Khóa bí mật chung (Shared Secret) giữa Alice & Bob khớp 100%.');
+      } else {
+        details.push('❌ Test 6: ECDH Shared Secret không khớp giữa hai bên.');
+      }
+
+      // --- TEST 7 (TASK 1.2): ECDSA P-256 Digital Signature & Tamper Detection ---
+      const ecdsaKeys = await IdentityKeys.generateECDSAKeyPair();
+      const messageToSign = BinaryUtils.stringToBytes('CRDT Document Update #42 signed by Alice');
+      const signature = await IdentityKeys.signData(ecdsaKeys.privateKey, messageToSign);
+
+      const validSig = await IdentityKeys.verifySignature(ecdsaKeys.publicKey, signature, messageToSign);
+
+      // Thử giả mạo chữ ký
+      const tamperedMessage = BinaryUtils.stringToBytes('CRDT Document Update #42 tampered by Attacker');
+      const tamperedSigCheck = await IdentityKeys.verifySignature(ecdsaKeys.publicKey, signature, tamperedMessage);
+
+      if (validSig === true && tamperedSigCheck === false) {
+        ecdsaSignaturePass = true;
+        details.push('✅ Test 7: ECDSA P-256 Chữ Ký Số: Xác thực chữ ký hợp lệ và từ chối chữ ký giả mạo 100%.');
+      } else {
+        details.push('❌ Test 7: Lỗi xác thực chữ ký ECDSA.');
+      }
+
+      // --- BENCHMARK: AES-256-GCM Throughput & Latency ---
+      const payloadSize = 64 * 1024;
       const benchmarkData = new Uint8Array(payloadSize);
       crypto.getRandomValues(benchmarkData);
 
-      const iterations = 200; // Total 12.8 MB of AES-256-GCM operations
+      const iterations = 100;
       const start = performance.now();
 
       for (let i = 0; i < iterations; i++) {
@@ -134,7 +192,13 @@ export class CryptoBenchmark {
         throughputMBps
       };
 
-      const allPassed = encryptDecryptPass && aadTamperPass && nonceMonotonicPass && binaryCodecPass;
+      const allPassed = encryptDecryptPass &&
+        aadTamperPass &&
+        nonceMonotonicPass &&
+        binaryCodecPass &&
+        pbkdf2WorkerPass &&
+        ecdhSharedSecretPass &&
+        ecdsaSignaturePass;
 
       return {
         allPassed,
@@ -142,6 +206,9 @@ export class CryptoBenchmark {
         aadTamperPass,
         nonceMonotonicPass,
         binaryCodecPass,
+        pbkdf2WorkerPass,
+        ecdhSharedSecretPass,
+        ecdsaSignaturePass,
         benchmark: benchmarkResult,
         details
       };
@@ -153,6 +220,9 @@ export class CryptoBenchmark {
         aadTamperPass,
         nonceMonotonicPass,
         binaryCodecPass,
+        pbkdf2WorkerPass,
+        ecdhSharedSecretPass,
+        ecdsaSignaturePass,
         benchmark: { operation: 'Failed', iterations: 0, totalTimeMs: 0, opsPerSec: 0, throughputMBps: 0 },
         details
       };
