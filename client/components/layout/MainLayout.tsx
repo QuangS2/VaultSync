@@ -26,6 +26,20 @@ import { CommandPaletteEngine, PaletteAction } from '../../lib/palette/command-p
 import { IdentityKeys, ECDHKeyPair } from '../../lib/crypto/identity-keys';
 import { EnvelopeEncryptionManager, WrappedKeyEnvelope } from '../../lib/crypto/envelope-encryption';
 import { UnlockedVaultSession } from '../../lib/auth/types';
+import { EncryptedYjsProvider } from '../../lib/yjs/encrypted-yjs-provider';
+import { ProviderConnectionStatus, AwarenessUser, CollaborationUserOptions } from '../../lib/yjs/types';
+
+function getRelayWsUrl(): string {
+  if (typeof window === 'undefined') return 'ws://localhost:1234';
+  if ((import.meta as any).env?.VITE_RELAY_WS_URL) {
+    return (import.meta as any).env.VITE_RELAY_WS_URL;
+  }
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  if (window.location.port === '5173') {
+    return `${protocol}//${window.location.hostname}:1234`;
+  }
+  return `${protocol}//${window.location.host}/ws`;
+}
 
 export interface MainLayoutProps {
   theme: AppTheme;
@@ -60,6 +74,60 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [generatedEnvelope, setGeneratedEnvelope] = useState<WrappedKeyEnvelope | null>(null);
   const [wrapError, setWrapError] = useState<string | null>(null);
   const [copiedEnvelope, setCopiedEnvelope] = useState(false);
+
+  // Real-time WebSocket Relay Provider & Peer Awareness State
+  const [provider, setProvider] = useState<EncryptedYjsProvider | null>(null);
+  const [providerStatus, setProviderStatus] = useState<ProviderConnectionStatus>({
+    connected: false,
+    connecting: false,
+    syncStatus: 'offline',
+    reconnectAttempts: 0,
+    error: null
+  });
+  const [awarenessUsers, setAwarenessUsers] = useState<AwarenessUser[]>([]);
+
+  const currentUserOptions: CollaborationUserOptions = React.useMemo(() => {
+    if (session) {
+      return {
+        name: session.userProfile.displayName,
+        color: session.userProfile.avatarColor,
+        avatar: session.userProfile.displayName.charAt(0).toUpperCase()
+      };
+    }
+    return {
+      name: 'Bạn (Cục bộ)',
+      color: '#2563eb',
+      avatar: 'B'
+    };
+  }, [session]);
+
+  // Connect EncryptedYjsProvider whenever documentKey or activeDocId changes
+  useEffect(() => {
+    if (!documentKey) return;
+
+    const wsUrl = getRelayWsUrl();
+    const newProvider = new EncryptedYjsProvider({
+      serverUrl: wsUrl,
+      roomId: `doc-${activeDocId}`,
+      yDoc,
+      documentKey,
+      epoch: 1,
+      user: currentUserOptions,
+      onStatusChange: (status) => setProviderStatus(status)
+    });
+
+    const handleAwarenessChange = () => {
+      setAwarenessUsers(newProvider.getAwarenessUsers());
+    };
+
+    newProvider.awareness.on('change', handleAwarenessChange);
+    setProvider(newProvider);
+
+    return () => {
+      newProvider.awareness.off('change', handleAwarenessChange);
+      newProvider.destroy();
+    };
+  }, [documentKey, activeDocId, currentUserOptions, yDoc]);
 
   // Initialize cryptographic keys on mount if session is not already provided
   useEffect(() => {
@@ -408,7 +476,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         onOpenSandboxModal={() => setIsSandboxModalOpen(true)}
         onOpenCryptoModal={() => setIsCryptoModalOpen(true)}
         onOpenInspectorModal={() => setIsInspectorOpen(true)}
-        activeCollaboratorCount={2}
+        providerStatus={providerStatus}
+        awarenessUsers={awarenessUsers}
       />
 
       {/* 2. Main 3-Pane Body */}
@@ -429,6 +498,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           documentTitle={activeDocTitle}
           folderName={folderName}
           yDoc={yDoc}
+          provider={provider}
+          user={currentUserOptions}
+          providerStatus={providerStatus}
+          awarenessUsers={awarenessUsers}
           onAddInlineComment={() => setIsRightSidebarOpen(true)}
           onTitleChange={handleTitleChange}
           onCommentClick={handleCommentClickFromEditor}

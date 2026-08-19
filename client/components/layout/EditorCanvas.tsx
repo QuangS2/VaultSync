@@ -3,18 +3,26 @@ import {
   Lock, 
   Clock, 
   Folder, 
-  ChevronRight
+  ChevronRight,
+  Wifi,
+  WifiOff,
+  RefreshCw
 } from 'lucide-react';
 import * as Y from 'yjs';
 import { Badge } from '../ui/Badge';
 import { TiptapEditor } from '../editor/TiptapEditor';
 import { SAMPLE_DOCUMENTS } from '../editor/editor-sample-content';
+import { ProviderConnectionStatus, AwarenessUser, CollaborationUserOptions } from '../../lib/yjs/types';
 
 export interface EditorCanvasProps {
   documentId?: string | undefined;
   documentTitle: string;
   folderName: string;
   yDoc?: Y.Doc | undefined;
+  provider?: any | undefined;
+  user?: CollaborationUserOptions | undefined;
+  providerStatus?: ProviderConnectionStatus | undefined;
+  awarenessUsers?: AwarenessUser[] | undefined;
   onAddInlineComment?: (() => void) | undefined;
   onTitleChange?: ((newTitle: string) => void) | undefined;
   onCommentClick?: ((threadId: string) => void) | undefined;
@@ -26,6 +34,10 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   documentTitle,
   folderName,
   yDoc,
+  provider,
+  user,
+  providerStatus,
+  awarenessUsers = [],
   onAddInlineComment,
   onTitleChange,
   onCommentClick,
@@ -54,6 +66,9 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     }
   };
 
+  const isConnected = providerStatus?.connected ?? false;
+  const isConnecting = providerStatus?.connecting ?? false;
+
   return (
     <div className="flex-1 bg-theme-bg flex flex-col h-full overflow-hidden select-text">
       {/* Top Breadcrumb & Document Metadata Toolbar */}
@@ -69,28 +84,57 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         {/* Live Collaborators Presence & Security Indicators */}
         <div className="flex items-center gap-3">
           {/* Active Collaborators Presence Stack */}
-          <div className="flex items-center -space-x-1.5 overflow-hidden">
-            <div 
-              title="Alice (Chủ phòng) - Đang gõ ở Dòng 14"
-              className="w-6 h-6 rounded-full bg-blue-500 text-white flex items-center justify-center text-[10px] font-bold ring-2 ring-theme-bg select-none"
-            >
-              A
+          {awarenessUsers.length > 0 ? (
+            <div className="flex items-center -space-x-1.5 overflow-hidden">
+              {awarenessUsers.map((u, i) => (
+                <div 
+                  key={i}
+                  title={`${u.name} (Đang trực tuyến)`}
+                  className="w-6 h-6 rounded-full text-white flex items-center justify-center text-[10px] font-bold ring-2 ring-theme-bg select-none shadow-xs"
+                  style={{ backgroundColor: u.color || '#2563eb' }}
+                >
+                  {u.avatar || u.name.charAt(0).toUpperCase()}
+                </div>
+              ))}
             </div>
-            <div 
-              title="Bob (Reviewer) - Đang xem Bình luận"
-              className="w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px] font-bold ring-2 ring-theme-bg select-none"
-            >
-              B
+          ) : (
+            <div className="flex items-center -space-x-1.5 overflow-hidden">
+              <div 
+                title="Bạn (Cục bộ)"
+                className="w-6 h-6 rounded-full bg-theme-accent text-white flex items-center justify-center text-[10px] font-bold ring-2 ring-theme-bg select-none"
+              >
+                {user?.name?.charAt(0).toUpperCase() || 'B'}
+              </div>
             </div>
+          )}
+
+          {/* Connection Indicator */}
+          <div className="flex items-center gap-1 text-[11px] text-theme-text-muted font-mono">
+            {isConnected ? (
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                <Wifi className="w-3 h-3" />
+                <span>Đã kết nối</span>
+              </span>
+            ) : isConnecting ? (
+              <span className="flex items-center gap-1 text-amber-500 animate-pulse">
+                <RefreshCw className="w-3 h-3 animate-spin" />
+                <span>Đang kết nối...</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-theme-text-muted">
+                <WifiOff className="w-3 h-3" />
+                <span>Ngoại tuyến</span>
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-1 text-[11px] text-theme-text-muted font-mono">
             <Clock className="w-3 h-3 text-theme-text-muted" />
-            <span>Lưu tự động: Vừa xong</span>
+            <span>Tự động lưu</span>
           </div>
 
           <Badge variant="success" size="sm" className="hidden sm:inline-flex">
-            <Lock className="w-3 h-3" /> AES-256-GCM
+            <Lock className="w-3 h-3" /> Mã Hóa Bảo Mật
           </Badge>
         </div>
       </div>
@@ -103,6 +147,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         onChange={(html) => setContent(html)}
         onAddInlineComment={onAddInlineComment}
         yDoc={yDoc}
+        provider={provider}
+        user={user}
         onCommentClick={onCommentClick}
         activeCommentThreadId={activeCommentThreadId}
       />

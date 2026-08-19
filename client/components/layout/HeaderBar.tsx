@@ -10,11 +10,15 @@ import {
   ShieldCheck,
   Download,
   Sparkles,
-  Cpu
+  Cpu,
+  Wifi,
+  WifiOff,
+  RefreshCw
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { AppTheme } from '../../App';
+import { ProviderConnectionStatus, AwarenessUser } from '../../lib/yjs/types';
 
 export interface HeaderBarProps {
   theme: AppTheme;
@@ -28,7 +32,9 @@ export interface HeaderBarProps {
   onOpenSandboxModal: () => void;
   onOpenCryptoModal: () => void;
   onOpenInspectorModal?: (() => void) | undefined;
-  activeCollaboratorCount?: number;
+  activeCollaboratorCount?: number | undefined;
+  providerStatus?: ProviderConnectionStatus | undefined;
+  awarenessUsers?: AwarenessUser[] | undefined;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
@@ -43,8 +49,14 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onOpenSandboxModal,
   onOpenCryptoModal,
   onOpenInspectorModal,
-  activeCollaboratorCount = 2
+  activeCollaboratorCount,
+  providerStatus,
+  awarenessUsers = []
 }) => {
+  const isConnected = providerStatus?.connected ?? false;
+  const isConnecting = providerStatus?.connecting ?? false;
+  const onlineCount = awarenessUsers.length > 0 ? awarenessUsers.length : (activeCollaboratorCount ?? 1);
+
   return (
     <header className="h-12 border-b border-theme-border bg-theme-bg/80 backdrop-blur-md px-4 flex items-center justify-between z-10 select-none">
       {/* Left Area: Toggle Sidebar, Logo, Document Status */}
@@ -64,25 +76,43 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             <Lock className="w-3.5 h-3.5" />
           </div>
           <span className="font-semibold text-sm tracking-tight text-theme-text hidden sm:inline">VaultSync</span>
-          <Badge variant="accent" size="sm" className="hidden md:inline-flex">E2EE Workspace</Badge>
+          <Badge variant="accent" size="sm" className="hidden md:inline-flex">Không Gian Riêng Tư</Badge>
         </div>
       </div>
 
-      {/* Center: Security Badge & E2EE Zero-Knowledge Inspector Trigger */}
+      {/* Center: Security Badge & Live Connection Status Indicator */}
       <div className="flex items-center gap-2">
         <button
           onClick={onOpenInspectorModal || onOpenCryptoModal}
-          title="Mở Thanh Tra Mật Mã Trực Tiếp (Live E2EE Inspector)"
+          title="Kiểm tra trạng thái bảo vệ mã hóa"
           className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs font-mono transition-colors cursor-pointer"
         >
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-          <span className="text-theme-text-secondary hidden sm:inline">E2EE:</span>
-          <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Zero-Knowledge Verified</span>
+          <span className="text-theme-text-secondary hidden sm:inline">Bảo Vệ:</span>
+          <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Đã Mã Hóa Đầu-Cuối</span>
         </button>
 
+        {/* Live WebSocket Connection Badge */}
         <div className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded-md bg-theme-card border border-theme-border text-[11px] text-theme-text-muted">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span>{activeCollaboratorCount} người online</span>
+          {isConnected ? (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <Wifi className="w-3 h-3 text-emerald-500" />
+              <span>Đồng bộ máy chủ • {onlineCount} trực tuyến</span>
+            </>
+          ) : isConnecting ? (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
+              <RefreshCw className="w-3 h-3 text-amber-500 animate-spin" />
+              <span>Đang kết nối lại...</span>
+            </>
+          ) : (
+            <>
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+              <WifiOff className="w-3 h-3 text-slate-400" />
+              <span>Cục bộ (Ngoại tuyến)</span>
+            </>
+          )}
         </div>
       </div>
 
@@ -95,65 +125,84 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           className="text-theme-text-secondary border-theme-border hover:text-theme-text hidden md:inline-flex"
         >
           <Cpu className="w-3.5 h-3.5 text-theme-accent" />
-          <span>Test Crypto</span>
+          <span>Kiểm Tra Mã Hóa</span>
         </Button>
 
-        {/* Recruiter 1-Click Sandbox Demo Button */}
         <Button
           variant="secondary"
           size="sm"
           onClick={onOpenSandboxModal}
-          className="text-theme-accent border-theme-accent/30 bg-theme-accent-subtle hover:bg-theme-accent-subtle/80 hidden sm:inline-flex"
+          className="text-theme-text-secondary border-theme-border hover:text-theme-text hidden xl:inline-flex"
+          title="Mở Thử Nghiệm 2 Cửa Sổ Alice & Bob (Ctrl+Shift+S)"
         >
-          <Sparkles className="w-3.5 h-3.5 text-theme-accent" />
-          <span>Guest Sandbox</span>
+          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+          <span>Mô Phỏng 2 Người</span>
         </Button>
 
-        {/* Share & Export Buttons */}
-        <Button variant="ghost" size="icon" onClick={onOpenExportModal} title="Xuất dữ liệu (Markdown, HTML, .vault)">
-          <Download className="w-4 h-4 text-theme-text-secondary" />
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={onOpenShareModal}
+          className="text-theme-text-secondary border-theme-border hover:text-theme-text"
+        >
+          <Share2 className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Chia Sẻ</span>
         </Button>
-        <Button variant="ghost" size="icon" onClick={onOpenShareModal} title="Chia sẻ khóa tài liệu (E2EE Key Share)">
-          <Share2 className="w-4 h-4 text-theme-text-secondary" />
+
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={onOpenExportModal}
+          className="text-theme-text-secondary border-theme-border hover:text-theme-text"
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Xuất File</span>
         </Button>
+
+        <div className="h-4 w-px bg-theme-border mx-1" />
 
         {/* 3-Tier Theme Switcher */}
-        <div className="flex items-center bg-theme-card p-0.5 rounded-lg border border-theme-border">
+        <div className="flex items-center bg-theme-card p-0.5 rounded-lg border border-theme-border shadow-xs">
           <button
             onClick={() => onThemeChange('sun')}
-            title="Chế độ Kem Sữa (Sun)"
-            className={`p-1.5 rounded-md transition-colors ${theme === 'sun' ? 'bg-theme-bg-subtle text-amber-600 shadow-xs' : 'text-theme-text-muted hover:text-theme-text'}`}
+            title="Chế độ Kem Sữa (Sun Mode - Alt+1)"
+            className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+              theme === 'sun' ? 'bg-theme-bg-subtle text-amber-600 shadow-xs' : 'text-theme-text-muted hover:text-theme-text'
+            }`}
           >
             <Sun className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => onThemeChange('cloud')}
-            title="Chế độ Mây Trắng Xám (Cloud)"
-            className={`p-1.5 rounded-md transition-colors ${theme === 'cloud' ? 'bg-theme-bg-subtle text-sky-500 shadow-xs' : 'text-theme-text-muted hover:text-theme-text'}`}
+            title="Chế độ Mây Trắng Xám (Cloud Mode - Alt+2)"
+            className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+              theme === 'cloud' ? 'bg-theme-bg-subtle text-sky-500 shadow-xs' : 'text-theme-text-muted hover:text-theme-text'
+            }`}
           >
             <Cloud className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => onThemeChange('night')}
-            title="Chế độ Đêm Huyền Bí (Night)"
-            className={`p-1.5 rounded-md transition-colors ${theme === 'night' ? 'bg-theme-bg-subtle text-indigo-400 shadow-xs' : 'text-theme-text-muted hover:text-theme-text'}`}
+            title="Chế độ Đêm Huyền Bí (Night Mode - Alt+3)"
+            className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+              theme === 'night' ? 'bg-theme-bg-subtle text-indigo-400 shadow-xs' : 'text-theme-text-muted hover:text-theme-text'
+            }`}
           >
             <Moon className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        {/* Toggle Right Discussion Sidebar */}
+        <div className="h-4 w-px bg-theme-border mx-1" />
+
         <Button
-          variant={isRightSidebarOpen ? 'secondary' : 'ghost'}
+          variant={isRightSidebarOpen ? 'primary' : 'secondary'}
           size="icon"
           onClick={onToggleRightSidebar}
-          title={isRightSidebarOpen ? 'Ẩn bảng thảo luận' : 'Mở bảng thảo luận & Chat'}
-          className={isRightSidebarOpen ? 'border-theme-border text-theme-accent' : 'text-theme-text-secondary'}
+          title={isRightSidebarOpen ? 'Đóng Thảo luận (Ctrl+Shift+D)' : 'Mở Thảo luận (Ctrl+Shift+D)'}
+          className="relative"
         >
-          <div className="relative">
-            <MessageSquare className="w-4 h-4" />
-            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-theme-accent" />
-          </div>
+          <MessageSquare className="w-4 h-4" />
+          <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full" />
         </Button>
       </div>
     </header>

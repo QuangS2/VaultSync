@@ -95,6 +95,21 @@ export class EncryptedYjsProvider {
     return { ...this.status };
   }
 
+  public getAwarenessUsers(): AwarenessUser[] {
+    const states = this.awareness.getStates();
+    const users: AwarenessUser[] = [];
+    states.forEach((state, clientID) => {
+      if (state.user) {
+        users.push({
+          name: state.user.name || `User ${clientID}`,
+          color: state.user.color || '#2563eb',
+          avatar: state.user.avatar || state.user.name?.charAt(0).toUpperCase() || 'U'
+        });
+      }
+    });
+    return users;
+  }
+
   public getEpoch(): number {
     return this.epoch;
   }
