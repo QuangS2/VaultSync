@@ -47,78 +47,31 @@ export class TreeStateManager {
    */
   public initDefaultTree(): void {
     this.yDoc.transact(() => {
-      // 1. Root Welcome Document
-      const welcomeDoc: FileSystemItem = {
-        id: 'doc-welcome',
+      // 1. Root Note: Ghi Chú Nhanh & Việc Cần Làm
+      const quicknotesDoc: FileSystemItem = {
+        id: 'doc-quicknotes',
         parentId: null,
-        name: 'Chào mừng đến với VaultSync',
+        name: 'Ghi Chú Nhanh & Việc Cần Làm',
         type: 'document',
         icon: 'Sparkles',
         createdAt: Date.now() - 3600000,
         updatedAt: Date.now() - 1800000,
         order: 10
       };
-      this.yMap.set(welcomeDoc.id, welcomeDoc);
+      this.yMap.set(quicknotesDoc.id, quicknotesDoc);
 
-      // 2. Folder: Tài Liệu Hướng Dẫn
-      const guideFolder: FileSystemItem = {
-        id: 'folder-guide',
+      // 2. Root Note: Hướng Dẫn Mời Bạn Bè & Cộng Tác
+      const collabDoc: FileSystemItem = {
+        id: 'doc-collab-guide',
         parentId: null,
-        name: 'Tài Liệu Hướng Dẫn',
-        type: 'folder',
+        name: 'Hướng Dẫn Mời Bạn Bè & Cộng Tác',
+        type: 'document',
+        icon: 'Users',
         createdAt: Date.now() - 7200000,
         updatedAt: Date.now() - 3600000,
         order: 20
       };
-      this.yMap.set(guideFolder.id, guideFolder);
-
-      // 2.1 Sub-doc: Hướng Dẫn Sử Dụng Nhanh
-      const quickstartDoc: FileSystemItem = {
-        id: 'doc-quickstart',
-        parentId: 'folder-guide',
-        name: 'Hướng Dẫn Sử Dụng Nhanh',
-        type: 'document',
-        createdAt: Date.now() - 5400000,
-        updatedAt: Date.now() - 2000000,
-        order: 10
-      };
-      this.yMap.set(quickstartDoc.id, quickstartDoc);
-
-      // 2.2 Sub-doc: Bảng Phím Tắt Tiện Ích
-      const shortcutsDoc: FileSystemItem = {
-        id: 'doc-shortcuts',
-        parentId: 'folder-guide',
-        name: 'Bảng Phím Tắt Tiện Ích',
-        type: 'document',
-        createdAt: Date.now() - 4000000,
-        updatedAt: Date.now() - 1000000,
-        order: 20
-      };
-      this.yMap.set(shortcutsDoc.id, shortcutsDoc);
-
-      // 3. Folder: Ghi Chú Cá Nhân
-      const personalFolder: FileSystemItem = {
-        id: 'folder-personal',
-        parentId: null,
-        name: 'Ghi Chú Cá Nhân',
-        type: 'folder',
-        createdAt: Date.now() - 10800000,
-        updatedAt: Date.now() - 5000000,
-        order: 30
-      };
-      this.yMap.set(personalFolder.id, personalFolder);
-
-      // 3.1 Sub-doc: Ý Tưởng & Kế Hoạch
-      const ideasDoc: FileSystemItem = {
-        id: 'doc-ideas',
-        parentId: 'folder-personal',
-        name: 'Ý Tưởng & Kế Hoạch',
-        type: 'document',
-        createdAt: Date.now() - 9000000,
-        updatedAt: Date.now() - 4000000,
-        order: 10
-      };
-      this.yMap.set(ideasDoc.id, ideasDoc);
+      this.yMap.set(collabDoc.id, collabDoc);
     });
   }
 

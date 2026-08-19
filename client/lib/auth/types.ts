@@ -7,6 +7,7 @@ import { ECDHKeyPair } from '../crypto/identity-keys';
 export interface UserProfile {
   userId: string;
   displayName: string;
+  userTag?: string | undefined;
   avatarColor: string;
   createdAt: number;
 }

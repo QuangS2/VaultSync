@@ -3,26 +3,17 @@ import { HeaderBar } from './HeaderBar';
 import { LeftSidebar } from './LeftSidebar';
 import { EditorCanvas } from './EditorCanvas';
 import { RightDiscussionSidebar } from './RightDiscussionSidebar';
-import { Modal } from '../ui/Modal';
-import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
 import { TreeStateManager } from '../../lib/tree/tree-state-manager';
 import { InlineCommentAnchorEngine } from '../../lib/yjs/inline-comment-engine';
 import { RoomChatEngine } from '../../lib/yjs/room-chat-engine';
 import * as Y from 'yjs';
 import { AppTheme } from '../../App';
-import {
-  ShieldCheck,
-  Copy,
-  Check
-} from 'lucide-react';
-
 import { CommandPaletteModal } from '../palette/CommandPaletteModal';
 import { ExportModal } from '../export/ExportModal';
 import { SettingsModal } from '../settings/SettingsModal';
+import { ShareModal } from '../share/ShareModal';
 import { CommandPaletteEngine, PaletteAction } from '../../lib/palette/command-palette-engine';
-import { IdentityKeys, ECDHKeyPair } from '../../lib/crypto/identity-keys';
-import { EnvelopeEncryptionManager, WrappedKeyEnvelope } from '../../lib/crypto/envelope-encryption';
+import { EnvelopeEncryptionManager } from '../../lib/crypto/envelope-encryption';
 import { UnlockedVaultSession } from '../../lib/auth/types';
 import { EncryptedYjsProvider } from '../../lib/yjs/encrypted-yjs-provider';
 import { ProviderConnectionStatus, AwarenessUser, CollaborationUserOptions } from '../../lib/yjs/types';
@@ -56,8 +47,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [treeManager] = useState(() => new TreeStateManager());
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
-  const [activeDocId, setActiveDocId] = useState('doc-welcome');
-  const [exportDocTitle, setExportDocTitle] = useState('Chào mừng đến VaultSync');
+  const [activeDocId, setActiveDocId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const roomParam = urlParams.get('room');
+      if (roomParam) return roomParam;
+    }
+    return 'doc-quicknotes';
+  });
+  const [exportDocTitle, setExportDocTitle] = useState('Ghi Chú Nhanh & Việc Cần Làm');
   const [, setTreeVersion] = useState(0);
 
   // Zero-Knowledge Offline-First Persistent Storage
@@ -71,13 +69,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [chatEngine] = useState(() => new RoomChatEngine(yDoc));
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null);
 
-  // Asymmetric Cryptographic Identity State (ECDH P-256)
-  const [userECDHKeyPair, setUserECDHKeyPair] = useState<ECDHKeyPair | null>(session ? session.userECDHKeyPair : null);
-  const [userPublicKeySPKI, setUserPublicKeySPKI] = useState<string>(session ? session.userPublicKeySPKI : '');
+  // Document encryption key
   const [documentKey, setDocumentKey] = useState<CryptoKey | null>(session ? session.vaultRootKey : null);
-  const [generatedEnvelope, setGeneratedEnvelope] = useState<WrappedKeyEnvelope | null>(null);
-  const [wrapError, setWrapError] = useState<string | null>(null);
-  const [copiedEnvelope, setCopiedEnvelope] = useState(false);
 
   // Real-time WebSocket Relay Provider & Peer Awareness State
   const [provider, setProvider] = useState<EncryptedYjsProvider | null>(null);
@@ -92,14 +85,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   const currentUserOptions: CollaborationUserOptions = React.useMemo(() => {
     if (session) {
+      const tagStr = session.userProfile.userTag ? ` ${session.userProfile.userTag}` : '';
       return {
-        name: session.userProfile.displayName,
+        name: `${session.userProfile.displayName}${tagStr}`,
         color: session.userProfile.avatarColor,
         avatar: session.userProfile.displayName.charAt(0).toUpperCase()
       };
     }
     return {
-      name: 'Bạn (Cục bộ)',
+      name: 'Bạn (Cục bộ) #0001',
       color: '#2563eb',
       avatar: 'B'
     };
@@ -221,26 +215,19 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     };
   }, [treeManager, documentKey, storage]);
 
-  // Initialize cryptographic keys on mount if session is not already provided
+  // Initialize cryptographic document key on mount if session is not already provided
   useEffect(() => {
     if (session) {
-      setUserECDHKeyPair(session.userECDHKeyPair);
-      setUserPublicKeySPKI(session.userPublicKeySPKI);
       setDocumentKey(session.vaultRootKey);
       return;
     }
 
     async function initCrypto() {
       try {
-        const keyPair = await IdentityKeys.generateECDHKeyPair();
-        setUserECDHKeyPair(keyPair);
-        const spki = await IdentityKeys.exportPublicKeySPKI(keyPair.publicKey);
-        setUserPublicKeySPKI(spki);
-
         const dek = await EnvelopeEncryptionManager.generateDocumentKey();
         setDocumentKey(dek);
       } catch (err) {
-        console.error('Failed to initialize ECDH keys:', err);
+        console.error('Failed to initialize document key:', err);
       }
     }
     initCrypto();
@@ -263,9 +250,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [recipientKeyInput, setRecipientKeyInput] = useState('');
-  const [recipientIdInput, setRecipientIdInput] = useState('user_bob_peer');
-  const [copiedKey, setCopiedKey] = useState(false);
 
   // Command Palette Engine instance
   const [commandPaletteEngine] = useState(() => new CommandPaletteEngine([], (state) => {
@@ -443,45 +427,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     setActiveCommentThreadId(threadId);
   };
 
-  const copyPublicKey = () => {
-    if (userPublicKeySPKI) {
-      navigator.clipboard?.writeText(userPublicKeySPKI);
-      setCopiedKey(true);
-      setTimeout(() => setCopiedKey(false), 2000);
-    }
-  };
-
-  const copyEnvelope = () => {
-    if (generatedEnvelope) {
-      navigator.clipboard?.writeText(JSON.stringify(generatedEnvelope, null, 2));
-      setCopiedEnvelope(true);
-      setTimeout(() => setCopiedEnvelope(false), 2000);
-    }
-  };
-
-  const handleWrapKeyForRecipient = async () => {
-    if (!userECDHKeyPair || !documentKey || !recipientKeyInput.trim()) {
-      setWrapError('Vui lòng nhập đầy đủ Khóa công khai của thành viên nhận.');
-      return;
-    }
-
-    try {
-      setWrapError(null);
-      const envelope = await EnvelopeEncryptionManager.wrapDocumentKey({
-        documentKey: documentKey,
-        documentId: activeDocId,
-        epoch: 1,
-        senderPrivateKey: userECDHKeyPair.privateKey,
-        senderPublicKey: userPublicKeySPKI,
-        recipientPublicKey: recipientKeyInput.trim(),
-        recipientUserId: recipientIdInput.trim() || 'user_peer'
-      });
-      setGeneratedEnvelope(envelope);
-    } catch (err: any) {
-      setWrapError(`Lỗi bọc khóa: ${err.message || 'Khóa công khai không đúng định dạng SPKI Base64'}`);
-    }
-  };
-
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-theme-bg text-theme-text font-sans">
       {/* 1. Header Bar */}
@@ -547,100 +492,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         />
       </div>
 
-      {/* MODAL: Chia Sẻ Khóa Tài Liệu (E2EE Envelope Sharing) */}
-      <Modal
+      {/* MODAL: Chia Sẻ Quyền Cộng Tác Chuẩn Thương Mại (1-Click Invite & Password Gate) */}
+      <ShareModal
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
-        title="Chia Sẻ Tài Liệu An Toàn (E2EE Key Exchange)"
-        description="Mã hóa Khóa Tài liệu (DEK) bằng Khóa Công khai (ECDH P-256) của người nhận."
-        footer={
-          <>
-            <Button variant="ghost" size="sm" onClick={() => setIsShareModalOpen(false)}>Đóng</Button>
-            <Button 
-              variant="primary" 
-              size="sm" 
-              onClick={handleWrapKeyForRecipient}
-              disabled={!recipientKeyInput.trim()}
-            >
-              Bọc & Tạo Phong Bì Khóa (Wrap DEK)
-            </Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="font-medium text-theme-text text-xs">Khóa Công Khai Của Bạn (ECDH P-256 SPKI Base64):</label>
-            <div className="flex items-center gap-2">
-              <Input 
-                value={userPublicKeySPKI || 'Đang khởi tạo khóa...'} 
-                readOnly 
-                className="font-mono text-[10px]" 
-              />
-              <Button variant="secondary" size="icon" onClick={copyPublicKey} title="Sao chép khóa công khai">
-                {copiedKey ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <div className="flex flex-col gap-1.5">
-              <label className="font-medium text-theme-text text-xs">Mã Định Danh Người Nhận (Recipient ID):</label>
-              <Input
-                placeholder="Ví dụ: user_bob"
-                value={recipientIdInput}
-                onChange={(e) => setRecipientIdInput(e.target.value)}
-                className="text-xs"
-              />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="font-medium text-theme-text text-xs">Kỷ Nguyên Khóa (Epoch):</label>
-              <Input
-                value="Epoch 1 (Khóa Hiện Tại)"
-                readOnly
-                className="text-xs font-mono text-theme-text-muted"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="font-medium text-theme-text text-xs">Nhập Khóa Công Khai Của Thành Viên Mới (SPKI Base64):</label>
-            <Input
-              placeholder="Dán mã khóa công khai SPKI Base64..."
-              value={recipientKeyInput}
-              onChange={(e) => setRecipientKeyInput(e.target.value)}
-              className="font-mono text-[10px]"
-            />
-          </div>
-
-          {wrapError && (
-            <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs">
-              {wrapError}
-            </div>
-          )}
-
-          {generatedEnvelope && (
-            <div className="flex flex-col gap-2 p-3 rounded-lg bg-theme-bg border border-theme-border">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
-                  <Check className="w-4 h-4" /> Đã Tạo Phong Bì Khóa (WrappedKeyEnvelope)
-                </span>
-                <Button variant="secondary" size="sm" onClick={copyEnvelope} className="h-6 text-[10px] gap-1">
-                  {copiedEnvelope ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
-                  <span>{copiedEnvelope ? 'Đã chép' : 'Sao chép JSON'}</span>
-                </Button>
-              </div>
-              <pre className="text-[10px] font-mono bg-theme-bg-subtle p-2 rounded max-h-28 overflow-y-auto text-theme-text">
-                {JSON.stringify(generatedEnvelope, null, 2)}
-              </pre>
-            </div>
-          )}
-
-          <div className="bg-theme-card p-3 rounded-lg border border-theme-border flex items-start gap-2.5 text-[11px] text-theme-text-muted">
-            <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-            <span>Server chỉ lưu trữ bản mã của khóa (Wrapped Key Envelope). Không ai có thể giải mã ngoại trừ người giữ Private Key tương ứng.</span>
-          </div>
-        </div>
-      </Modal>
+        documentId={activeDocId}
+        documentTitle={activeDocTitle}
+        awarenessUsers={awarenessUsers}
+        currentUser={currentUserOptions}
+      />
 
       {/* MODAL: Xuất Dữ Liệu Đa Định Dạng (Markdown & Standalone HTML & .vault) */}
       <ExportModal

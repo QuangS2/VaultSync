@@ -67,6 +67,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [selectedColor, setSelectedColor] = useState(session?.userProfile?.avatarColor || '#059669');
   const [copiedKey, setCopiedKey] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
+  const [isKeyUnlocked, setIsKeyUnlocked] = useState(false);
+  const [isPromptingKeyPass, setIsPromptingKeyPass] = useState(false);
+  const [keyVerifyPassword, setKeyVerifyPassword] = useState('');
+  const [keyAuthError, setKeyAuthError] = useState<string | null>(null);
 
   // Security tab state
   const [newPassword, setNewPassword] = useState('');
@@ -103,13 +107,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   if (!isOpen) return null;
 
-  const copyPublicKey = () => {
-    if (session?.userPublicKeySPKI) {
-      navigator.clipboard.writeText(session.userPublicKeySPKI);
-      setCopiedKey(true);
-      setTimeout(() => setCopiedKey(false), 2000);
-    }
-  };
 
   const copySeedPhrase = () => {
     if (revealedSeed) {
@@ -295,7 +292,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     {displayName.charAt(0).toUpperCase() || 'U'}
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <span className="text-sm font-semibold text-theme-text truncate">{displayName || 'Người dùng'}</span>
+                    <span className="text-sm font-semibold text-theme-text truncate flex items-center">
+                      {displayName || 'Người dùng'}
+                      <span className="text-xs font-mono font-normal text-theme-accent ml-1.5 px-1.5 py-0.5 rounded bg-theme-accent/10 border border-theme-accent/20">
+                        {session?.userProfile?.userTag || '#1024'}
+                      </span>
+                    </span>
                     <span className="text-xs text-theme-text-muted">Chủ sở hữu kho lưu trữ</span>
                   </div>
                 </div>
@@ -327,18 +329,105 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1.5 pt-2 border-t border-theme-border">
-                  <label className="text-xs font-medium text-theme-text">Khóa Công Khai Của Bạn (Chia sẻ để nhận tài liệu):</label>
+                <div className="flex flex-col gap-2 pt-2 border-t border-theme-border">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-theme-text flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5 text-theme-accent" />
+                      <span>Khóa Công Khai Mật Mã (Bảo vệ bằng Mật Khẩu Chủ):</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isKeyUnlocked) {
+                          setIsKeyUnlocked(false);
+                        } else {
+                          setIsPromptingKeyPass(true);
+                          setKeyAuthError(null);
+                        }
+                      }}
+                      className="text-xs text-theme-accent hover:underline cursor-pointer flex items-center gap-1"
+                    >
+                      {isKeyUnlocked ? (
+                        <>
+                          <EyeOff className="w-3 h-3" />
+                          <span>Ẩn Khóa</span>
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-3 h-3" />
+                          <span>Mở Khóa Để Xem / Sao Chép</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {isPromptingKeyPass && !isKeyUnlocked && (
+                    <div className="p-3 rounded-lg bg-theme-card border border-theme-border flex flex-col gap-2 animate-in fade-in duration-150">
+                      <span className="text-[11px] text-theme-text-muted">Nhập mật khẩu chủ để xác minh danh tính và hiển thị khóa công khai:</span>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="password"
+                          placeholder="Mật khẩu chủ..."
+                          value={keyVerifyPassword}
+                          onChange={(e) => setKeyVerifyPassword(e.target.value)}
+                          className="text-xs"
+                          autoFocus
+                        />
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              const record = await VaultAuthEngine.getSavedVaultRecord();
+                              if (record) {
+                                await VaultAuthEngine.unlockVaultWithPassword(record, keyVerifyPassword);
+                                setIsKeyUnlocked(true);
+                                setIsPromptingKeyPass(false);
+                                setKeyVerifyPassword('');
+                                setKeyAuthError(null);
+                              }
+                            } catch {
+                              setKeyAuthError('Mật khẩu chủ không chính xác.');
+                            }
+                          }}
+                        >
+                          Xác Nhận
+                        </Button>
+                      </div>
+                      {keyAuthError && (
+                        <span className="text-[11px] text-red-500 font-medium">{keyAuthError}</span>
+                      )}
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-2">
                     <Input
-                      value={session?.userPublicKeySPKI || 'Đang khởi tạo...'}
+                      value={isKeyUnlocked ? (session?.userPublicKeySPKI || 'Đang khởi tạo...') : '••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••'}
                       readOnly
-                      className="text-[10px] font-mono text-theme-text-muted"
+                      className="text-[10px] font-mono text-theme-text-muted select-all"
                     />
-                    <Button variant="secondary" size="icon" onClick={copyPublicKey} title="Sao chép khóa công khai">
+                    <Button
+                      variant="secondary"
+                      size="icon"
+                      onClick={() => {
+                        if (!isKeyUnlocked) {
+                          setIsPromptingKeyPass(true);
+                          return;
+                        }
+                        if (session?.userPublicKeySPKI) {
+                          navigator.clipboard.writeText(session.userPublicKeySPKI);
+                          setCopiedKey(true);
+                          setTimeout(() => setCopiedKey(false), 2000);
+                        }
+                      }}
+                      title={isKeyUnlocked ? "Sao chép khóa công khai" : "Yêu cầu mật khẩu chủ để sao chép"}
+                    >
                       {copiedKey ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                     </Button>
                   </div>
+                  <span className="text-[10px] text-theme-text-muted">
+                    Khóa này được che tự động để chống nhìn trộm khi bạn rời khỏi máy tính (AFK).
+                  </span>
                 </div>
 
                 <div className="flex justify-end pt-2">

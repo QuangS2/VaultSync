@@ -1,93 +1,65 @@
 /**
- * Production-Ready Default Documents for VaultSync Workspace
- * Elegant, user-centric welcoming content without test artifacts or academic references.
+ * Production Default Documents for VaultSync Workspace
+ * Practical, concise, and useful notes for daily usage and collaboration.
  */
 
 export const SAMPLE_DOCUMENTS: Record<string, string> = {
-  'doc-welcome': `
-    <h1>Chào mừng đến với VaultSync</h1>
+  'doc-quicknotes': `
+    <h1>📝 Ghi Chú Nhanh & Việc Cần Làm</h1>
     <p>
-      <strong>VaultSync</strong> là không gian làm việc và ghi chú cộng tác thời gian thực, được xây dựng trên nền tảng <em>Bảo Mật Đầu-Cuối (Zero-Knowledge)</em>. Tất cả dữ liệu của bạn được mã hóa an toàn ngay tại thiết bị trước khi lưu trữ hoặc đồng bộ qua mạng.
+      Chào mừng bạn đến với <strong>VaultSync</strong> — ứng dụng ghi chú cá nhân và cộng tác bảo mật chuẩn <em>Mã Hóa Đầu-Cuối (Zero-Knowledge)</em>.
     </p>
-    
+
+    <h2>Danh Sách Việc Cần Làm Hôm Nay</h2>
+    <ul data-type="taskList" class="vaultsync-task-list">
+      <li data-type="taskItem" data-checked="true" class="vaultsync-task-item">
+        <label><input type="checkbox" checked="checked"><span></span></label>
+        <div><p>Khởi tạo kho lưu trữ bảo mật với mật khẩu chủ.</p></div>
+      </li>
+      <li data-type="taskItem" data-checked="true" class="vaultsync-task-item">
+        <label><input type="checkbox" checked="checked"><span></span></label>
+        <div><p>Ghi lại 12 từ khóa khôi phục bí mật ở nơi an toàn.</p></div>
+      </li>
+      <li data-type="taskItem" data-checked="false" class="vaultsync-task-item">
+        <label><input type="checkbox"><span></span></label>
+        <div><p>Thử nghiệm tính năng tạo ghi chú mới (<code>Ctrl + N</code>).</p></div>
+      </li>
+      <li data-type="taskItem" data-checked="false" class="vaultsync-task-item">
+        <label><input type="checkbox"><span></span></label>
+        <div><p>Chia sẻ tài liệu cho đồng nghiệp qua liên kết 1 chạm.</p></div>
+      </li>
+    </ul>
+
+    <h2>Phím Tắt Nhanh Hữu Dụng</h2>
+    <ul>
+      <li><code>Ctrl + K</code>: Mở thanh tìm kiếm lệnh nhanh Spotlight.</li>
+      <li><code>Ctrl + N</code>: Tạo tài liệu ghi chú mới.</li>
+      <li><code>Ctrl + B</code>: Đóng / Mở thanh thư mục bên trái.</li>
+      <li><code>Ctrl + Shift + L</code>: Khóa kho lưu trữ tức thì khi rời máy (AFK).</li>
+    </ul>
+  `,
+
+  'doc-collab-guide': `
+    <h1>🤝 Hướng Dẫn Mời Bạn Bè & Cộng Tác</h1>
+    <p>
+      VaultSync cho phép bạn và đồng nghiệp cùng soạn thảo trên một tài liệu theo thời gian thực với độ trễ dưới 20ms mà không làm lộ nội dung cho máy chủ trung gian.
+    </p>
+
+    <h2>3 Bước Đơn Giản Để Bắt Đầu:</h2>
+    <ol>
+      <li>
+        <strong>Bước 1:</strong> Nhấp vào nút <strong>"Chia Sẻ"</strong> (biểu tượng mũi tên chia sẻ) trên thanh tiêu đề phía trên bên phải.
+      </li>
+      <li>
+        <strong>Bước 2:</strong> Nhập <strong>Mật khẩu chủ</strong> để xác thực quyền chia sẻ bảo mật (ngăn ngừa người lạ tự ý chia sẻ khi bạn rời máy).
+      </li>
+      <li>
+        <strong>Bước 3:</strong> Nhấp <strong>"Sao chép Link"</strong> và gửi liên kết cho bạn bè. Người nhận chỉ cần mở liên kết trên trình duyệt là có thể cùng soạn thảo ngay lập tức!
+      </li>
+    </ol>
+
     <blockquote>
-      <strong>Cam kết bảo mật riêng tư:</strong> Chỉ có bạn và những người được bạn chia sẻ mới có chìa khóa giải mã nội dung. Máy chủ trung gian hoàn toàn không thể đọc trộm bất kỳ ký tự nào của bạn.
+      <strong>Lưu ý bảo mật:</strong> Mọi thao tác gõ phím và bình luận đều được mã hóa bằng thuật toán quân sự <strong>AES-256-GCM</strong> trước khi truyền qua mạng.
     </blockquote>
-
-    <h2>1. Các Tính Năng Nổi Bật</h2>
-    <ul data-type="taskList" class="vaultsync-task-list">
-      <li data-type="taskItem" data-checked="true" class="vaultsync-task-item"><label><input type="checkbox" checked="checked"><span></span></label><div><p><strong>Mã Hóa Quân Sự AES-256-GCM:</strong> Bảo vệ toàn diện từng dòng chữ và tệp tin.</p></div></li>
-      <li data-type="taskItem" data-checked="true" class="vaultsync-task-item"><label><input type="checkbox" checked="checked"><span></span></label><div><p><strong>Đồng Bộ Thời Gian Thực:</strong> Cộng tác mượt mà cùng đồng nghiệp với con trỏ trực tiếp.</p></div></li>
-      <li data-type="taskItem" data-checked="true" class="vaultsync-task-item"><label><input type="checkbox" checked="checked"><span></span></label><div><p><strong>Lưu Trữ Ngoại Tuyến (Offline-First):</strong> Tự động lưu trên máy, tiếp tục làm việc bình thường khi mất mạng.</p></div></li>
-      <li data-type="taskItem" data-checked="true" class="vaultsync-task-item"><label><input type="checkbox" checked="checked"><span></span></label><div><p><strong>Cây Thư Mục Đa Tầng:</strong> Tổ chức tài liệu linh hoạt theo ý muốn.</p></div></li>
-      <li data-type="taskItem" data-checked="true" class="vaultsync-task-item"><label><input type="checkbox" checked="checked"><span></span></label><div><p><strong>Bộ Ba Giao Diện:</strong> Chuyển đổi linh hoạt giữa Kem Sữa (Sun), Mây Trắng (Cloud) và Đêm Huyền Bí (Night).</p></div></li>
-    </ul>
-
-    <h2>2. Bảng Phím Tắt Nhanh Hữu Ích</h2>
-    <p>Sử dụng các phím tắt sau để tăng tốc tối đa trải nghiệm soạn thảo của bạn:</p>
-    <ul>
-      <li><code>Ctrl + K</code> hoặc <code>Cmd + K</code>: Mở bảng điều khiển tìm kiếm &amp; lệnh nhanh.</li>
-      <li><code>Ctrl + N</code>: Tạo ghi chú mới.</li>
-      <li><code>Ctrl + Shift + N</code>: Tạo thư mục mới.</li>
-      <li><code>Ctrl + B</code>: Thu gọn hoặc mở rộng thanh điều hướng bên trái.</li>
-      <li><code>Ctrl + Shift + L</code>: Khóa kho lưu trữ tức thì để bảo vệ quyền riêng tư.</li>
-      <li><code>Alt + 1 / 2 / 3</code>: Chuyển đổi nhanh 3 chế độ màu sắc.</li>
-    </ul>
-  `,
-
-  'doc-quickstart': `
-    <h1>Hướng Dẫn Sử Dụng Nhanh</h1>
-    <p>
-      Khám phá các thao tác cơ bản để làm chủ không gian làm việc VaultSync trong chưa đầy 2 phút.
-    </p>
-
-    <h2>1. Soạn Thảo Phong Phú</h2>
-    <p>
-      Hỗ trợ đầy đủ các định dạng văn bản nâng cao: tiêu đề, danh sách công việc (Task List), trích dẫn, bảng và khối mã nguồn chuyên nghiệp.
-    </p>
-
-    <h2>2. Chia Sẻ Tài Liệu Bảo Mật</h2>
-    <p>
-      Nhấp vào nút <strong>Chia Sẻ</strong> trên thanh tiêu đề để cấp quyền truy cập tài liệu cho thành viên khác thông qua Khóa công khai của họ.
-    </p>
-
-    <h2>3. Xuất &amp; Sao Lưu Dữ Liệu</h2>
-    <p>
-      Bạn luôn sở hữu 100% dữ liệu của mình. Sử dụng tính năng <strong>Xuất File</strong> để tải về định dạng Markdown (<code>.md</code>), trang web độc lập (<code>.html</code>) hoặc tệp sao lưu toàn bộ kho lưu trữ (<code>.vault</code>).
-    </p>
-  `,
-
-  'doc-shortcuts': `
-    <h1>Bảng Phím Tắt Tiện Ích</h1>
-    <p>Danh sách đầy đủ các phím tắt được thiết kế công thái học:</p>
-
-    <h2>Điều Hướng &amp; Không Gian Làm Việc</h2>
-    <ul>
-      <li><code>Ctrl + B</code>: Đóng / Mở thanh điều hướng cây thư mục.</li>
-      <li><code>Ctrl + Shift + D</code>: Đóng / Mở khung thảo luận &amp; bình luận.</li>
-      <li><code>Ctrl + K</code>: Mở Command Palette điều khiển toàn bộ ứng dụng.</li>
-    </ul>
-
-    <h2>Quản Lý Tài Liệu &amp; Bảo Mật</h2>
-    <ul>
-      <li><code>Ctrl + N</code>: Tạo ghi chú mới trong thư mục hiện tại.</li>
-      <li><code>Ctrl + Shift + N</code>: Tạo thư mục mới.</li>
-      <li><code>Ctrl + Shift + L</code>: Khóa tức thì kho lưu trữ.</li>
-      <li><code>Alt + 1</code>: Giao diện Kem Sữa (Sun).</li>
-      <li><code>Alt + 2</code>: Giao diện Mây Trắng Xám (Cloud).</li>
-      <li><code>Alt + 3</code>: Giao diện Đêm Huyền Bí (Night).</li>
-    </ul>
-  `,
-
-  'doc-ideas': `
-    <h1>Ý Tưởng &amp; Kế Hoạch Cá Nhân</h1>
-    <p>Không gian riêng tư để phác thảo các ý tưởng và dự án sắp tới của bạn.</p>
-
-    <h2>Mục Tiêu Tháng Này</h2>
-    <ul data-type="taskList" class="vaultsync-task-list">
-      <li data-type="taskItem" data-checked="false" class="vaultsync-task-item"><label><input type="checkbox"><span></span></label><div><p>Hoàn thành bản thảo tài liệu dự án.</p></div></li>
-      <li data-type="taskItem" data-checked="false" class="vaultsync-task-item"><label><input type="checkbox"><span></span></label><div><p>Chia sẻ tài liệu cho nhóm cộng tác.</p></div></li>
-      <li data-type="taskItem" data-checked="false" class="vaultsync-task-item"><label><input type="checkbox"><span></span></label><div><p>Sao lưu dữ liệu định kỳ vào tệp .vault.</p></div></li>
-    </ul>
   `
 };

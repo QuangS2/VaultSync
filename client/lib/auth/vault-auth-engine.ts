@@ -153,9 +153,11 @@ export class VaultAuthEngine {
     const userId = `user_${BinaryUtils.bufferToHex(KeyDerivation.generateSalt(6))}`;
     const now = Date.now();
 
+    const randomTag = `#${Math.floor(1000 + Math.random() * 9000)}`;
     const userProfile: UserProfile = {
       userId,
       displayName: displayName.trim(),
+      userTag: randomTag,
       avatarColor,
       createdAt: now
     };
