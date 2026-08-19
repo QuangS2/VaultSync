@@ -1,0 +1,115 @@
+# ==============================================================================
+# VaultSync — Local-First Verification Stack (Docker Compose Local 11/10)
+# Run locally with: docker compose -f docker-compose.local.yml up --build -d
+# ==============================================================================
+name: vaultsync-local
+
+services:
+  # 1. Frontend Web SPA Service
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    image: vaultsync-frontend:local
+    container_name: vaultsync-frontend-local
+    restart: unless-stopped
+    networks:
+      - vaultsync_internal
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost/healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+
+  # 2. WebSocket Zero-Knowledge Blind Relay Server
+  relay-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    image: vaultsync-server:local
+    container_name: vaultsync-relay-local
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=1234
+      - HOST=0.0.0.0
+      - REDIS_URL=redis://:vaultsync_local_redis_secret@redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - vaultsync_internal
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 256M
+
+  # 3. Redis In-Memory Pub/Sub & Persistence Cache
+  redis:
+    image: redis:7-alpine
+    container_name: vaultsync-redis-local
+    restart: unless-stopped
+    command: >
+      redis-server 
+      --requirepass vaultsync_local_redis_secret 
+      --maxmemory 128mb 
+      --maxmemory-policy allkeys-lru 
+      --appendonly yes
+    volumes:
+      - vaultsync_local_redis_data:/data
+    networks:
+      - vaultsync_internal
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a vaultsync_local_redis_secret ping | grep PONG || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 192M
+
+  # 4. Nginx Reverse Proxy Gateway (Unified Access Point)
+  gateway:
+    image: nginx:1.27-alpine-slim
+    container_name: vaultsync-gateway-local
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx.gateway.local.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      frontend:
+        condition: service_healthy
+      relay-server:
+        condition: service_started
+    networks:
+      - vaultsync_internal
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost/gateway-healthz || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+
+networks:
+  vaultsync_internal:
+    driver: bridge
+
+volumes:
+  vaultsync_local_redis_data:
+    driver: local

@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build:client": "tsc -b && vite build",
+    "build:server": "esbuild server/relay-server.ts --bundle --platform=node --target=node20 --format=esm --outfile=dist/server/relay-server.mjs --external:ws",
+    "build": "npm run build:client && npm run build:server",
     "preview": "vite preview",
     "server": "tsx server/relay-server.ts",
+    "server:prod": "node dist/server/relay-server.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:crypto": "vitest run client/lib/crypto"

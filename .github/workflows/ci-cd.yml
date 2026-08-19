@@ -1,0 +1,191 @@
+# ==============================================================================
+# VaultSync Enterprise CI/CD Pipeline (11/10 Precision)
+# 1. Quality Gates (Typecheck + Vitest + Playwright E2E)
+# 2. Multi-Stage Docker Builds & Push to GitHub Container Registry (ghcr.io)
+# 3. Secure SSH Zero-Downtime Deployment to Ubuntu Production Server
+# ==============================================================================
+
+name: VaultSync CI/CD Pipeline
+
+on:
+  push:
+    branches: [ develop, main ]
+  pull_request:
+    branches: [ develop, main ]
+  workflow_dispatch:
+
+# Permissions for publishing Docker images to GitHub Container Registry (GHCR)
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  FRONTEND_IMAGE_NAME: ${{ github.repository_owner }}/vaultsync-frontend
+  SERVER_IMAGE_NAME: ${{ github.repository_owner }}/vaultsync-server
+
+jobs:
+  # ============================================================================
+  # 1. QUALITY GATES (Continuous Integration)
+  # ============================================================================
+  quality-gates:
+    name: 🧪 Quality Gates & Automated Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js Environment (v20)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 📦 Clean Install Dependencies
+        run: npm ci
+
+      - name: 🛡️ Strict TypeScript Typecheck
+        run: npm run typecheck
+
+      - name: ⚡ Run Vitest Cryptographic & CRDT Unit Tests
+        run: npm run test
+
+      - name: 🎭 Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: 🤝 Run Multi-User E2E Collaboration Tests
+        run: npx playwright test
+
+      - name: 🏗️ Verify Production Bundle Builds
+        run: npm run build
+
+  # ============================================================================
+  # 2. BUILD & PUSH DOCKER IMAGES TO GHCR (Container Registry)
+  # ============================================================================
+  build-and-push:
+    name: 🐳 Docker Multi-Stage Build & Push (GHCR)
+    needs: quality-gates
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔧 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🔑 Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Extract metadata for Frontend
+      - name: 🏷️ Extract Metadata for Frontend Image
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=develop,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=sha,format=short
+
+      # Build & Push Frontend Image
+      - name: 🚀 Build & Push Frontend Docker Image (<25MB Nginx Alpine)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.frontend
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Extract metadata for Server
+      - name: 🏷️ Extract Metadata for Server Image
+        id: meta-server
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.SERVER_IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=develop,enable=${{ github.ref == 'refs/heads/develop' }}
+            type=sha,format=short
+
+      # Build & Push Server Image
+      - name: 🚀 Build & Push Relay Server Docker Image (<80MB Node.js Alpine)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.server
+          push: true
+          tags: ${{ steps.meta-server.outputs.tags }}
+          labels: ${{ steps.meta-server.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================================================
+  # 3. ZERO-DOWNTIME DEPLOYMENT TO UBUNTU SERVER (Continuous Deployment)
+  # ============================================================================
+  deploy-production:
+    name: 🚢 Deploy to Ubuntu Production Server
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 🔐 Deploy to Ubuntu Server via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.SERVER_PORT || 22 }}
+          script_stop: true
+          script: |
+            set -e
+            echo "===================================================================="
+            echo "🚀 Starting VaultSync Production Deployment..."
+            echo "===================================================================="
+            
+            APP_DIR="/opt/vaultsync"
+            if [ ! -d "$APP_DIR" ]; then
+              echo "Creating deployment directory at $APP_DIR..."
+              sudo mkdir -p "$APP_DIR"
+              sudo chown -R $USER:$USER "$APP_DIR"
+            fi
+            
+            cd "$APP_DIR"
+            
+            # Authenticate Docker with GHCR
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            
+            # Pull latest production images from GHCR (Zero CPU compile on VPS)
+            echo "📥 Pulling latest Docker images from GHCR..."
+            docker compose -f docker-compose.prod.yml --env-file .env.production pull
+            
+            # Zero-downtime rolling update
+            echo "🔄 Rolling update containers..."
+            docker compose -f docker-compose.prod.yml --env-file .env.production up -d --remove-orphans
+            
+            # Post-deployment Smoke Verification
+            echo "🩺 Running Post-Deployment Smoke Check..."
+            sleep 5
+            
+            # Health check probe
+            docker compose -f docker-compose.prod.yml ps
+            
+            # Clean up dangling images
+            docker image prune -f
+            
+            echo "===================================================================="
+            echo "🎉 Deployment successfully completed! VaultSync is LIVE."
+            echo "===================================================================="

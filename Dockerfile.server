@@ -1,0 +1,38 @@
+# Multi-Stage Build: VaultSync Zero-Knowledge Blind Relay Server (< 80MB Node.js Alpine)
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Cache dependencies layer
+COPY package*.json ./
+RUN npm ci
+
+# Copy server and shared source
+COPY tsconfig.json ./
+COPY server/ ./server/
+COPY shared/ ./shared/
+
+# Bundle server into optimized standalone ESM bundle
+RUN npm run build:server
+
+# Production Stage: Secure Non-Root Node.js 20 Alpine (< 60MB)
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV PORT=1234
+ENV HOST=0.0.0.0
+
+# Install ONLY the single required server runtime dependency (ws)
+RUN npm install --no-package-lock --omit=dev ws && npm cache clean --force
+
+# Copy compiled standalone executable
+COPY --from=builder /app/dist/server/relay-server.mjs ./dist/server/relay-server.mjs
+
+# Security Hardening: Run as unprivileged node user
+USER node
+
+EXPOSE 1234
+
+CMD ["node", "dist/server/relay-server.mjs"]
