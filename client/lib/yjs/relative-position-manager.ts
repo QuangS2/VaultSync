@@ -13,8 +13,8 @@ export class RelativePositionManager {
    * Creates a pair of Yjs RelativePositions from absolute slice indices [from, to].
    * 
    * Association Rules:
-   * - `startRelPos`: assoc = -1 (left-associative: if new text is typed at position `from`, the anchor sticks to the right)
-   * - `endRelPos`: assoc = 0 (right-associative: if new text is typed at position `to`, the anchor expands)
+   * - `startRelPos`: assoc = 0 (right-associative: sticks to the first character at `from`, shifting forward when text is prepended)
+   * - `endRelPos`: assoc = -1 (left-associative: sticks to the last character before `to`, not capturing text appended after)
    */
   public static createRelativeRange(
     yType: Y.AbstractType<any>,
@@ -25,8 +25,8 @@ export class RelativePositionManager {
       throw new Error(`Invalid range indices: from (${from}) must be >= 0 and <= to (${to}).`);
     }
 
-    const startRelPos = Y.createRelativePositionFromTypeIndex(yType, from, -1);
-    const endRelPos = Y.createRelativePositionFromTypeIndex(yType, to, 0);
+    const startRelPos = Y.createRelativePositionFromTypeIndex(yType, from, 0);
+    const endRelPos = Y.createRelativePositionFromTypeIndex(yType, to, -1);
 
     return { startRelPos, endRelPos };
   }

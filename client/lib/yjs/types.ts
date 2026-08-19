@@ -23,17 +23,36 @@ export interface ResolvedAbsoluteRange {
   type: Y.AbstractType<any>;
 }
 
+export interface CommentReply {
+  id: string;
+  threadId: string;
+  authorId: string;
+  authorName: string;
+  authorAvatar?: string | undefined;
+  content: string;
+  createdAt: number;
+}
+
 export interface InlineCommentThread {
   id: string;
   documentId: string;
   authorId: string;
   authorName: string;
+  authorAvatar?: string | undefined;
   quotedText: string;
   relativeRange: SerializedRelativeRange;
   createdAt: number;
+  updatedAt: number;
   isResolved: boolean;
   isOrphaned: boolean;
+  replies: CommentReply[];
   lastResolvedRange?: { from: number; to: number } | undefined;
+}
+
+export interface ThreadWithLivePosition {
+  thread: InlineCommentThread;
+  liveRange: ResolvedAbsoluteRange | null;
+  isOrphaned: boolean;
 }
 
 export interface CRDTPositionTestResult {
