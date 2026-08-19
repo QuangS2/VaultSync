@@ -84,10 +84,10 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({
 
   // Synchronize external content changes (e.g. switching documents)
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
+    if (!yDoc && editor && content !== editor.getHTML()) {
       editor.commands.setContent(content, false);
     }
-  }, [content, editor]);
+  }, [content, editor, yDoc]);
 
   // Statistics
   const stats = useMemo(() => {

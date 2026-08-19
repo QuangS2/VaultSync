@@ -22,6 +22,7 @@ import {
   Lock
 } from 'lucide-react';
 
+import { DualPaneGuestSandbox } from '../sandbox/DualPaneGuestSandbox';
 import { IdentityKeys, ECDHKeyPair } from '../../lib/crypto/identity-keys';
 import { EnvelopeEncryptionManager, WrappedKeyEnvelope } from '../../lib/crypto/envelope-encryption';
 
@@ -414,29 +415,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         </div>
       </Modal>
 
-      {/* MODAL: 1-Click Guest Sandbox Demo */}
-      <Modal
+      {/* Dual-Pane Guest Sandbox */}
+      <DualPaneGuestSandbox
         isOpen={isSandboxModalOpen}
         onClose={() => setIsSandboxModalOpen(false)}
-        title="1-Click Guest Sandbox (Dành Cho Nhà Tuyển Dụng)"
-        description="Trải nghiệm cộng tác 2 người dùng song song tức thì không cần đăng ký tài khoản."
-        footer={
-          <>
-            <Button variant="ghost" size="sm" onClick={() => setIsSandboxModalOpen(false)}>Đóng</Button>
-            <Button variant="primary" size="sm" onClick={() => setIsSandboxModalOpen(false)}>Khởi Động 2 Tab Mô Phỏng</Button>
-          </>
-        }
-      >
-        <div className="flex flex-col gap-3 text-xs leading-relaxed text-theme-text-secondary">
-          <p>
-            Chế độ Sandbox tự động sinh ra 2 định danh tạm thời trong bộ nhớ RAM: <strong>Alice (Bạn)</strong> và <strong>Bob (Cộng tác viên mô phỏng)</strong> cùng kết nối vào một tài liệu Yjs CRDTs.
-          </p>
-          <div className="bg-theme-card p-3 rounded-lg border border-theme-border flex items-center justify-between font-mono text-[11px]">
-            <span>Độ trễ đồng bộ E2EE:</span>
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">&lt; 15ms (Local Loopback)</span>
-          </div>
-        </div>
-      </Modal>
+      />
     </div>
   );
 };
