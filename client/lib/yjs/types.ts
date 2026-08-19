@@ -45,3 +45,25 @@ export interface CRDTPositionTestResult {
   latencyMs: number;
   details: string[];
 }
+
+export type ProviderSyncStatus = 'synced' | 'syncing' | 'offline';
+
+export interface ProviderConnectionStatus {
+  connected: boolean;
+  connecting: boolean;
+  syncStatus: ProviderSyncStatus;
+  reconnectAttempts: number;
+  error: Error | null;
+}
+
+export interface EncryptedYjsProviderOptions {
+  serverUrl: string;
+  roomId: string;
+  yDoc: Y.Doc;
+  documentKey: CryptoKey;
+  epoch?: number | undefined;
+  autoConnect?: boolean | undefined;
+  maxReconnectAttempts?: number | undefined;
+  onStatusChange?: ((status: ProviderConnectionStatus) => void) | undefined;
+  onSyncChange?: ((synced: boolean) => void) | undefined;
+}
