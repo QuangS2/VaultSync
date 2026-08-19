@@ -51,7 +51,7 @@ export class TreeStateManager {
       const welcomeDoc: FileSystemItem = {
         id: 'doc-welcome',
         parentId: null,
-        name: 'Chào mừng đến VaultSync',
+        name: 'Chào mừng đến với VaultSync',
         type: 'document',
         icon: 'Sparkles',
         createdAt: Date.now() - 3600000,
@@ -60,77 +60,65 @@ export class TreeStateManager {
       };
       this.yMap.set(welcomeDoc.id, welcomeDoc);
 
-      // 2. Folder: Kiến Trúc Cốt Lõi
-      const coreFolder: FileSystemItem = {
-        id: 'folder-core-arch',
+      // 2. Folder: Tài Liệu Hướng Dẫn
+      const guideFolder: FileSystemItem = {
+        id: 'folder-guide',
         parentId: null,
-        name: 'Kiến Trúc Cốt Lõi',
+        name: 'Tài Liệu Hướng Dẫn',
         type: 'folder',
         createdAt: Date.now() - 7200000,
         updatedAt: Date.now() - 3600000,
         order: 20
       };
-      this.yMap.set(coreFolder.id, coreFolder);
+      this.yMap.set(guideFolder.id, guideFolder);
 
-      // 2.1 Sub-doc: Yjs CRDTs
-      const yjsDoc: FileSystemItem = {
-        id: 'doc-yjs-principles',
-        parentId: 'folder-core-arch',
-        name: 'Nguyên lý Yjs & CRDTs',
+      // 2.1 Sub-doc: Hướng Dẫn Sử Dụng Nhanh
+      const quickstartDoc: FileSystemItem = {
+        id: 'doc-quickstart',
+        parentId: 'folder-guide',
+        name: 'Hướng Dẫn Sử Dụng Nhanh',
         type: 'document',
         createdAt: Date.now() - 5400000,
         updatedAt: Date.now() - 2000000,
         order: 10
       };
-      this.yMap.set(yjsDoc.id, yjsDoc);
+      this.yMap.set(quickstartDoc.id, quickstartDoc);
 
-      // 2.2 Sub-doc: Zero-Knowledge Storage
-      const zkDoc: FileSystemItem = {
-        id: 'doc-zk-storage',
-        parentId: 'folder-core-arch',
-        name: 'Bộ nhớ cục bộ IndexedDB E2EE',
+      // 2.2 Sub-doc: Bảng Phím Tắt Tiện Ích
+      const shortcutsDoc: FileSystemItem = {
+        id: 'doc-shortcuts',
+        parentId: 'folder-guide',
+        name: 'Bảng Phím Tắt Tiện Ích',
         type: 'document',
         createdAt: Date.now() - 4000000,
         updatedAt: Date.now() - 1000000,
         order: 20
       };
-      this.yMap.set(zkDoc.id, zkDoc);
+      this.yMap.set(shortcutsDoc.id, shortcutsDoc);
 
-      // 3. Folder: Mật Mã Học (Cryptography)
-      const cryptoFolder: FileSystemItem = {
-        id: 'folder-crypto',
+      // 3. Folder: Ghi Chú Cá Nhân
+      const personalFolder: FileSystemItem = {
+        id: 'folder-personal',
         parentId: null,
-        name: 'Mật Mã Học & WebCrypto',
+        name: 'Ghi Chú Cá Nhân',
         type: 'folder',
         createdAt: Date.now() - 10800000,
         updatedAt: Date.now() - 5000000,
         order: 30
       };
-      this.yMap.set(cryptoFolder.id, cryptoFolder);
+      this.yMap.set(personalFolder.id, personalFolder);
 
-      // 3.1 Sub-doc: AES-GCM Spec
-      const aesDoc: FileSystemItem = {
-        id: 'doc-aes-gcm-spec',
-        parentId: 'folder-crypto',
-        name: 'Đặc tả AES-256-GCM + AAD',
+      // 3.1 Sub-doc: Ý Tưởng & Kế Hoạch
+      const ideasDoc: FileSystemItem = {
+        id: 'doc-ideas',
+        parentId: 'folder-personal',
+        name: 'Ý Tưởng & Kế Hoạch',
         type: 'document',
         createdAt: Date.now() - 9000000,
         updatedAt: Date.now() - 4000000,
         order: 10
       };
-      this.yMap.set(aesDoc.id, aesDoc);
-
-      // 4. Folder: Bản Thảo (Drafts)
-      const draftsFolder: FileSystemItem = {
-        id: 'folder-drafts',
-        parentId: null,
-        name: 'Bản Thảo & Ghi Chú',
-        type: 'folder',
-        createdAt: Date.now() - 14400000,
-        updatedAt: Date.now() - 7000000,
-        order: 40
-      };
-      this.yMap.set(draftsFolder.id, draftsFolder);
+      this.yMap.set(ideasDoc.id, ideasDoc);
     });
   }
 

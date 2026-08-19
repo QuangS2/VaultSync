@@ -11,8 +11,8 @@ describe('TreeStateManager — CRDT Hierarchical Workspace Unit Tests', () => {
     expect(rootItems.length).toBeGreaterThanOrEqual(3);
 
     const allItems = manager.getAllItems();
-    expect(allItems.some(item => item.name === 'Chào mừng đến VaultSync')).toBe(true);
-    expect(allItems.some(item => item.name === 'Kiến Trúc Cốt Lõi')).toBe(true);
+    expect(allItems.some(item => item.name === 'Chào mừng đến với VaultSync')).toBe(true);
+    expect(allItems.some(item => item.name === 'Tài Liệu Hướng Dẫn')).toBe(true);
   });
 
   it('should create new folders and child documents cleanly', () => {

@@ -245,54 +245,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     initCrypto();
   }, [session]);
 
-  // Seed sample contextual comments & chat if empty
-  useEffect(() => {
-    const commentsMap = yDoc.getMap('vaultsync-inline-threads');
-    if (commentsMap.size === 0) {
-      const yText = yDoc.getText('content');
-      if (yText.length === 0) {
-        yText.insert(0, 'VaultSync là không gian làm việc cộng tác thời gian thực chuẩn doanh nghiệp, được bảo vệ bởi kiến trúc Mã hóa Đầu-Cuối (End-to-End Encryption / Zero-Knowledge) kết hợp cấu trúc dữ liệu phân tán CRDTs (Yjs).');
-      }
-
-      // Create initial sample threads
-      const phrase1 = 'Mã hóa Đầu-Cuối (End-to-End Encryption / Zero-Knowledge)';
-      const idx1 = yText.toString().indexOf(phrase1);
-      if (idx1 >= 0) {
-        const t1 = commentEngine.createThread({
-          yType: yText,
-          from: idx1,
-          to: idx1 + phrase1.length,
-          quotedText: phrase1,
-          authorId: 'user_alice',
-          authorName: 'Alice (Trưởng Nhóm)',
-          content: 'Đã hoàn thiện module AES-256-GCM với AAD binding để chống tấn công hoán đổi bản mã.'
-        });
-
-        commentEngine.addReply(t1.id, {
-          authorId: 'user_bob',
-          authorName: 'Bob (Reviewer)',
-          content: 'Tuyệt vời! Cần lưu ý thêm kiểm tra tính kết hợp assoc: 0 cho start anchor nhé.'
-        });
-      }
-    }
-
-    const chatArr = yDoc.getArray('vaultsync-room-chat');
-    if (chatArr.length === 0) {
-      chatEngine.sendMessage({
-        authorId: 'user_alice',
-        authorName: 'Alice',
-        authorColor: '#2563eb',
-        content: 'Chào cả phòng! Mọi người kiểm tra nhánh develop nhé.'
-      });
-      chatEngine.sendMessage({
-        authorId: 'user_bob',
-        authorName: 'Bob',
-        authorColor: '#059669',
-        content: 'Đã nhận! Đang chạy test runner kiểm tra tính năng live cursor và comment highlight.'
-      });
-    }
-  }, [yDoc, commentEngine, chatEngine]);
-
   useEffect(() => {
     const unobserve = treeManager.observe(() => {
       setTreeVersion(v => v + 1);
@@ -301,9 +253,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   }, [treeManager]);
 
   const activeItem = treeManager.getItem(activeDocId);
-  const activeDocTitle = activeItem?.name || 'Chào mừng đến VaultSync';
+  const activeDocTitle = activeItem?.name || 'Chào mừng đến với VaultSync';
   const parentFolder = activeItem?.parentId ? treeManager.getItem(activeItem.parentId) : null;
-  const folderName = parentFolder?.name || 'Engineering Vault';
+  const folderName = parentFolder?.name || 'Kho Lưu Trữ';
 
   // Modals state
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
