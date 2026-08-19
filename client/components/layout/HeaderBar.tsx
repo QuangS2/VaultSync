@@ -9,8 +9,6 @@ import {
   PanelLeft,
   ShieldCheck,
   Download,
-  Sparkles,
-  Cpu,
   Wifi,
   WifiOff,
   RefreshCw
@@ -29,9 +27,6 @@ export interface HeaderBarProps {
   onToggleRightSidebar: () => void;
   onOpenShareModal: () => void;
   onOpenExportModal: () => void;
-  onOpenSandboxModal: () => void;
-  onOpenCryptoModal: () => void;
-  onOpenInspectorModal?: (() => void) | undefined;
   activeCollaboratorCount?: number | undefined;
   providerStatus?: ProviderConnectionStatus | undefined;
   awarenessUsers?: AwarenessUser[] | undefined;
@@ -46,9 +41,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onToggleRightSidebar,
   onOpenShareModal,
   onOpenExportModal,
-  onOpenSandboxModal,
-  onOpenCryptoModal,
-  onOpenInspectorModal,
   activeCollaboratorCount,
   providerStatus,
   awarenessUsers = []
@@ -59,7 +51,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
   return (
     <header className="h-12 border-b border-theme-border bg-theme-bg/80 backdrop-blur-md px-4 flex items-center justify-between z-10 select-none">
-      {/* Left Area: Toggle Sidebar, Logo, Document Status */}
+      {/* Left Area: Toggle Sidebar, Logo, Workspace Identity */}
       <div className="flex items-center gap-3">
         <Button
           variant="ghost"
@@ -76,74 +68,49 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             <Lock className="w-3.5 h-3.5" />
           </div>
           <span className="font-semibold text-sm tracking-tight text-theme-text hidden sm:inline">VaultSync</span>
-          <Badge variant="accent" size="sm" className="hidden md:inline-flex">Không Gian Riêng Tư</Badge>
+          <Badge variant="accent" size="sm" className="hidden md:inline-flex">Bảo Mật Riêng Tư</Badge>
         </div>
       </div>
 
-      {/* Center: Security Badge & Live Connection Status Indicator */}
+      {/* Center: Security Badge & Live Online Connection Status */}
       <div className="flex items-center gap-2">
-        <button
-          onClick={onOpenInspectorModal || onOpenCryptoModal}
-          title="Kiểm tra trạng thái bảo vệ mã hóa"
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs font-mono transition-colors cursor-pointer"
-        >
+        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-          <span className="text-theme-text-secondary hidden sm:inline">Bảo Vệ:</span>
-          <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Đã Mã Hóa Đầu-Cuối</span>
-        </button>
+          <span className="hidden sm:inline">Bảo Vệ Đầu-Cuối</span>
+        </div>
 
-        {/* Live WebSocket Connection Badge */}
-        <div className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded-md bg-theme-card border border-theme-border text-[11px] text-theme-text-muted">
+        {/* Live WebSocket Connection Status Badge */}
+        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-theme-card border border-theme-border text-[11px] text-theme-text-muted">
           {isConnected ? (
             <>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <Wifi className="w-3 h-3 text-emerald-500" />
-              <span>Đồng bộ máy chủ • {onlineCount} trực tuyến</span>
+              <Wifi className="w-3.5 h-3.5 text-emerald-500" />
+              <span>Đã đồng bộ • {onlineCount} trực tuyến</span>
             </>
           ) : isConnecting ? (
             <>
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
-              <RefreshCw className="w-3 h-3 text-amber-500 animate-spin" />
+              <RefreshCw className="w-3.5 h-3.5 text-amber-500 animate-spin" />
               <span>Đang kết nối lại...</span>
             </>
           ) : (
             <>
               <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-              <WifiOff className="w-3 h-3 text-slate-400" />
-              <span>Cục bộ (Ngoại tuyến)</span>
+              <WifiOff className="w-3.5 h-3.5 text-slate-400" />
+              <span>Ngoại tuyến (Lưu cục bộ)</span>
             </>
           )}
         </div>
       </div>
 
-      {/* Right Controls: Crypto Test, Sandbox, Share, Export, Theme, and Discussion Toggle */}
+      {/* Right Controls: Share, Export, Theme, and Discussion Toggle */}
       <div className="flex items-center gap-2">
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={onOpenCryptoModal}
-          className="text-theme-text-secondary border-theme-border hover:text-theme-text hidden md:inline-flex"
-        >
-          <Cpu className="w-3.5 h-3.5 text-theme-accent" />
-          <span>Kiểm Tra Mã Hóa</span>
-        </Button>
-
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={onOpenSandboxModal}
-          className="text-theme-text-secondary border-theme-border hover:text-theme-text hidden xl:inline-flex"
-          title="Mở Thử Nghiệm 2 Cửa Sổ Alice & Bob (Ctrl+Shift+S)"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-          <span>Mô Phỏng 2 Người</span>
-        </Button>
-
         <Button
           variant="secondary"
           size="sm"
           onClick={onOpenShareModal}
           className="text-theme-text-secondary border-theme-border hover:text-theme-text"
+          title="Chia sẻ quyền truy cập tài liệu"
         >
           <Share2 className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Chia Sẻ</span>
@@ -154,6 +121,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           size="sm"
           onClick={onOpenExportModal}
           className="text-theme-text-secondary border-theme-border hover:text-theme-text"
+          title="Xuất file tài liệu hoặc sao lưu kho"
         >
           <Download className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Xuất File</span>

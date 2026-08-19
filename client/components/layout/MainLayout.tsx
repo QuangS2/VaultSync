@@ -6,7 +6,6 @@ import { RightDiscussionSidebar } from './RightDiscussionSidebar';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { CryptoPlaygroundModal } from '../crypto/CryptoPlaygroundModal';
 import { TreeStateManager } from '../../lib/tree/tree-state-manager';
 import { InlineCommentAnchorEngine } from '../../lib/yjs/inline-comment-engine';
 import { RoomChatEngine } from '../../lib/yjs/room-chat-engine';
@@ -18,8 +17,6 @@ import {
   Check
 } from 'lucide-react';
 
-import { DualPaneGuestSandbox } from '../sandbox/DualPaneGuestSandbox';
-import { LiveE2EEInspectorDrawer } from '../inspector/LiveE2EEInspectorDrawer';
 import { CommandPaletteModal } from '../palette/CommandPaletteModal';
 import { ExportModal } from '../export/ExportModal';
 import { CommandPaletteEngine, PaletteAction } from '../../lib/palette/command-palette-engine';
@@ -217,9 +214,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   // Modals state
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [isSandboxModalOpen, setIsSandboxModalOpen] = useState(false);
-  const [isCryptoModalOpen, setIsCryptoModalOpen] = useState(false);
-  const [isInspectorOpen, setIsInspectorOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [recipientKeyInput, setRecipientKeyInput] = useState('');
   const [recipientIdInput, setRecipientIdInput] = useState('user_bob_peer');
@@ -251,7 +245,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       {
         id: 'new-doc',
         title: 'Tạo ghi chú mới',
-        subtitle: 'Tạo tài liệu mới trong cây thư mục CRDTs',
+        subtitle: 'Tạo tài liệu mới trong cây thư mục',
         category: 'Document',
         shortcut: 'Ctrl+N',
         keywords: ['tao', 'ghi chu', 'new', 'doc', 'note', 'create'],
@@ -263,7 +257,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       {
         id: 'new-folder',
         title: 'Tạo thư mục mới',
-        subtitle: 'Tạo thư mục lưu trữ trong Engineering Vault',
+        subtitle: 'Tạo thư mục lưu trữ tài liệu',
         category: 'Document',
         shortcut: 'Ctrl+Shift+N',
         keywords: ['thu muc', 'folder', 'new', 'directory'],
@@ -271,40 +265,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           treeManager.createItem('Thư mục mới', 'folder');
         }
       },
-      // 2. Security & Recruiter Experience
-      {
-        id: 'open-sandbox',
-        title: 'Mở 1-Click Guest Sandbox',
-        subtitle: 'Môi trường cộng tác thời gian thực 2 cửa sổ Alice & Bob',
-        category: 'Security',
-        shortcut: 'Ctrl+Shift+S',
-        keywords: ['sandbox', 'guest', 'demo', 'alice', 'bob', 'dual-pane', 'recruiter'],
-        handler: () => setIsSandboxModalOpen(true)
-      },
-      {
-        id: 'open-inspector',
-        title: 'Mở Thanh Tra Mật Mã Trực Tiếp (Live E2EE Inspector)',
-        subtitle: 'Đối chiếu Gói tin mã hóa trên mạng vs Dữ liệu giải mã trong máy khách',
-        category: 'Security',
-        shortcut: 'Ctrl+Shift+I',
-        keywords: ['inspector', 'thanh tra', 'e2ee', 'zero-knowledge', 'hex', 'network', 'wire'],
-        handler: () => setIsInspectorOpen(true)
-      },
-      {
-        id: 'open-crypto',
-        title: 'Mở Trung Tâm Mật Mã Học (WebCrypto Lab)',
-        subtitle: 'Kiểm thử AES-256-GCM, PBKDF2, ECDH & Xoay vòng kỷ nguyên khóa',
-        category: 'Security',
-        shortcut: 'Ctrl+Shift+C',
-        keywords: ['crypto', 'lab', 'ecdh', 'hkdf', 'epoch', 'rotation', 'aes', 'gcm'],
-        handler: () => setIsCryptoModalOpen(true)
-      },
+      // 2. Security & Sharing
       {
         id: 'share-key',
-        title: 'Chia sẻ khóa tài liệu E2EE (DEK Envelope)',
-        subtitle: 'Bọc khóa tài liệu đối xứng bằng khóa công khai của thành viên mới',
+        title: 'Chia sẻ quyền truy cập tài liệu',
+        subtitle: 'Mã hóa an toàn cho thành viên mới',
         category: 'Security',
-        keywords: ['share', 'chia se', 'envelope', 'dek', 'ecdh'],
+        keywords: ['share', 'chia se', 'quyen', 'member'],
         handler: () => setIsShareModalOpen(true)
       },
       {
@@ -473,9 +440,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           setExportDocTitle(activeDocTitle);
           setIsExportModalOpen(true);
         }}
-        onOpenSandboxModal={() => setIsSandboxModalOpen(true)}
-        onOpenCryptoModal={() => setIsCryptoModalOpen(true)}
-        onOpenInspectorModal={() => setIsInspectorOpen(true)}
         providerStatus={providerStatus}
         awarenessUsers={awarenessUsers}
       />
@@ -519,12 +483,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           onSelectThread={handleSelectThreadFromSidebar}
         />
       </div>
-
-      {/* MODAL: WebCrypto Playground & Benchmark Center */}
-      <CryptoPlaygroundModal
-        isOpen={isCryptoModalOpen}
-        onClose={() => setIsCryptoModalOpen(false)}
-      />
 
       {/* MODAL: Chia Sẻ Khóa Tài Liệu (E2EE Envelope Sharing) */}
       <Modal
@@ -629,18 +587,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         documentId={activeDocId}
         folderName={folderName}
         treeManager={treeManager}
-      />
-
-      {/* Dual-Pane Guest Sandbox */}
-      <DualPaneGuestSandbox
-        isOpen={isSandboxModalOpen}
-        onClose={() => setIsSandboxModalOpen(false)}
-      />
-
-      {/* Live E2EE Network & Cryptographic Inspector Drawer */}
-      <LiveE2EEInspectorDrawer
-        isOpen={isInspectorOpen}
-        onClose={() => setIsInspectorOpen(false)}
       />
 
       {/* Spotlight Command Palette (Cmd+K / Ctrl+K) */}
