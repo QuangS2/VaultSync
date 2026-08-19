@@ -1,4 +1,4 @@
-import { test, expect, chromium } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 test.describe('VaultSync Enterprise Production E2E Test Suite (11/10 Precision)', () => {
 
@@ -157,9 +157,7 @@ test.describe('VaultSync Enterprise Production E2E Test Suite (11/10 Precision)'
     await expect(page.locator('text=Hồ Sơ & Danh Tính Mật Mã')).not.toBeVisible();
   });
 
-  test('5. Real-Time Multi-User E2EE Collaboration & Peer Synchronization', async () => {
-    const browser = await chromium.launch({ channel: 'msedge', headless: true });
-    
+  test('5. Real-Time Multi-User E2EE Collaboration & Peer Synchronization', async ({ browser }) => {
     // User A context
     const contextA = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const pageA = await contextA.newPage();
@@ -216,6 +214,7 @@ test.describe('VaultSync Enterprise Production E2E Test Suite (11/10 Precision)'
     const onlineBadge = pageA.locator('text=online');
     await expect(onlineBadge).toBeVisible();
 
-    await browser.close();
+    await contextA.close();
+    await contextB.close();
   });
 });
