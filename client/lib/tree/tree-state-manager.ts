@@ -22,6 +22,27 @@ export class TreeStateManager {
   }
 
   /**
+   * Returns the underlying Y.Doc instance.
+   */
+  public getYDoc(): Y.Doc {
+    return this.yDoc;
+  }
+
+  /**
+   * Encodes the current Tree state as a binary Yjs update.
+   */
+  public encodeState(): Uint8Array {
+    return Y.encodeStateAsUpdate(this.yDoc);
+  }
+
+  /**
+   * Applies an encrypted or persisted state update to the Tree Y.Doc.
+   */
+  public applyStateUpdate(update: Uint8Array): void {
+    Y.applyUpdate(this.yDoc, update);
+  }
+
+  /**
    * Initializes standard default workspace folders and documents.
    */
   public initDefaultTree(): void {

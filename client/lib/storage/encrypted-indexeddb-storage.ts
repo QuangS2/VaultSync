@@ -262,6 +262,44 @@ export class EncryptedIndexedDBStorage {
   }
 
   /**
+   * Encrypts and persists the full File Tree snapshot into IndexedDB.
+   */
+  public async saveTreeSnapshot(
+    treeBytes: Uint8Array,
+    key: CryptoKey,
+    epoch: number = 1
+  ): Promise<void> {
+    await this.compactDocumentSnapshot('__vaultsync_file_tree__', treeBytes, key, epoch);
+  }
+
+  /**
+   * Loads and decrypts the File Tree snapshot from IndexedDB.
+   */
+  public async loadTreeSnapshot(
+    key: CryptoKey,
+    epoch: number = 1
+  ): Promise<Uint8Array | null> {
+    try {
+      const { snapshot } = await this.loadDocumentState('__vaultsync_file_tree__', key, epoch);
+      return snapshot || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Encrypts and persists a full Document CRDT snapshot into IndexedDB.
+   */
+  public async saveDocumentSnapshot(
+    documentId: string,
+    stateBytes: Uint8Array,
+    key: CryptoKey,
+    epoch: number = 1
+  ): Promise<void> {
+    await this.compactDocumentSnapshot(documentId, stateBytes, key, epoch);
+  }
+
+  /**
    * Returns metadata for a single document.
    */
   public async getDocumentMeta(documentId: string): Promise<StoredDocumentMeta | undefined> {

@@ -25,6 +25,7 @@ import { EnvelopeEncryptionManager, WrappedKeyEnvelope } from '../../lib/crypto/
 import { UnlockedVaultSession } from '../../lib/auth/types';
 import { EncryptedYjsProvider } from '../../lib/yjs/encrypted-yjs-provider';
 import { ProviderConnectionStatus, AwarenessUser, CollaborationUserOptions } from '../../lib/yjs/types';
+import { EncryptedIndexedDBStorage } from '../../lib/storage/encrypted-indexeddb-storage';
 
 function getRelayWsUrl(): string {
   if (typeof window === 'undefined') return 'ws://localhost:1234';
@@ -57,6 +58,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [activeDocId, setActiveDocId] = useState('doc-welcome');
   const [exportDocTitle, setExportDocTitle] = useState('Chào mừng đến VaultSync');
   const [, setTreeVersion] = useState(0);
+
+  // Zero-Knowledge Offline-First Persistent Storage
+  const [storage] = useState(() => new EncryptedIndexedDBStorage());
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
+  const [lastSavedTime, setLastSavedTime] = useState<number>(Date.now());
 
   // Yjs Collaboration & Discussion Engines
   const [yDoc] = useState(() => new Y.Doc());
@@ -125,6 +131,94 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       newProvider.destroy();
     };
   }, [documentKey, activeDocId, currentUserOptions, yDoc]);
+
+  // Restore encrypted persistent data from IndexedDB on vault unlock
+  useEffect(() => {
+    if (!documentKey) return;
+    const currentKey = documentKey;
+    let isMounted = true;
+
+    async function restoreOfflineVaultData() {
+      try {
+        const treeSnapshot = await storage.loadTreeSnapshot(currentKey);
+        if (treeSnapshot && treeSnapshot.length > 0 && isMounted) {
+          treeManager.applyStateUpdate(treeSnapshot);
+        }
+
+        const docState = await storage.loadDocumentState(activeDocId, currentKey);
+        if (docState.snapshot && docState.snapshot.length > 0 && isMounted) {
+          Y.applyUpdate(yDoc, docState.snapshot);
+        }
+        for (const update of docState.updates) {
+          if (isMounted) Y.applyUpdate(yDoc, update);
+        }
+      } catch (err) {
+        console.error('Lỗi khôi phục dữ liệu mã hóa cục bộ:', err);
+      }
+    }
+
+    restoreOfflineVaultData();
+    return () => {
+      isMounted = false;
+    };
+  }, [documentKey, activeDocId, storage, treeManager, yDoc]);
+
+  // Auto-save Document Snapshot to Encrypted IndexedDB on change (Debounced 300ms)
+  useEffect(() => {
+    if (!documentKey) return;
+    const currentKey = documentKey;
+
+    let saveTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const handleYDocUpdate = () => {
+      setSaveStatus('saving');
+      if (saveTimer) clearTimeout(saveTimer);
+
+      saveTimer = setTimeout(async () => {
+        try {
+          const stateBytes = Y.encodeStateAsUpdate(yDoc);
+          await storage.saveDocumentSnapshot(activeDocId, stateBytes, currentKey);
+          setSaveStatus('saved');
+          setLastSavedTime(Date.now());
+        } catch (err) {
+          console.error('Tự động lưu tài liệu thất bại:', err);
+          setSaveStatus('error');
+        }
+      }, 300);
+    };
+
+    yDoc.on('update', handleYDocUpdate);
+    return () => {
+      if (saveTimer) clearTimeout(saveTimer);
+      yDoc.off('update', handleYDocUpdate);
+    };
+  }, [yDoc, activeDocId, documentKey, storage]);
+
+  // Auto-save File Tree Snapshot to Encrypted IndexedDB on change (Debounced 500ms)
+  useEffect(() => {
+    if (!documentKey) return;
+    const currentKey = documentKey;
+
+    let saveTreeTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const handleTreeChange = () => {
+      if (saveTreeTimer) clearTimeout(saveTreeTimer);
+      saveTreeTimer = setTimeout(async () => {
+        try {
+          const treeBytes = treeManager.encodeState();
+          await storage.saveTreeSnapshot(treeBytes, currentKey);
+        } catch (err) {
+          console.error('Tự động lưu cây thư mục thất bại:', err);
+        }
+      }, 500);
+    };
+
+    const unobserve = treeManager.observe(handleTreeChange);
+    return () => {
+      if (saveTreeTimer) clearTimeout(saveTreeTimer);
+      unobserve();
+    };
+  }, [treeManager, documentKey, storage]);
 
   // Initialize cryptographic keys on mount if session is not already provided
   useEffect(() => {
@@ -467,6 +561,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           user={currentUserOptions}
           providerStatus={providerStatus}
           awarenessUsers={awarenessUsers}
+          saveStatus={saveStatus}
+          lastSavedTime={lastSavedTime}
           onAddInlineComment={() => setIsRightSidebarOpen(true)}
           onTitleChange={handleTitleChange}
           onCommentClick={handleCommentClickFromEditor}

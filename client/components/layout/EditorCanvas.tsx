@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Lock, 
-  Clock, 
   Folder, 
   ChevronRight,
   Wifi,
   WifiOff,
-  RefreshCw
+  RefreshCw,
+  CheckCircle2
 } from 'lucide-react';
 import * as Y from 'yjs';
 import { Badge } from '../ui/Badge';
@@ -23,6 +23,8 @@ export interface EditorCanvasProps {
   user?: CollaborationUserOptions | undefined;
   providerStatus?: ProviderConnectionStatus | undefined;
   awarenessUsers?: AwarenessUser[] | undefined;
+  saveStatus?: 'saved' | 'saving' | 'error' | undefined;
+  lastSavedTime?: number | undefined;
   onAddInlineComment?: (() => void) | undefined;
   onTitleChange?: ((newTitle: string) => void) | undefined;
   onCommentClick?: ((threadId: string) => void) | undefined;
@@ -38,6 +40,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   user,
   providerStatus,
   awarenessUsers = [],
+  saveStatus = 'saved',
+  lastSavedTime,
   onAddInlineComment,
   onTitleChange,
   onCommentClick,
@@ -128,9 +132,22 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
             )}
           </div>
 
-          <div className="flex items-center gap-1 text-[11px] text-theme-text-muted font-mono">
-            <Clock className="w-3 h-3 text-theme-text-muted" />
-            <span>Tự động lưu</span>
+          {/* Real-Time Auto-Save Indicator */}
+          <div 
+            title={lastSavedTime ? `Đã lưu lúc ${new Date(lastSavedTime).toLocaleTimeString()}` : 'Đã lưu trên máy'}
+            className="flex items-center gap-1 text-[11px] text-theme-text-muted font-mono"
+          >
+            {saveStatus === 'saving' ? (
+              <span className="flex items-center gap-1 text-amber-500 animate-pulse">
+                <RefreshCw className="w-3 h-3 animate-spin" />
+                <span>Đang lưu...</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-theme-text-muted">
+                <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                <span>Đã lưu an toàn</span>
+              </span>
+            )}
           </div>
 
           <Badge variant="success" size="sm" className="hidden sm:inline-flex">
