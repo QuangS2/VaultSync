@@ -15,7 +15,10 @@ import {
   AlertCircle,
   CheckCircle2,
   Lock,
-  Sparkles
+  Sparkles,
+  Sun,
+  Cloud,
+  Moon
 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -23,11 +26,15 @@ import { Input } from '../ui/Input';
 import { Badge } from '../ui/Badge';
 import { VaultAuthEngine } from '../../lib/auth/vault-auth-engine';
 import { UnlockedVaultSession } from '../../lib/auth/types';
+import { AppTheme } from '../../App';
 
 export interface VaultOnboardingModalProps {
   isOpen: boolean;
-  onClose?: () => void;
+  onClose?: (() => void) | undefined;
   onVaultCreated: (session: UnlockedVaultSession) => void;
+  isFullScreen?: boolean | undefined;
+  theme?: AppTheme | undefined;
+  onThemeChange?: ((theme: AppTheme) => void) | undefined;
 }
 
 const AVATAR_COLORS = [
@@ -42,7 +49,10 @@ const AVATAR_COLORS = [
 export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
   isOpen,
   onClose,
-  onVaultCreated
+  onVaultCreated,
+  isFullScreen = false,
+  theme,
+  onThemeChange
 }) => {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [displayName, setDisplayName] = useState('');
@@ -184,17 +194,10 @@ export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
     4: 'bg-emerald-500'
   };
 
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose ? onClose : () => {}}
-      title="Khởi Tạo Kho Bảo Mật (Zero-Knowledge Onboarding)"
-      description="Thiết lập danh tính mật mã cá nhân và tạo Master Key bảo vệ dữ liệu."
-      maxWidth="lg"
-    >
-      <div className="flex flex-col gap-5">
-        {/* Step Indicator Wizard */}
-        <div className="flex items-center justify-between pb-3 border-b border-theme-border text-xs">
+  const content = (
+    <div className="flex flex-col gap-5">
+      {/* Step Indicator Wizard */}
+      <div className="flex items-center justify-between pb-3 border-b border-theme-border text-xs">
           <div className="flex items-center gap-2">
             <span
               className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
@@ -519,6 +522,87 @@ export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
           </div>
         )}
       </div>
+  );
+
+  if (isFullScreen) {
+    return (
+      <div className="h-screen w-screen flex flex-col justify-between overflow-hidden bg-theme-bg text-theme-text font-sans select-none relative">
+        {/* Top Header */}
+        <header className="h-14 px-6 flex items-center justify-between z-10">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-theme-accent text-white flex items-center justify-center shadow-xs">
+              <Lock className="w-4 h-4" />
+            </div>
+            <span className="font-bold text-sm tracking-tight text-theme-text">VaultSync</span>
+            <Badge variant="accent" size="sm">Zero-Knowledge Workspace</Badge>
+          </div>
+
+          {onThemeChange && theme && (
+            <div className="flex items-center bg-theme-card p-0.5 rounded-lg border border-theme-border shadow-xs">
+              <button
+                onClick={() => onThemeChange('sun')}
+                title="Chế độ Kem Sữa (Sun)"
+                className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                  theme === 'sun' ? 'bg-theme-bg-subtle text-amber-600 shadow-xs' : 'text-theme-text-muted hover:text-theme-text'
+                }`}
+              >
+                <Sun className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => onThemeChange('cloud')}
+                title="Chế độ Mây Trắng Xám (Cloud)"
+                className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                  theme === 'cloud' ? 'bg-theme-bg-subtle text-sky-500 shadow-xs' : 'text-theme-text-muted hover:text-theme-text'
+                }`}
+              >
+                <Cloud className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => onThemeChange('night')}
+                title="Chế độ Đêm Huyền Bí (Night)"
+                className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                  theme === 'night' ? 'bg-theme-bg-subtle text-indigo-400 shadow-xs' : 'text-theme-text-muted hover:text-theme-text'
+                }`}
+              >
+                <Moon className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+        </header>
+
+        {/* Center Card */}
+        <main className="flex-1 flex items-center justify-center p-4 z-10 overflow-y-auto">
+          <div className="w-full max-w-lg bg-theme-bg-subtle border border-theme-border rounded-2xl p-6 sm:p-8 shadow-xl flex flex-col gap-5">
+            <div>
+              <h2 className="text-base font-bold text-theme-text tracking-tight">
+                Khởi Tạo Kho Bảo Mật (Zero-Knowledge Onboarding)
+              </h2>
+              <p className="text-xs text-theme-text-muted mt-0.5">
+                Thiết lập danh tính mật mã cá nhân và tạo Master Key bảo vệ dữ liệu.
+              </p>
+            </div>
+            {content}
+          </div>
+        </main>
+
+        {/* Footer */}
+        <footer className="h-10 px-6 flex items-center justify-between text-[11px] text-theme-text-muted border-t border-theme-border bg-theme-card/50 z-10">
+          <span>VaultSync v1.0.0 • Zero-Knowledge Architecture</span>
+          <span>Bước {step} / 3</span>
+        </footer>
+      </div>
+    );
+  }
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose ? onClose : () => {}}
+      title="Khởi Tạo Kho Bảo Mật (Zero-Knowledge Onboarding)"
+      description="Thiết lập danh tính mật mã cá nhân và tạo Master Key bảo vệ dữ liệu."
+      maxWidth="lg"
+    >
+      {content}
     </Modal>
   );
 };
