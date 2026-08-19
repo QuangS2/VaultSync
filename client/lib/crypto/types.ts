@@ -31,7 +31,7 @@ export interface AADMetadata {
   documentId: string;
   epoch: number;
   chunkType: ChunkType;
-  authorUserId?: string;
+  authorUserId?: string | undefined;
 }
 
 export interface CryptoBenchmarkResult {

@@ -9,12 +9,16 @@ import {
   KeyRound, 
   FileSignature, 
   Share2, 
-  Sparkles,
-  HardDrive,
-  Database,
-  Archive,
-  Trash2,
-  Eye
+  Sparkles, 
+  HardDrive, 
+  Database, 
+  Archive, 
+  Trash2, 
+  Eye,
+  RotateCcw,
+  UserMinus,
+  UserCheck,
+  ShieldAlert
 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -28,6 +32,8 @@ import { WorkerCryptoClient } from '../../lib/crypto/worker-client';
 import { KeyDerivation } from '../../lib/crypto/key-derivation';
 import { IdentityKeys, ECDHKeyPair, ECDSAKeyPair } from '../../lib/crypto/identity-keys';
 import { EncryptedIndexedDBStorage } from '../../lib/storage/encrypted-indexeddb-storage';
+import { EpochKeyManager, AuthorizedMember } from '../../lib/crypto/epoch-key-manager';
+import { EnvelopeEncryptionManager } from '../../lib/crypto/envelope-encryption';
 import { StorageStats } from '../../lib/storage/types';
 import { ChunkType } from '../../lib/crypto/types';
 
@@ -40,7 +46,7 @@ export const CryptoPlaygroundModal: React.FC<CryptoPlaygroundModalProps> = ({
   isOpen,
   onClose
 }) => {
-  const [activeTab, setActiveTab] = useState<'aes' | 'pbkdf2' | 'ecdh' | 'ecdsa' | 'storage'>('aes');
+  const [activeTab, setActiveTab] = useState<'aes' | 'pbkdf2' | 'ecdh' | 'ecdsa' | 'storage' | 'rotation'>('aes');
   const [isRunning, setIsRunning] = useState(false);
   const [suiteResult, setSuiteResult] = useState<CryptoTestSuiteResult | null>(null);
 
@@ -97,6 +103,130 @@ export const CryptoPlaygroundModal: React.FC<CryptoPlaygroundModalProps> = ({
       refreshStorageStats();
     }
   }, [isOpen, activeTab, storageDocId]);
+
+  // Tab 6: Key Epoch Rotation Lab
+  const [rotationEpoch, setRotationEpoch] = useState<number>(1);
+  const [rotationDocId] = useState<string>('doc-confidential-vault');
+  const [rotationSecretMsg, setRotationSecretMsg] = useState<string>('Nội dung bảo mật tuyệt đối chỉ dành cho thành viên còn quyền!');
+  const [rotationAliceKey, setRotationAliceKey] = useState<{ keys: ECDHKeyPair; pubSPKI: string } | null>(null);
+  const [rotationBobKey, setRotationBobKey] = useState<{ keys: ECDHKeyPair; pubSPKI: string } | null>(null);
+  const [rotationCharlieKey, setRotationCharlieKey] = useState<{ keys: ECDHKeyPair; pubSPKI: string } | null>(null);
+  const [rotationManager, setRotationManager] = useState<EpochKeyManager | null>(null);
+  const [bobKeyManager, setBobKeyManager] = useState<EpochKeyManager | null>(null);
+  const [charlieKeyManager, setCharlieKeyManager] = useState<EpochKeyManager | null>(null);
+  const [isBobRevoked, setIsBobRevoked] = useState<boolean>(false);
+  const [rotationVerification, setRotationVerification] = useState<{
+    aliceDec: string;
+    charlieDec: string;
+    bobStatus: string;
+    epoch: number;
+  } | null>(null);
+
+  const initRotationLab = async () => {
+    try {
+      const a = await IdentityKeys.generateECDHKeyPair();
+      const b = await IdentityKeys.generateECDHKeyPair();
+      const c = await IdentityKeys.generateECDHKeyPair();
+
+      const aSPKI = await IdentityKeys.exportPublicKeySPKI(a.publicKey);
+      const bSPKI = await IdentityKeys.exportPublicKeySPKI(b.publicKey);
+      const cSPKI = await IdentityKeys.exportPublicKeySPKI(c.publicKey);
+
+      setRotationAliceKey({ keys: a, pubSPKI: aSPKI });
+      setRotationBobKey({ keys: b, pubSPKI: bSPKI });
+      setRotationCharlieKey({ keys: c, pubSPKI: cSPKI });
+
+      const initialDEK = await EnvelopeEncryptionManager.generateDocumentKey();
+      const aliceMgr = new EpochKeyManager(rotationDocId, 1, initialDEK);
+      const bobMgr = new EpochKeyManager(rotationDocId, 1, initialDEK);
+      const charlieMgr = new EpochKeyManager(rotationDocId, 1, initialDEK);
+
+      setRotationManager(aliceMgr);
+      setBobKeyManager(bobMgr);
+      setCharlieKeyManager(charlieMgr);
+      setRotationEpoch(1);
+      setIsBobRevoked(false);
+      setRotationVerification(null);
+    } catch (err) {
+      console.error('Failed to init rotation lab:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen && activeTab === 'rotation' && !rotationManager) {
+      initRotationLab();
+    }
+  }, [isOpen, activeTab, rotationManager]);
+
+  const handleExecuteRotation = async () => {
+    if (!rotationManager || !rotationAliceKey || !rotationCharlieKey || !charlieKeyManager) return;
+
+    try {
+      // Rotate key for remaining member (Charlie only, excluding Bob)
+      const remaining: AuthorizedMember[] = [
+        { userId: 'user_charlie', name: 'Charlie', publicKeySPKI: rotationCharlieKey.pubSPKI }
+      ];
+
+      const res = await rotationManager.rotateKey({
+        documentId: rotationDocId,
+        ownerPrivateKey: rotationAliceKey.keys.privateKey,
+        ownerPublicKeySPKI: rotationAliceKey.pubSPKI,
+        remainingMembers: remaining
+      });
+
+      // Charlie ingests the new envelope for Epoch 2
+      const charlieEnv = res.envelopes.find(e => e.recipientUserId === 'user_charlie');
+      if (charlieEnv) {
+        await charlieKeyManager.ingestEnvelope(charlieEnv, rotationCharlieKey.keys.privateKey);
+      }
+
+      setRotationEpoch(res.newEpoch);
+      setIsBobRevoked(true);
+      setRotationVerification(null);
+    } catch (err) {
+      console.error('Failed to rotate key:', err);
+    }
+  };
+
+  const handleVerifyAccess = async () => {
+    if (!rotationManager || !bobKeyManager || !charlieKeyManager) return;
+
+    try {
+      const plaintext = BinaryUtils.stringToBytes(rotationSecretMsg);
+      const enc = await rotationManager.encryptWithCurrentEpoch(plaintext);
+
+      // Alice decrypts
+      const aDecBytes = await rotationManager.decryptForEpoch(enc.epoch, enc.ciphertext, enc.iv);
+      const aliceDec = BinaryUtils.bytesToString(aDecBytes);
+
+      // Charlie decrypts
+      let charlieDec = '';
+      try {
+        const cDecBytes = await charlieKeyManager.decryptForEpoch(enc.epoch, enc.ciphertext, enc.iv);
+        charlieDec = BinaryUtils.bytesToString(cDecBytes);
+      } catch (err: any) {
+        charlieDec = `Lỗi: ${err.message}`;
+      }
+
+      // Bob tries to decrypt
+      let bobStatus = '';
+      try {
+        const bDecBytes = await bobKeyManager.decryptForEpoch(enc.epoch, enc.ciphertext, enc.iv);
+        bobStatus = `Đọc thành công: ${BinaryUtils.bytesToString(bDecBytes)}`;
+      } catch {
+        bobStatus = `❌ BỊ TỪ CHỐI TRUY CẬP (OperationError: Bob không có khóa Epoch ${enc.epoch})`;
+      }
+
+      setRotationVerification({
+        aliceDec,
+        charlieDec,
+        bobStatus,
+        epoch: enc.epoch
+      });
+    } catch (err) {
+      console.error('Failed to verify access:', err);
+    }
+  };
 
   const runFullSuite = async () => {
     setIsRunning(true);
@@ -377,9 +507,9 @@ export const CryptoPlaygroundModal: React.FC<CryptoPlaygroundModalProps> = ({
           </div>
         )}
 
-        {/* 5 Interactive Lab Tabs */}
+        {/* 6 Interactive Lab Tabs */}
         <div className="flex flex-col gap-3">
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-1 bg-theme-card p-1 rounded-lg border border-theme-border text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-6 gap-1 bg-theme-card p-1 rounded-lg border border-theme-border text-xs">
             <button
               onClick={() => setActiveTab('aes')}
               className={`py-1.5 px-2 rounded-md font-medium transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${activeTab === 'aes' ? 'bg-theme-bg-subtle text-theme-text shadow-xs' : 'text-theme-text-muted hover:text-theme-text'}`}
@@ -418,6 +548,14 @@ export const CryptoPlaygroundModal: React.FC<CryptoPlaygroundModalProps> = ({
             >
               <HardDrive className="w-3.5 h-3.5 text-indigo-500" />
               <span>IndexedDB</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('rotation')}
+              className={`py-1.5 px-2 rounded-md font-medium transition-colors flex items-center justify-center gap-1.5 cursor-pointer ${activeTab === 'rotation' ? 'bg-theme-bg-subtle text-theme-text shadow-xs' : 'text-theme-text-muted hover:text-theme-text'}`}
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-rose-500" />
+              <span>Xoay Khóa</span>
             </button>
           </div>
 
@@ -745,6 +883,141 @@ export const CryptoPlaygroundModal: React.FC<CryptoPlaygroundModalProps> = ({
                       + {rawStorageInspector.updates.length - 3} bản ghi mã hóa khác...
                     </div>
                   )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 6: KEY EPOCH ROTATION & ACCESS REVOCATION LAB */}
+          {activeTab === 'rotation' && (
+            <div className="flex flex-col gap-3.5 p-3 bg-theme-card/60 rounded-xl border border-theme-border text-xs">
+              {/* Header Context */}
+              <div className="flex items-center justify-between border-b border-theme-border/60 pb-2">
+                <div className="flex items-center gap-2">
+                  <RotateCcw className="w-4 h-4 text-rose-500" />
+                  <span className="font-semibold text-theme-text">Giao Thức Xoay Vòng Kỷ Nguyên & Thu Hồi Thành Viên (Forward Secrecy)</span>
+                </div>
+                <Badge variant={rotationEpoch === 1 ? 'default' : 'success'} size="sm">
+                  Kỷ Nguyên Hiện Tại: Epoch {rotationEpoch}
+                </Badge>
+              </div>
+
+              {/* Interactive Members State Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {/* Alice (Owner) */}
+                <div className="p-2.5 rounded-lg bg-theme-bg border border-theme-border flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-theme-text flex items-center gap-1.5">
+                      <UserCheck className="w-3.5 h-3.5 text-blue-500" /> Alice (Chủ Phòng)
+                    </span>
+                    <span className="text-[10px] text-blue-500 font-mono font-bold">Owner</span>
+                  </div>
+                  <span className="text-[10px] text-theme-text-muted">Key Ring: Epoch 1, Epoch {rotationEpoch}</span>
+                  <Badge variant="success" size="sm" className="w-fit text-[9px] mt-1">Toàn Quyền Quản Trị</Badge>
+                </div>
+
+                {/* Charlie (Active Member) */}
+                <div className="p-2.5 rounded-lg bg-theme-bg border border-theme-border flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-theme-text flex items-center gap-1.5">
+                      <UserCheck className="w-3.5 h-3.5 text-emerald-500" /> Charlie (Bảo Mật)
+                    </span>
+                    <span className="text-[10px] text-emerald-500 font-mono font-bold">Active</span>
+                  </div>
+                  <span className="text-[10px] text-theme-text-muted">Key Ring: Epoch 1, Epoch {rotationEpoch}</span>
+                  <Badge variant="success" size="sm" className="w-fit text-[9px] mt-1">Nhận Khóa Epoch {rotationEpoch}</Badge>
+                </div>
+
+                {/* Bob (Target to Revoke) */}
+                <div className={`p-2.5 rounded-lg border flex flex-col gap-1 transition-all ${
+                  isBobRevoked
+                    ? 'bg-rose-500/10 border-rose-500/40 text-rose-700 dark:text-rose-300'
+                    : 'bg-theme-bg border-theme-border'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold flex items-center gap-1.5">
+                      {isBobRevoked ? <UserMinus className="w-3.5 h-3.5 text-rose-500" /> : <UserCheck className="w-3.5 h-3.5 text-amber-500" />}
+                      Bob (Reviewer)
+                    </span>
+                    <span className="text-[10px] font-mono font-bold">{isBobRevoked ? 'REVOKED' : 'Active'}</span>
+                  </div>
+                  <span className="text-[10px] opacity-80 font-mono">
+                    {rotationBobKey ? `SPKI: ${rotationBobKey.pubSPKI.substring(0, 16)}...` : 'SPKI: P-256'}
+                  </span>
+                  <span className="text-[10px] opacity-80">
+                    Key Ring: Epoch 1 {isBobRevoked ? '(Không có Epoch 2)' : ''}
+                  </span>
+                  <Badge variant={isBobRevoked ? 'accent' : 'warning'} size="sm" className="w-fit text-[9px] mt-1">
+                    {isBobRevoked ? '❌ ĐÃ BỊ THU HỒI' : 'Đang Hoạt Động'}
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Message Payload Input */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[11px] font-medium text-theme-text">Nội Dung Thử Nghiệm Mã Hóa Dưới Kỷ Nguyên Hiện Tại (Epoch {rotationEpoch}):</label>
+                <Input value={rotationSecretMsg} onChange={e => setRotationSecretMsg(e.target.value)} />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-2">
+                <Button 
+                  variant="primary" 
+                  size="sm" 
+                  onClick={handleVerifyAccess}
+                  className="gap-1.5"
+                >
+                  <Lock className="w-3.5 h-3.5" />
+                  <span>Mã Hóa & Kiểm Tra Giải Mã Đa Thành Viên</span>
+                </Button>
+
+                {!isBobRevoked ? (
+                  <Button 
+                    variant="danger" 
+                    size="sm" 
+                    onClick={handleExecuteRotation}
+                    className="gap-1.5"
+                  >
+                    <UserMinus className="w-3.5 h-3.5" />
+                    <span>Thu Hồi Bob & Xoay Vòng Khóa (Epoch 2)</span>
+                  </Button>
+                ) : (
+                  <Button 
+                    variant="secondary" 
+                    size="sm" 
+                    onClick={initRotationLab}
+                    className="gap-1.5"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-sky-500" />
+                    <span>Thiết Lập Lại (Reset Về Epoch 1)</span>
+                  </Button>
+                )}
+              </div>
+
+              {/* Verification Results Display */}
+              {rotationVerification && (
+                <div className="bg-theme-bg p-3 rounded-lg border border-theme-border flex flex-col gap-2 font-mono text-[11px]">
+                  <div className="flex items-center justify-between border-b border-theme-border/60 pb-1.5">
+                    <span className="font-semibold text-theme-text flex items-center gap-1.5">
+                      <ShieldAlert className="w-3.5 h-3.5 text-theme-accent" />
+                      Kết Quả Kiểm Thử Quyền Truy Cập (Mã Hóa Dưới Epoch {rotationVerification.epoch}):
+                    </span>
+                    <Badge variant={isBobRevoked ? 'success' : 'default'} size="sm">
+                      {isBobRevoked ? 'FORWARD SECRECY HOÀN HẢO' : 'CHẾ ĐỘ TẤT CẢ THÀNH VIÊN'}
+                    </Badge>
+                  </div>
+
+                  <div className="flex flex-col gap-1 text-theme-text-secondary leading-relaxed">
+                    <div className="text-emerald-600 dark:text-emerald-400">
+                      <strong>✅ Alice (Owner):</strong> Giải mã thành công ➔ "{rotationVerification.aliceDec}"
+                    </div>
+                    <div className="text-emerald-600 dark:text-emerald-400">
+                      <strong>✅ Charlie (Active Member):</strong> Giải mã thành công ➔ "{rotationVerification.charlieDec}"
+                    </div>
+                    <div className={isBobRevoked ? 'text-rose-600 dark:text-rose-400 font-bold' : 'text-emerald-600 dark:text-emerald-400'}>
+                      <strong>{isBobRevoked ? '🛡️' : '✅'} Bob ({isBobRevoked ? 'Revoked Member' : 'Active Member'}):</strong> {rotationVerification.bobStatus}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
