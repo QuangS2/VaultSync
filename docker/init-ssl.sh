@@ -56,7 +56,7 @@ docker compose -f "$COMPOSE_FILE" up -d gateway
 
 # 3. Request real Let's Encrypt SSL certificate
 echo "Step 3: Requesting production SSL certificate from Let's Encrypt..."
-docker compose -f "$COMPOSE_FILE" run --rm certbot certonly --webroot -w /var/www/certbot \
+docker compose -f "$COMPOSE_FILE" run --rm --entrypoint certbot certbot certonly --webroot -w /var/www/certbot \
   --email "$LETSENCRYPT_EMAIL" \
   -d "$DOMAIN_NAME" \
   --rsa-key-size 4096 \
