@@ -107,7 +107,7 @@ export class IdentityKeys {
    */
   public static async importPublicKeySPKI(
     spkiBase64: string,
-    algorithm: 'ECDH' | 'ECDSA'
+    algorithm: 'ECDH' | 'ECDSA' = 'ECDH'
   ): Promise<CryptoKey> {
     const bytes = BinaryUtils.base64UrlToBytes(spkiBase64);
     const usages: KeyUsage[] = algorithm === 'ECDH' ? [] : ['verify'];

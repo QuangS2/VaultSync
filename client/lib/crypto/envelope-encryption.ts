@@ -22,7 +22,7 @@ export interface WrappedKeyEnvelope {
 export interface WrapDocumentKeyOptions {
   documentKey: CryptoKey;
   documentId: string;
-  epoch: number;
+  epoch?: number | undefined;
   senderPrivateKey: CryptoKey;
   senderPublicKey: CryptoKey | string;
   recipientPublicKey: CryptoKey | string;
@@ -70,6 +70,7 @@ export class EnvelopeEncryptionManager {
     );
 
     // 3. Derive Key Encryption Key (KEK) using HKDF-SHA256 (RFC 5869)
+    const epoch = options.epoch ?? 1;
     const saltBytes = options.salt ?? BinaryUtils.stringToBytes(`VaultSync-Salt-${options.documentId}`);
     const hkdfKey = await crypto.subtle.importKey(
       'raw',
@@ -84,7 +85,7 @@ export class EnvelopeEncryptionManager {
         name: 'HKDF',
         hash: 'SHA-256',
         salt: saltBytes as BufferSource,
-        info: BinaryUtils.stringToBytes(`VaultSync-Wrap-Epoch-${options.epoch}`) as BufferSource
+        info: BinaryUtils.stringToBytes(`VaultSync-Wrap-Epoch-${epoch}`) as BufferSource
       },
       hkdfKey,
       { name: 'AES-GCM', length: 256 },
@@ -100,7 +101,7 @@ export class EnvelopeEncryptionManager {
     crypto.getRandomValues(iv);
 
     // 6. Compute Cryptographic Additional Authenticated Data (AAD) binding documentId, epoch, and recipient
-    const aad = BinaryUtils.stringToBytes(`${options.documentId}:${options.epoch}:${options.recipientUserId}`);
+    const aad = BinaryUtils.stringToBytes(`${options.documentId}:${epoch}:${options.recipientUserId}`);
 
     // 7. Encrypt DEK with KEK
     const ciphertextBuffer = await crypto.subtle.encrypt(
@@ -124,7 +125,7 @@ export class EnvelopeEncryptionManager {
     const envelope: WrappedKeyEnvelope = {
       envelopeId: `env_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       documentId: options.documentId,
-      epoch: options.epoch,
+      epoch: epoch,
       senderPublicKeySPKI: senderSPKI,
       recipientUserId: options.recipientUserId,
       iv: BinaryUtils.bufferToBase64Url(iv),
