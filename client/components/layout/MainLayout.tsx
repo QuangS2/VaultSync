@@ -13,18 +13,15 @@ import { RoomChatEngine } from '../../lib/yjs/room-chat-engine';
 import * as Y from 'yjs';
 import { AppTheme } from '../../App';
 import {
-  Download,
   ShieldCheck,
   Copy,
-  Check,
-  FileText,
-  Code,
-  Lock
+  Check
 } from 'lucide-react';
 
 import { DualPaneGuestSandbox } from '../sandbox/DualPaneGuestSandbox';
 import { LiveE2EEInspectorDrawer } from '../inspector/LiveE2EEInspectorDrawer';
 import { CommandPaletteModal } from '../palette/CommandPaletteModal';
+import { ExportModal } from '../export/ExportModal';
 import { CommandPaletteEngine, PaletteAction } from '../../lib/palette/command-palette-engine';
 import { IdentityKeys, ECDHKeyPair } from '../../lib/crypto/identity-keys';
 import { EnvelopeEncryptionManager, WrappedKeyEnvelope } from '../../lib/crypto/envelope-encryption';
@@ -514,60 +511,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         </div>
       </Modal>
 
-      {/* MODAL: Xuất Dữ Liệu Đa Định Dạng */}
-      <Modal
+      {/* MODAL: Xuất Dữ Liệu Đa Định Dạng (Markdown & Standalone HTML) */}
+      <ExportModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
-        title={`Xuất Dữ Liệu: ${exportDocTitle}`}
-        description="Xuất nội dung đã giải mã hoặc tạo bản sao lưu mã hóa nhị phân an toàn."
-        footer={
-          <Button variant="ghost" size="sm" onClick={() => setIsExportModalOpen(false)}>Đóng</Button>
-        }
-      >
-        <div className="grid grid-cols-1 gap-2.5">
-          <button
-            onClick={() => setIsExportModalOpen(false)}
-            className="flex items-center justify-between p-3 rounded-lg bg-theme-card hover:bg-theme-card-hover border border-theme-border transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <FileText className="w-5 h-5 text-theme-accent" />
-              <div>
-                <div className="font-medium text-theme-text text-xs">Xuất Markdown (.md)</div>
-                <div className="text-[11px] text-theme-text-muted">Kèm siêu dữ liệu YAML frontmatter</div>
-              </div>
-            </div>
-            <Download className="w-4 h-4 text-theme-text-muted" />
-          </button>
-
-          <button
-            onClick={() => setIsExportModalOpen(false)}
-            className="flex items-center justify-between p-3 rounded-lg bg-theme-card hover:bg-theme-card-hover border border-theme-border transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <Code className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-              <div>
-                <div className="font-medium text-theme-text text-xs">Xuất Trang HTML Độc Lập (.html)</div>
-                <div className="text-[11px] text-theme-text-muted">Tích hợp sẵn CSS để xem offline ở bất kỳ đâu</div>
-              </div>
-            </div>
-            <Download className="w-4 h-4 text-theme-text-muted" />
-          </button>
-
-          <button
-            onClick={() => setIsExportModalOpen(false)}
-            className="flex items-center justify-between p-3 rounded-lg bg-theme-card hover:bg-theme-card-hover border border-theme-border transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <Lock className="w-5 h-5 text-indigo-500" />
-              <div>
-                <div className="font-medium text-theme-text text-xs">Bản Sao Lưu Mã Hóa (.vault)</div>
-                <div className="text-[11px] text-theme-text-muted">Bản nhị phân nguyên vẹn có chữ ký HMAC-SHA256</div>
-              </div>
-            </div>
-            <Download className="w-4 h-4 text-theme-text-muted" />
-          </button>
-        </div>
-      </Modal>
+        documentTitle={exportDocTitle || activeDocTitle}
+        documentId={activeDocId}
+        folderName={folderName}
+      />
 
       {/* Dual-Pane Guest Sandbox */}
       <DualPaneGuestSandbox
