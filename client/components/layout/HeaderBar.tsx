@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Lock,
   Sun,
@@ -11,12 +11,14 @@ import {
   Download,
   Wifi,
   WifiOff,
-  RefreshCw
+  RefreshCw,
+  Users
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { AppTheme } from '../../App';
 import { ProviderConnectionStatus, AwarenessUser } from '../../lib/yjs/types';
+import { OnlineCollaboratorsPopover } from './OnlineCollaboratorsPopover';
 
 export interface HeaderBarProps {
   theme: AppTheme;
@@ -30,6 +32,7 @@ export interface HeaderBarProps {
   activeCollaboratorCount?: number | undefined;
   providerStatus?: ProviderConnectionStatus | undefined;
   awarenessUsers?: AwarenessUser[] | undefined;
+  currentUser?: AwarenessUser | undefined;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
@@ -43,14 +46,16 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onOpenExportModal,
   activeCollaboratorCount,
   providerStatus,
-  awarenessUsers = []
+  awarenessUsers = [],
+  currentUser
 }) => {
+  const [isCollaboratorsOpen, setIsCollaboratorsOpen] = useState(false);
   const isConnected = providerStatus?.connected ?? false;
   const isConnecting = providerStatus?.connecting ?? false;
   const onlineCount = awarenessUsers.length > 0 ? awarenessUsers.length : (activeCollaboratorCount ?? 1);
 
   return (
-    <header className="h-12 border-b border-theme-border bg-theme-bg/80 backdrop-blur-md px-4 flex items-center justify-between z-10 select-none">
+    <header className="h-12 border-b border-theme-border bg-theme-bg/80 backdrop-blur-md px-4 flex items-center justify-between z-10 select-none relative">
       {/* Left Area: Toggle Sidebar, Logo, Workspace Identity */}
       <div className="flex items-center gap-3">
         <Button
@@ -79,28 +84,33 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           <span className="hidden sm:inline">Bảo Vệ Đầu-Cuối</span>
         </div>
 
-        {/* Live WebSocket Connection Status Badge */}
-        <div className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-theme-card border border-theme-border text-[11px] text-theme-text-muted">
+        {/* Live WebSocket Connection Status & Collaborators Trigger */}
+        <button
+          onClick={() => setIsCollaboratorsOpen(!isCollaboratorsOpen)}
+          title="Xem danh sách thành viên trực tuyến"
+          className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-theme-card hover:bg-theme-card-hover border border-theme-border text-[11px] text-theme-text-muted transition-colors cursor-pointer"
+        >
           {isConnected ? (
             <>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <Wifi className="w-3.5 h-3.5 text-emerald-500" />
+              <Wifi className="w-3 h-3 text-emerald-500" />
               <span>Đã đồng bộ • {onlineCount} trực tuyến</span>
+              <Users className="w-3 h-3 ml-0.5 text-theme-accent" />
             </>
           ) : isConnecting ? (
             <>
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
-              <RefreshCw className="w-3.5 h-3.5 text-amber-500 animate-spin" />
+              <RefreshCw className="w-3 h-3 text-amber-500 animate-spin" />
               <span>Đang kết nối lại...</span>
             </>
           ) : (
             <>
               <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-              <WifiOff className="w-3.5 h-3.5 text-slate-400" />
+              <WifiOff className="w-3 h-3 text-slate-400" />
               <span>Ngoại tuyến (Lưu cục bộ)</span>
             </>
           )}
-        </div>
+        </button>
       </div>
 
       {/* Right Controls: Share, Export, Theme, and Discussion Toggle */}
@@ -173,6 +183,14 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full" />
         </Button>
       </div>
+
+      {/* Online Collaborators Popover */}
+      <OnlineCollaboratorsPopover
+        isOpen={isCollaboratorsOpen}
+        onClose={() => setIsCollaboratorsOpen(false)}
+        users={awarenessUsers}
+        currentUser={currentUser}
+      />
     </header>
   );
 };

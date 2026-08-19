@@ -442,6 +442,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         }}
         providerStatus={providerStatus}
         awarenessUsers={awarenessUsers}
+        currentUser={currentUserOptions}
       />
 
       {/* 2. Main 3-Pane Body */}
