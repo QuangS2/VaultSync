@@ -22,6 +22,9 @@ import {
   Lock
 } from 'lucide-react';
 
+import { IdentityKeys, ECDHKeyPair } from '../../lib/crypto/identity-keys';
+import { EnvelopeEncryptionManager, WrappedKeyEnvelope } from '../../lib/crypto/envelope-encryption';
+
 export interface MainLayoutProps {
   theme: AppTheme;
   onThemeChange: (theme: AppTheme) => void;
@@ -43,6 +46,32 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [commentEngine] = useState(() => new InlineCommentAnchorEngine(yDoc));
   const [chatEngine] = useState(() => new RoomChatEngine(yDoc));
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null);
+
+  // Asymmetric Cryptographic Identity State (ECDH P-256)
+  const [userECDHKeyPair, setUserECDHKeyPair] = useState<ECDHKeyPair | null>(null);
+  const [userPublicKeySPKI, setUserPublicKeySPKI] = useState<string>('');
+  const [documentKey, setDocumentKey] = useState<CryptoKey | null>(null);
+  const [generatedEnvelope, setGeneratedEnvelope] = useState<WrappedKeyEnvelope | null>(null);
+  const [wrapError, setWrapError] = useState<string | null>(null);
+  const [copiedEnvelope, setCopiedEnvelope] = useState(false);
+
+  // Initialize cryptographic keys on mount
+  useEffect(() => {
+    async function initCrypto() {
+      try {
+        const keyPair = await IdentityKeys.generateECDHKeyPair();
+        setUserECDHKeyPair(keyPair);
+        const spki = await IdentityKeys.exportPublicKeySPKI(keyPair.publicKey);
+        setUserPublicKeySPKI(spki);
+
+        const dek = await EnvelopeEncryptionManager.generateDocumentKey();
+        setDocumentKey(dek);
+      } catch (err) {
+        console.error('Failed to initialize ECDH keys:', err);
+      }
+    }
+    initCrypto();
+  }, []);
 
   // Seed sample contextual comments & chat if empty
   useEffect(() => {
@@ -110,6 +139,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [isSandboxModalOpen, setIsSandboxModalOpen] = useState(false);
   const [isCryptoModalOpen, setIsCryptoModalOpen] = useState(false);
   const [recipientKeyInput, setRecipientKeyInput] = useState('');
+  const [recipientIdInput, setRecipientIdInput] = useState('user_bob_peer');
   const [copiedKey, setCopiedKey] = useState(false);
 
   const handleExportDoc = (docId: string, docTitle: string) => {
@@ -134,12 +164,43 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     setActiveCommentThreadId(threadId);
   };
 
-  const mockPublicECDHKey = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE7rB4K9zW1p5qLm3...';
-
   const copyPublicKey = () => {
-    navigator.clipboard?.writeText(mockPublicECDHKey);
-    setCopiedKey(true);
-    setTimeout(() => setCopiedKey(false), 2000);
+    if (userPublicKeySPKI) {
+      navigator.clipboard?.writeText(userPublicKeySPKI);
+      setCopiedKey(true);
+      setTimeout(() => setCopiedKey(false), 2000);
+    }
+  };
+
+  const copyEnvelope = () => {
+    if (generatedEnvelope) {
+      navigator.clipboard?.writeText(JSON.stringify(generatedEnvelope, null, 2));
+      setCopiedEnvelope(true);
+      setTimeout(() => setCopiedEnvelope(false), 2000);
+    }
+  };
+
+  const handleWrapKeyForRecipient = async () => {
+    if (!userECDHKeyPair || !documentKey || !recipientKeyInput.trim()) {
+      setWrapError('Vui lòng nhập đầy đủ Khóa công khai của thành viên nhận.');
+      return;
+    }
+
+    try {
+      setWrapError(null);
+      const envelope = await EnvelopeEncryptionManager.wrapDocumentKey({
+        documentKey: documentKey,
+        documentId: activeDocId,
+        epoch: 1,
+        senderPrivateKey: userECDHKeyPair.privateKey,
+        senderPublicKey: userPublicKeySPKI,
+        recipientPublicKey: recipientKeyInput.trim(),
+        recipientUserId: recipientIdInput.trim() || 'user_peer'
+      });
+      setGeneratedEnvelope(envelope);
+    } catch (err: any) {
+      setWrapError(`Lỗi bọc khóa: ${err.message || 'Khóa công khai không đúng định dạng SPKI Base64'}`);
+    }
   };
 
   return (
@@ -211,30 +272,85 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         description="Mã hóa Khóa Tài liệu (DEK) bằng Khóa Công khai (ECDH P-256) của người nhận."
         footer={
           <>
-            <Button variant="ghost" size="sm" onClick={() => setIsShareModalOpen(false)}>Hủy</Button>
-            <Button variant="primary" size="sm" onClick={() => setIsShareModalOpen(false)}>Bọc & Gửi Khóa</Button>
+            <Button variant="ghost" size="sm" onClick={() => setIsShareModalOpen(false)}>Đóng</Button>
+            <Button 
+              variant="primary" 
+              size="sm" 
+              onClick={handleWrapKeyForRecipient}
+              disabled={!recipientKeyInput.trim()}
+            >
+              Bọc & Tạo Phong Bì Khóa (Wrap DEK)
+            </Button>
           </>
         }
       >
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="font-medium text-theme-text">Khóa Công Khai Của Bạn (ECDH P-256):</label>
+            <label className="font-medium text-theme-text text-xs">Khóa Công Khai Của Bạn (ECDH P-256 SPKI Base64):</label>
             <div className="flex items-center gap-2">
-              <Input value={mockPublicECDHKey} readOnly className="font-mono text-[11px]" />
-              <Button variant="secondary" size="icon" onClick={copyPublicKey} title="Sao chép">
+              <Input 
+                value={userPublicKeySPKI || 'Đang khởi tạo khóa...'} 
+                readOnly 
+                className="font-mono text-[10px]" 
+              />
+              <Button variant="secondary" size="icon" onClick={copyPublicKey} title="Sao chép khóa công khai">
                 {copiedKey ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
               </Button>
             </div>
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <div className="flex flex-col gap-1.5">
+              <label className="font-medium text-theme-text text-xs">Mã Định Danh Người Nhận (Recipient ID):</label>
+              <Input
+                placeholder="Ví dụ: user_bob"
+                value={recipientIdInput}
+                onChange={(e) => setRecipientIdInput(e.target.value)}
+                className="text-xs"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="font-medium text-theme-text text-xs">Kỷ Nguyên Khóa (Epoch):</label>
+              <Input
+                value="Epoch 1 (Khóa Hiện Tại)"
+                readOnly
+                className="text-xs font-mono text-theme-text-muted"
+              />
+            </div>
+          </div>
+
           <div className="flex flex-col gap-1.5">
-            <label className="font-medium text-theme-text">Nhập Khóa Công Khai Của Thành Viên Mới:</label>
+            <label className="font-medium text-theme-text text-xs">Nhập Khóa Công Khai Của Thành Viên Mới (SPKI Base64):</label>
             <Input
-              placeholder="Dán mã khóa công khai (JWK / SPKI Base64)..."
+              placeholder="Dán mã khóa công khai SPKI Base64..."
               value={recipientKeyInput}
               onChange={(e) => setRecipientKeyInput(e.target.value)}
+              className="font-mono text-[10px]"
             />
           </div>
+
+          {wrapError && (
+            <div className="p-2.5 rounded-lg bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs">
+              {wrapError}
+            </div>
+          )}
+
+          {generatedEnvelope && (
+            <div className="flex flex-col gap-2 p-3 rounded-lg bg-theme-bg border border-theme-border">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                  <Check className="w-4 h-4" /> Đã Tạo Phong Bì Khóa (WrappedKeyEnvelope)
+                </span>
+                <Button variant="secondary" size="sm" onClick={copyEnvelope} className="h-6 text-[10px] gap-1">
+                  {copiedEnvelope ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedEnvelope ? 'Đã chép' : 'Sao chép JSON'}</span>
+                </Button>
+              </div>
+              <pre className="text-[10px] font-mono bg-theme-bg-subtle p-2 rounded max-h-28 overflow-y-auto text-theme-text">
+                {JSON.stringify(generatedEnvelope, null, 2)}
+              </pre>
+            </div>
+          )}
 
           <div className="bg-theme-card p-3 rounded-lg border border-theme-border flex items-start gap-2.5 text-[11px] text-theme-text-muted">
             <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
