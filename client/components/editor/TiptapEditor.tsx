@@ -22,6 +22,9 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 
+import * as Y from 'yjs';
+import { CollaborationUserOptions } from '../../lib/yjs/types';
+
 export interface TiptapEditorProps {
   content: string;
   documentTitle: string;
@@ -30,6 +33,11 @@ export interface TiptapEditorProps {
   onSelectionChange?: ((selectedText: string) => void) | undefined;
   onAddInlineComment?: (() => void) | undefined;
   readOnly?: boolean | undefined;
+  yDoc?: Y.Doc | undefined;
+  provider?: any | undefined;
+  user?: CollaborationUserOptions | undefined;
+  onCommentClick?: ((threadId: string) => void) | undefined;
+  activeCommentThreadId?: string | null | undefined;
 }
 
 export const TiptapEditor: React.FC<TiptapEditorProps> = ({
@@ -39,11 +47,22 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({
   onChange,
   onSelectionChange,
   onAddInlineComment,
-  readOnly = false
+  readOnly = false,
+  yDoc,
+  provider,
+  user,
+  onCommentClick,
+  activeCommentThreadId
 }) => {
   const [selectedText, setSelectedText] = useState('');
 
-  const extensions = useMemo(() => getVaultSyncExtensions(), []);
+  const extensions = useMemo(() => getVaultSyncExtensions({
+    yDoc,
+    provider,
+    user,
+    onCommentClick,
+    activeCommentThreadId
+  }), [yDoc, provider, user, onCommentClick, activeCommentThreadId]);
 
   const editor = useEditor({
     extensions,

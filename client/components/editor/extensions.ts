@@ -12,6 +12,7 @@ import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
 import * as Y from 'yjs';
 import { createLowlight, common } from 'lowlight';
 import { SlashCommandExtension } from './slash-command';
+import { CommentHighlightExtension } from './comment-highlight-plugin';
 import { CollaborationUserOptions } from '../../lib/yjs/types';
 
 // Initialize lowlight syntax engine with standard common languages:
@@ -22,6 +23,8 @@ export interface VaultSyncExtensionsOptions {
   yDoc?: Y.Doc | undefined;
   provider?: any;
   user?: CollaborationUserOptions | undefined;
+  onCommentClick?: ((threadId: string) => void) | undefined;
+  activeCommentThreadId?: string | null | undefined;
 }
 
 export function getVaultSyncExtensions(options?: VaultSyncExtensionsOptions) {
@@ -96,6 +99,11 @@ export function getVaultSyncExtensions(options?: VaultSyncExtensionsOptions) {
       extensions.push(
         Collaboration.configure({
           document: doc
+        }),
+        CommentHighlightExtension.configure({
+          yDoc: doc,
+          onCommentClick: options?.onCommentClick,
+          activeThreadId: options?.activeCommentThreadId
         })
       );
     }

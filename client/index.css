@@ -391,3 +391,51 @@
   border-radius: 2px;
 }
 
+/* ==========================================================================
+   INLINE COMMENT HIGHLIGHT DECORATIONS (AMBER CONTEXTUAL THREADS)
+   ========================================================================== */
+
+.vaultsync-comment-highlight {
+  background-color: rgba(245, 158, 11, 0.16);
+  border-bottom: 2px solid #f59e0b;
+  padding: 1px 2px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.vaultsync-comment-highlight:hover {
+  background-color: rgba(245, 158, 11, 0.28);
+  border-bottom-color: #d97706;
+}
+
+.vaultsync-comment-highlight.is-active {
+  background-color: rgba(245, 158, 11, 0.38);
+  border-bottom: 2px solid #b45309;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.3);
+}
+
+[data-theme="sun"] .vaultsync-comment-highlight {
+  background-color: rgba(217, 119, 6, 0.15);
+  border-bottom-color: #d97706;
+}
+
+[data-theme="sun"] .vaultsync-comment-highlight:hover {
+  background-color: rgba(217, 119, 6, 0.25);
+}
+
+[data-theme="cloud"] .vaultsync-comment-highlight {
+  background-color: rgba(245, 158, 11, 0.18);
+  border-bottom-color: #f59e0b;
+}
+
+[data-theme="night"] .vaultsync-comment-highlight {
+  background-color: rgba(245, 158, 11, 0.22);
+  border-bottom-color: #fbbf24;
+}
+
+[data-theme="night"] .vaultsync-comment-highlight:hover {
+  background-color: rgba(245, 158, 11, 0.35);
+}
+
+
