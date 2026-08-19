@@ -247,7 +247,7 @@ export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
               3
             </span>
             <span className={`font-medium ${step === 3 ? 'text-theme-text font-semibold' : 'text-theme-text-muted'}`}>
-              12 Từ khôi phục
+              Khôi phục bí mật
             </span>
           </div>
         </div>
@@ -274,10 +274,10 @@ export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
                   {displayName.trim() || 'Người dùng mới'}
                 </p>
                 <p className="text-[11px] text-theme-text-muted truncate">
-                  {vaultName.trim() || 'Personal Vault'} • Cặp khóa ECDH P-256
+                  {vaultName.trim() || 'Kho Cá Nhân'} • Mã hóa riêng tư
                 </p>
               </div>
-              <Badge variant="accent" size="sm">Zero-Knowledge</Badge>
+              <Badge variant="accent" size="sm">Bảo Mật Riêng Tư</Badge>
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -402,11 +402,11 @@ export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
               />
             </div>
 
-            {/* Zero-Knowledge Security Notice */}
+            {/* Plain-Language Security Notice */}
             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-800 dark:text-amber-300 text-[11px] flex items-start gap-2.5 leading-relaxed">
               <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <span>
-                <strong>Nguyên tắc Zero-Knowledge:</strong> Mật khẩu chủ chỉ dùng để dẫn xuất Master Key trực tiếp trong trình duyệt của bạn (PBKDF2 100.000 vòng). Máy chủ không bao giờ nhận hay lưu mật khẩu này.
+                <strong>Bảo mật riêng tư tuyệt đối:</strong> Mật khẩu của bạn được mã hóa an toàn trực tiếp trên máy và không bao giờ gửi qua máy chủ. Không ai khác có thể xem hoặc mở khóa ghi chú của bạn.
               </span>
             </div>
 
@@ -421,23 +421,23 @@ export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
                 type="submit"
                 disabled={password.length < 6 || password !== confirmPassword}
               >
-                <span>Tiếp tục: 12 Từ khôi phục</span>
+                <span>Tiếp tục: Khóa khôi phục</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </div>
           </form>
         )}
 
-        {/* STEP 3: 12-WORD BIP-39 RECOVERY PHRASE */}
+        {/* STEP 3: 12 RECOVERY WORDS */}
         {step === 3 && (
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold text-theme-text flex items-center gap-1.5">
-                  <Key className="w-4 h-4 text-theme-accent" /> 12 Từ Khóa Khôi Phục Bí Mật (BIP-39):
+                  <Key className="w-4 h-4 text-theme-accent" /> 12 Từ Khóa Khôi Phục Bí Mật:
                 </p>
                 <p className="text-[11px] text-theme-text-muted mt-0.5">
-                  Dùng để khôi phục quyền truy cập nếu bạn quên Mật khẩu chủ.
+                  Dùng để khôi phục toàn bộ dữ liệu nếu bạn vô tình quên Mật khẩu chủ.
                 </p>
               </div>
 

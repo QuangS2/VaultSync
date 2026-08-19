@@ -311,7 +311,7 @@ export const VaultUnlockScreen: React.FC<VaultUnlockScreenProps> = ({
           <div className="bg-theme-card p-3 rounded-xl border border-theme-border flex items-start gap-2.5 text-[11px] text-theme-text-muted leading-relaxed">
             <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
             <span>
-              Mọi dữ liệu cục bộ và trên mạng được mã hóa bằng AES-256-GCM. Không ai có thể giải mã nếu không có Mật khẩu chủ hoặc 12 từ khóa khôi phục.
+              Mọi ghi chú và dữ liệu được bảo vệ an toàn trên thiết bị của bạn. Chỉ có bạn mới có quyền mở khóa bằng Mật khẩu chủ hoặc 12 từ khóa khôi phục bí mật.
             </span>
           </div>
         </div>
@@ -319,7 +319,7 @@ export const VaultUnlockScreen: React.FC<VaultUnlockScreenProps> = ({
 
       {/* Bottom Footer */}
       <footer className="h-10 px-6 flex items-center justify-between text-[11px] text-theme-text-muted border-t border-theme-border bg-theme-card/50 z-10">
-        <span>VaultSync v1.0.0 • Zero-Knowledge Architecture</span>
+        <span>VaultSync v1.0.0 • Không gian ghi chú bảo mật riêng tư</span>
         <span>Phím tắt: Nhấn Enter để mở khóa</span>
       </footer>
     </div>
