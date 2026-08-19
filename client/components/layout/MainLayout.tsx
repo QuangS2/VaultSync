@@ -63,10 +63,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'error'>('saved');
   const [lastSavedTime, setLastSavedTime] = useState<number>(Date.now());
 
-  // Yjs Collaboration & Discussion Engines
-  const [yDoc] = useState(() => new Y.Doc());
-  const [commentEngine] = useState(() => new InlineCommentAnchorEngine(yDoc));
-  const [chatEngine] = useState(() => new RoomChatEngine(yDoc));
+  // Multi-document isolated Y.Doc registry
+  const yDocsRef = React.useRef<Map<string, Y.Doc>>(new Map());
+  const [yDoc, setYDoc] = useState<Y.Doc>(() => {
+    const initialDoc = new Y.Doc();
+    return initialDoc;
+  });
+
+  const [commentEngine, setCommentEngine] = useState(() => new InlineCommentAnchorEngine(yDoc));
+  const [chatEngine, setChatEngine] = useState(() => new RoomChatEngine(yDoc));
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null);
 
   // Document encryption key
@@ -82,6 +87,33 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     error: null
   });
   const [awarenessUsers, setAwarenessUsers] = useState<AwarenessUser[]>([]);
+
+  // Automatically register shared room document from URL if present
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const roomParam = urlParams.get('room');
+      const titleParam = urlParams.get('title');
+      if (roomParam) {
+        const decodedTitle = titleParam ? decodeURIComponent(titleParam) : 'Tài Liệu Được Chia Sẻ';
+        treeManager.ensureItem(roomParam, decodedTitle, 'document', null, 'Share2');
+        setActiveDocId(roomParam);
+        setTreeVersion(v => v + 1);
+      }
+    }
+  }, [treeManager]);
+
+  // Isolate and switch Y.Doc per active document to prevent cross-document text bleeding
+  useEffect(() => {
+    let currentYDoc = yDocsRef.current.get(activeDocId);
+    if (!currentYDoc) {
+      currentYDoc = new Y.Doc();
+      yDocsRef.current.set(activeDocId, currentYDoc);
+    }
+    setYDoc(currentYDoc);
+    setCommentEngine(new InlineCommentAnchorEngine(currentYDoc));
+    setChatEngine(new RoomChatEngine(currentYDoc));
+  }, [activeDocId]);
 
   const currentUserOptions: CollaborationUserOptions = React.useMemo(() => {
     if (session) {

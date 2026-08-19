@@ -101,6 +101,8 @@ export class EncryptedYjsProvider {
     states.forEach((state, clientID) => {
       if (state.user) {
         users.push({
+          clientId: clientID,
+          isLocal: clientID === this.awareness.clientID,
           name: state.user.name || `User ${clientID}`,
           color: state.user.color || '#2563eb',
           avatar: state.user.avatar || state.user.name?.charAt(0).toUpperCase() || 'U'

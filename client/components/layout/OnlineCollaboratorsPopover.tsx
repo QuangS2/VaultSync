@@ -67,10 +67,12 @@ export const OnlineCollaboratorsPopover: React.FC<OnlineCollaboratorsPopoverProp
       {/* Collaborators List */}
       <div className="flex flex-col gap-2 max-h-56 overflow-y-auto">
         {displayList.map((user, idx) => {
-          const isMe = currentUser && user.name === currentUser.name;
+          const isLocalSession = user.isLocal ?? (currentUser && user.name === currentUser.name && idx === 0);
+          const isSameAccountOtherDevice = !isLocalSession && currentUser && user.name === currentUser.name;
+
           return (
             <div
-              key={idx}
+              key={user.clientId ?? idx}
               className="flex items-center justify-between p-2 rounded-lg bg-theme-bg-subtle/70 hover:bg-theme-bg-subtle transition-colors"
             >
               <div className="flex items-center gap-2.5 min-w-0">
@@ -83,8 +85,11 @@ export const OnlineCollaboratorsPopover: React.FC<OnlineCollaboratorsPopoverProp
                 <div className="flex flex-col min-w-0">
                   <span className="text-xs font-medium text-theme-text truncate flex items-center gap-1">
                     {user.name}
-                    {isMe && (
+                    {isLocalSession && (
                       <span className="text-[10px] text-theme-text-muted font-normal">(Bạn)</span>
+                    )}
+                    {isSameAccountOtherDevice && (
+                      <span className="text-[10px] text-theme-text-muted font-normal">(Thiết bị khác)</span>
                     )}
                   </span>
                   <span className="text-[10px] text-theme-text-muted flex items-center gap-1">
@@ -94,7 +99,7 @@ export const OnlineCollaboratorsPopover: React.FC<OnlineCollaboratorsPopoverProp
                 </div>
               </div>
 
-              {isMe ? (
+              {isLocalSession ? (
                 <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-theme-accent/10 text-theme-accent shrink-0">
                   Chủ phòng
                 </span>

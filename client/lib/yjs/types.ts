@@ -93,6 +93,7 @@ export interface AwarenessUser {
   color: string;
   avatar?: string | undefined;
   clientId?: number | undefined;
+  isLocal?: boolean | undefined;
 }
 
 export interface CollaborationUserOptions {

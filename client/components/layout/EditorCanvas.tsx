@@ -158,6 +158,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
       {/* Main Tiptap ProseMirror Editor */}
       <TiptapEditor
+        key={documentId}
         content={content}
         documentTitle={currentTitle}
         onTitleChange={handleTitleChange}

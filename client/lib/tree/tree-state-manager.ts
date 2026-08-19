@@ -117,6 +117,39 @@ export class TreeStateManager {
   }
 
   /**
+   * Ensures an item with the given ID exists in the tree (used when joining via shared room link).
+   */
+  public ensureItem(
+    id: string,
+    name: string,
+    type: FileSystemItemType = 'document',
+    parentId: string | null = null,
+    icon?: string
+  ): FileSystemItem {
+    const existing = this.yMap.get(id);
+    if (existing) {
+      return existing;
+    }
+
+    const existingChildren = this.getChildren(parentId);
+    const maxOrder = existingChildren.reduce((max, item) => Math.max(max, item.order), 0);
+
+    const newItem: FileSystemItem = {
+      id,
+      parentId,
+      name: name.trim() || (type === 'folder' ? 'Thư mục mới' : 'Tài liệu chia sẻ'),
+      type,
+      icon: icon || 'Share2',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      order: maxOrder + 10
+    };
+
+    this.yMap.set(id, newItem);
+    return newItem;
+  }
+
+  /**
    * Renames an existing file or folder.
    */
   public renameItem(id: string, newName: string): boolean {
