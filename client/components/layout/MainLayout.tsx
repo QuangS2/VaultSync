@@ -25,15 +25,20 @@ import { ExportModal } from '../export/ExportModal';
 import { CommandPaletteEngine, PaletteAction } from '../../lib/palette/command-palette-engine';
 import { IdentityKeys, ECDHKeyPair } from '../../lib/crypto/identity-keys';
 import { EnvelopeEncryptionManager, WrappedKeyEnvelope } from '../../lib/crypto/envelope-encryption';
+import { UnlockedVaultSession } from '../../lib/auth/types';
 
 export interface MainLayoutProps {
   theme: AppTheme;
   onThemeChange: (theme: AppTheme) => void;
+  session?: UnlockedVaultSession | null | undefined;
+  onLockVault?: (() => void) | undefined;
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({
   theme,
-  onThemeChange
+  onThemeChange,
+  session,
+  onLockVault
 }) => {
   const [treeManager] = useState(() => new TreeStateManager());
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
@@ -49,15 +54,22 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null);
 
   // Asymmetric Cryptographic Identity State (ECDH P-256)
-  const [userECDHKeyPair, setUserECDHKeyPair] = useState<ECDHKeyPair | null>(null);
-  const [userPublicKeySPKI, setUserPublicKeySPKI] = useState<string>('');
-  const [documentKey, setDocumentKey] = useState<CryptoKey | null>(null);
+  const [userECDHKeyPair, setUserECDHKeyPair] = useState<ECDHKeyPair | null>(session ? session.userECDHKeyPair : null);
+  const [userPublicKeySPKI, setUserPublicKeySPKI] = useState<string>(session ? session.userPublicKeySPKI : '');
+  const [documentKey, setDocumentKey] = useState<CryptoKey | null>(session ? session.vaultRootKey : null);
   const [generatedEnvelope, setGeneratedEnvelope] = useState<WrappedKeyEnvelope | null>(null);
   const [wrapError, setWrapError] = useState<string | null>(null);
   const [copiedEnvelope, setCopiedEnvelope] = useState(false);
 
-  // Initialize cryptographic keys on mount
+  // Initialize cryptographic keys on mount if session is not already provided
   useEffect(() => {
+    if (session) {
+      setUserECDHKeyPair(session.userECDHKeyPair);
+      setUserPublicKeySPKI(session.userPublicKeySPKI);
+      setDocumentKey(session.vaultRootKey);
+      return;
+    }
+
     async function initCrypto() {
       try {
         const keyPair = await IdentityKeys.generateECDHKeyPair();
@@ -72,7 +84,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       }
     }
     initCrypto();
-  }, []);
+  }, [session]);
 
   // Seed sample contextual comments & chat if empty
   useEffect(() => {
@@ -227,6 +239,17 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         keywords: ['share', 'chia se', 'envelope', 'dek', 'ecdh'],
         handler: () => setIsShareModalOpen(true)
       },
+      {
+        id: 'lock-vault',
+        title: 'Khóa Kho Lưu Trữ (Lock Vault)',
+        subtitle: 'Xóa khóa giải mã khỏi bộ nhớ và chuyển về màn hình khóa',
+        category: 'Security',
+        shortcut: 'Ctrl+Shift+L',
+        keywords: ['lock', 'khoa', 'bao ve', 'logout', 'dang xuat'],
+        handler: () => {
+          if (onLockVault) onLockVault();
+        }
+      },
       // 3. Theme Preferences
       {
         id: 'theme-sun',
@@ -302,7 +325,21 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     }));
 
     commandPaletteEngine.setActions([...baseActions, ...docActions]);
-  }, [treeManager, activeDocId, activeDocTitle, folderName, commandPaletteEngine, onThemeChange]);
+  }, [treeManager, activeDocId, activeDocTitle, folderName, commandPaletteEngine, onThemeChange, onLockVault]);
+
+  // Global hotkeys (Ctrl+Shift+L to lock vault)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'l') {
+        e.preventDefault();
+        if (onLockVault) {
+          onLockVault();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onLockVault]);
 
   // Bidirectional interaction handlers
   const handleCommentClickFromEditor = (threadId: string) => {
