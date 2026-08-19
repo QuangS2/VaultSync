@@ -86,6 +86,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     reconnectAttempts: 0,
     error: null
   });
+
   const [awarenessUsers, setAwarenessUsers] = useState<AwarenessUser[]>([]);
 
   // Automatically register shared room document from URL if present
@@ -136,9 +137,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     if (!documentKey) return;
 
     const wsUrl = getRelayWsUrl();
+    const cleanRoomId = activeDocId.startsWith('doc-') ? activeDocId : `doc-${activeDocId}`;
+
     const newProvider = new EncryptedYjsProvider({
       serverUrl: wsUrl,
-      roomId: `doc-${activeDocId}`,
+      roomId: cleanRoomId,
       yDoc,
       documentKey,
       epoch: 1,
@@ -197,27 +200,37 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
     let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
+    const performSave = async () => {
+      try {
+        const stateBytes = Y.encodeStateAsUpdate(yDoc);
+        await storage.saveDocumentSnapshot(activeDocId, stateBytes, currentKey);
+        setSaveStatus('saved');
+        setLastSavedTime(Date.now());
+      } catch (err) {
+        console.error('Tự động lưu tài liệu thất bại:', err);
+        setSaveStatus('error');
+      }
+    };
+
     const handleYDocUpdate = () => {
       setSaveStatus('saving');
       if (saveTimer) clearTimeout(saveTimer);
-
-      saveTimer = setTimeout(async () => {
-        try {
-          const stateBytes = Y.encodeStateAsUpdate(yDoc);
-          await storage.saveDocumentSnapshot(activeDocId, stateBytes, currentKey);
-          setSaveStatus('saved');
-          setLastSavedTime(Date.now());
-        } catch (err) {
-          console.error('Tự động lưu tài liệu thất bại:', err);
-          setSaveStatus('error');
-        }
-      }, 300);
+      saveTimer = setTimeout(performSave, 300);
     };
 
+    // Save immediately before page unloads / reloads
+    const handleBeforeUnload = () => {
+      void performSave();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
     yDoc.on('update', handleYDocUpdate);
+
     return () => {
       if (saveTimer) clearTimeout(saveTimer);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
       yDoc.off('update', handleYDocUpdate);
+      void performSave();
     };
   }, [yDoc, activeDocId, documentKey, storage]);
 

@@ -27,13 +27,18 @@ export default function App() {
     localStorage.setItem('vaultsync_theme', theme);
   }, [theme]);
 
-  // Check for existing vault on initial load
+  // Check for existing vault and active session on initial load
   useEffect(() => {
     async function checkExistingVault() {
       try {
         const record = await VaultAuthEngine.getSavedVaultRecord();
         if (record) {
           setSavedRecord(record);
+          // Try restoring active tab session from sessionStorage (smooth refresh)
+          const restoredSession = await VaultAuthEngine.restoreSessionFromStorage(record);
+          if (restoredSession) {
+            setSession(restoredSession);
+          }
         } else {
           // No vault on device -> Trigger Onboarding
           setIsCreatingNewVault(true);
@@ -60,6 +65,7 @@ export default function App() {
   };
 
   const handleLockVault = () => {
+    VaultAuthEngine.clearSessionStorage();
     setSession(null);
   };
 

@@ -179,8 +179,9 @@ export class VaultAuthEngine {
       userProfile
     };
 
-    // 10. Save to Persistent Storage
+    // 10. Save to Persistent Storage & Ephemeral Session Storage
     await VaultAuthEngine.saveVaultRecord(record);
+    await VaultAuthEngine.persistSessionToStorage(masterKey);
 
     const session: UnlockedVaultSession = {
       vaultId,
@@ -252,6 +253,7 @@ export class VaultAuthEngine {
     const now = Date.now();
     record.lastUnlockedAt = now;
     await VaultAuthEngine.saveVaultRecord(record);
+    await VaultAuthEngine.persistSessionToStorage(masterKey);
 
     return {
       vaultId: record.vaultId,
@@ -266,6 +268,100 @@ export class VaultAuthEngine {
       userPublicKeySPKI: record.userPublicKeySPKI,
       unlockedAt: now
     };
+  }
+
+  private static readonly SESSION_STORAGE_KEY = 'vaultsync_tab_session_key';
+
+  /**
+   * Securely saves the ephemeral decrypted master key in sessionStorage (tab scope only).
+   */
+  public static async persistSessionToStorage(masterKey: CryptoKey): Promise<void> {
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        const rawKey = await crypto.subtle.exportKey('raw', masterKey);
+        const base64Key = BinaryUtils.bufferToBase64Url(new Uint8Array(rawKey));
+        sessionStorage.setItem(VaultAuthEngine.SESSION_STORAGE_KEY, base64Key);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  /**
+   * Clears the ephemeral session key from sessionStorage upon lock or logout.
+   */
+  public static clearSessionStorage(): void {
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        sessionStorage.removeItem(VaultAuthEngine.SESSION_STORAGE_KEY);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  /**
+   * Restores an active session from sessionStorage on page refresh without requiring password re-entry.
+   */
+  public static async restoreSessionFromStorage(record: EncryptedVaultRecord): Promise<UnlockedVaultSession | null> {
+    try {
+      if (typeof window === 'undefined' || !window.sessionStorage) return null;
+      const base64Key = sessionStorage.getItem(VaultAuthEngine.SESSION_STORAGE_KEY);
+      if (!base64Key) return null;
+
+      const rawBytes = BinaryUtils.base64UrlToBytes(base64Key);
+      const masterKey = await crypto.subtle.importKey(
+        'raw',
+        rawBytes as BufferSource,
+        { name: 'AES-GCM', length: 256 },
+        true,
+        ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
+      );
+
+      // Verify masterKey with passwordVerifier
+      const verifierBytes = BinaryUtils.base64UrlToBytes(record.passwordVerifier);
+      const decryptedVerifier = await WebCryptoEngine.decryptCombined(masterKey, verifierBytes);
+      const magicStr = BinaryUtils.bytesToString(decryptedVerifier);
+      if (magicStr !== VaultAuthEngine.VERIFIER_MAGIC) {
+        VaultAuthEngine.clearSessionStorage();
+        return null;
+      }
+
+      // Decrypt Root Key
+      const encRootKeyBytes = BinaryUtils.base64UrlToBytes(record.encryptedVaultRootKey);
+      const rawRootKey = await WebCryptoEngine.decryptCombined(masterKey, encRootKeyBytes);
+      const vaultRootKey = await crypto.subtle.importKey(
+        'raw',
+        rawRootKey as BufferSource,
+        { name: 'AES-GCM', length: 256 },
+        true,
+        ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
+      );
+
+      // Decrypt ECDH Private Key
+      const encPrivKeyBytes = BinaryUtils.base64UrlToBytes(record.encryptedUserPrivateKey);
+      const privKeyJWKBytes = await WebCryptoEngine.decryptCombined(masterKey, encPrivKeyBytes);
+      const privKeyJWK = JSON.parse(BinaryUtils.bytesToString(privKeyJWKBytes)) as JsonWebKey;
+      const userPrivateKey = await IdentityKeys.importJWK(privKeyJWK, 'ECDH', true);
+      const userPublicKey = await IdentityKeys.importPublicKeySPKI(record.userPublicKeySPKI, 'ECDH');
+
+      return {
+        vaultId: record.vaultId,
+        vaultName: record.vaultName,
+        userProfile: record.userProfile,
+        masterKey,
+        vaultRootKey,
+        userECDHKeyPair: {
+          publicKey: userPublicKey,
+          privateKey: userPrivateKey
+        },
+        userPublicKeySPKI: record.userPublicKeySPKI,
+        unlockedAt: Date.now()
+      };
+    } catch {
+      VaultAuthEngine.clearSessionStorage();
+      return null;
+    }
   }
 
   /**
