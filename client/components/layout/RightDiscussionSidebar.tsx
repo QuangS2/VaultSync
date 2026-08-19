@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageSquare, 
   Send, 
@@ -6,328 +6,454 @@ import {
   X, 
   CornerDownRight, 
   Lock, 
-  Hash
+  Hash, 
+  AlertTriangle,
+  RotateCcw,
+  Trash2,
+  Filter
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-
-export interface CommentMessageItem {
-  id: string;
-  author: string;
-  avatarColor: string;
-  content: string;
-  time: string;
-}
-
-export interface ThreadItem {
-  id: string;
-  quotedText: string;
-  isResolved: boolean;
-  isOrphaned?: boolean;
-  messages: CommentMessageItem[];
-  createdAt: string;
-}
+import { InlineCommentAnchorEngine } from '../../lib/yjs/inline-comment-engine';
+import { RoomChatEngine, RoomChatMessage } from '../../lib/yjs/room-chat-engine';
+import { ThreadWithLivePosition } from '../../lib/yjs/types';
 
 export interface RightDiscussionSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   activeDocumentTitle: string;
+  commentEngine?: InlineCommentAnchorEngine | undefined;
+  chatEngine?: RoomChatEngine | undefined;
+  activeThreadId?: string | null | undefined;
+  onSelectThread?: ((threadId: string | null) => void) | undefined;
+  currentAuthor?: {
+    id: string;
+    name: string;
+    avatar?: string | undefined;
+    color?: string | undefined;
+  } | undefined;
 }
 
 export const RightDiscussionSidebar: React.FC<RightDiscussionSidebarProps> = ({
   isOpen,
   onClose,
-  activeDocumentTitle
+  activeDocumentTitle,
+  commentEngine,
+  chatEngine,
+  activeThreadId,
+  onSelectThread,
+  currentAuthor = {
+    id: 'user_current',
+    name: 'Tôi (Quang Lê)',
+    color: '#2563eb'
+  }
 }) => {
   const [activeTab, setActiveTab] = useState<'threads' | 'chat'>('threads');
-  const [filter, setFilter] = useState<'all' | 'unresolved'>('unresolved');
+  const [filter, setFilter] = useState<'all' | 'unresolved' | 'resolved'>('unresolved');
+  const [threads, setThreads] = useState<ThreadWithLivePosition[]>([]);
+  const [chatMessages, setChatMessages] = useState<RoomChatMessage[]>([]);
   const [replyInputs, setReplyInputs] = useState<Record<string, string>>({});
   const [chatInput, setChatInput] = useState('');
 
-  // Sample Contextual Threads anchored via Yjs Relative Positions
-  const [sampleThreads, setSampleThreads] = useState<ThreadItem[]>([
-    {
-      id: 'thread-1',
-      quotedText: 'Sự kết hợp giữa Bảo mật Tuyệt đối (Zero-Knowledge) và CRDTs',
-      isResolved: false,
-      isOrphaned: false,
-      createdAt: '10 phút trước',
-      messages: [
-        {
-          id: 'm1',
-          author: 'Alice (Trưởng Nhóm)',
-          avatarColor: 'bg-blue-500',
-          content: 'Đã hoàn thiện module AES-256-GCM với AAD binding để chống tấn công hoán đổi bản mã.',
-          time: '10 phút trước'
-        },
-        {
-          id: 'm2',
-          author: 'Bob (Reviewer)',
-          avatarColor: 'bg-emerald-500',
-          content: 'Tuyệt vời! Cần lưu ý thêm kiểm tra tính kết hợp assoc: -1 cho start anchor nhé.',
-          time: '5 phút trước'
-        }
-      ]
-    },
-    {
-      id: 'thread-2',
-      quotedText: 'Client-Indexed Monotonic Nonce Structure',
-      isResolved: false,
-      isOrphaned: false,
-      createdAt: '25 phút trước',
-      messages: [
-        {
-          id: 'm3',
-          author: 'Charlie (Bảo Mật)',
-          avatarColor: 'bg-indigo-500',
-          content: 'Cấu trúc 12 bytes IV (4B Client ID + 2B Epoch + 6B Counter) triệt tiêu hoàn toàn nguy cơ đụng độ Nonce.',
-          time: '25 phút trước'
-        }
-      ]
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const threadCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // 1. Subscribe to Live Comment Threads
+  useEffect(() => {
+    if (!commentEngine) {
+      // Fallback sample threads if engine is not attached
+      return;
     }
-  ]);
 
-  // Sample Global Chat Messages
-  const [chatMessages, setChatMessages] = useState<CommentMessageItem[]>([
-    {
-      id: 'c1',
-      author: 'Alice',
-      avatarColor: 'bg-blue-500',
-      content: 'Chào cả phòng! Mọi người kiểm tra nhánh develop nhé.',
-      time: '14:20'
-    },
-    {
-      id: 'c2',
-      author: 'Bob',
-      avatarColor: 'bg-emerald-500',
-      content: 'Đang review code phần WebSocket Blind Relay, thông lượng rất ấn tượng!',
-      time: '14:22'
+    const unsubscribe = commentEngine.onThreadsChange((liveThreads) => {
+      setThreads(liveThreads);
+    });
+
+    return () => unsubscribe();
+  }, [commentEngine]);
+
+  // 2. Subscribe to Live Room Chat Messages
+  useEffect(() => {
+    if (!chatEngine) return;
+
+    const unsubscribe = chatEngine.onMessagesChange((messages) => {
+      setChatMessages(messages);
+      // Auto-scroll chat to bottom
+      setTimeout(() => {
+        if (chatScrollRef.current) {
+          chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+        }
+      }, 50);
+    });
+
+    return () => unsubscribe();
+  }, [chatEngine]);
+
+  // 3. Auto-scroll to active thread card when activeThreadId changes
+  useEffect(() => {
+    if (activeThreadId && activeTab === 'threads') {
+      const cardEl = threadCardRefs.current[activeThreadId];
+      if (cardEl) {
+        cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
     }
-  ]);
+  }, [activeThreadId, activeTab]);
 
-  const toggleResolve = (threadId: string) => {
-    setSampleThreads(prev => prev.map(t => t.id === threadId ? { ...t, isResolved: !t.isResolved } : t));
-  };
+  // Filter threads
+  const filteredThreads = threads.filter(({ thread }) => {
+    if (filter === 'unresolved') return !thread.isResolved;
+    if (filter === 'resolved') return thread.isResolved;
+    return true;
+  });
 
-  const sendReply = (threadId: string) => {
+  const handleSendReply = (threadId: string) => {
     const text = replyInputs[threadId]?.trim();
     if (!text) return;
 
-    setSampleThreads(prev => prev.map(t => {
-      if (t.id === threadId) {
-        return {
-          ...t,
-          messages: [
-            ...t.messages,
-            {
-              id: `m_${Date.now()}`,
-              author: 'Bạn (Người Dùng)',
-              avatarColor: 'bg-theme-accent',
-              content: text,
-              time: 'Vừa xong'
-            }
-          ]
-        };
-      }
-      return t;
-    }));
+    if (commentEngine) {
+      commentEngine.addReply(threadId, {
+        authorId: currentAuthor.id,
+        authorName: currentAuthor.name,
+        authorAvatar: currentAuthor.avatar,
+        content: text
+      });
+    }
 
     setReplyInputs(prev => ({ ...prev, [threadId]: '' }));
   };
 
-  const sendChatMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim()) return;
+  const handleToggleResolve = (threadId: string, currentState: boolean) => {
+    if (commentEngine) {
+      commentEngine.toggleResolved(threadId, !currentState);
+    }
+  };
 
-    setChatMessages(prev => [
-      ...prev,
-      {
-        id: `c_${Date.now()}`,
-        author: 'Bạn (Người Dùng)',
-        avatarColor: 'bg-theme-accent',
-        content: chatInput.trim(),
-        time: 'Vừa xong'
+  const handleDeleteThread = (threadId: string) => {
+    if (commentEngine) {
+      commentEngine.deleteThread(threadId);
+      if (activeThreadId === threadId && onSelectThread) {
+        onSelectThread(null);
       }
-    ]);
+    }
+  };
+
+  const handleSendChatMessage = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const text = chatInput.trim();
+    if (!text) return;
+
+    if (chatEngine) {
+      chatEngine.sendMessage({
+        authorId: currentAuthor.id,
+        authorName: currentAuthor.name,
+        authorAvatar: currentAuthor.avatar,
+        authorColor: currentAuthor.color,
+        content: text
+      });
+    }
+
     setChatInput('');
   };
 
   if (!isOpen) return null;
 
-  const filteredThreads = sampleThreads.filter(t => filter === 'all' || !t.isResolved);
-
   return (
-    <aside className="w-80 bg-theme-bg-subtle border-l border-theme-border flex flex-col shrink-0 select-none h-full transition-all duration-200">
-      {/* Header & Tabs */}
-      <div className="p-3 border-b border-theme-border flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 font-semibold text-xs text-theme-text">
-            <MessageSquare className="w-4 h-4 text-theme-accent" />
-            <span>Thảo Luận & Chat</span>
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Đóng bảng thảo luận">
-            <X className="w-4 h-4 text-theme-text-muted" />
-          </Button>
+    <aside className="w-80 border-l border-theme-border bg-theme-bg-subtle/40 flex flex-col h-full shrink-0 z-10 transition-all select-none">
+      {/* 1. Sidebar Header */}
+      <div className="h-11 px-3.5 border-b border-theme-border flex items-center justify-between shrink-0 bg-theme-bg-subtle/80">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-theme-text min-w-0" title={`Tài liệu: ${activeDocumentTitle}`}>
+          <MessageSquare className="w-4 h-4 text-theme-accent shrink-0" />
+          <span className="truncate">Thảo Luận & Chat</span>
         </div>
-
-        {/* Tab Switcher */}
-        <div className="grid grid-cols-2 gap-1 bg-theme-card p-1 rounded-lg border border-theme-border">
-          <button
-            onClick={() => setActiveTab('threads')}
-            className={`py-1 text-xs font-medium rounded-md transition-colors ${activeTab === 'threads' ? 'bg-theme-bg-subtle text-theme-text shadow-xs' : 'text-theme-text-muted hover:text-theme-text'}`}
-          >
-            Bình Luận ({sampleThreads.filter(t => !t.isResolved).length})
-          </button>
-          <button
-            onClick={() => setActiveTab('chat')}
-            className={`py-1 text-xs font-medium rounded-md transition-colors ${activeTab === 'chat' ? 'bg-theme-bg-subtle text-theme-text shadow-xs' : 'text-theme-text-muted hover:text-theme-text'}`}
-          >
-            Phòng Chat
-          </button>
-        </div>
+        <button
+          onClick={onClose}
+          className="p-1 text-theme-text-muted hover:text-theme-text hover:bg-theme-bg-subtle rounded transition-colors shrink-0"
+          title="Đóng sidebar"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
       </div>
 
-      {/* Tab 1: Contextual Inline Threads */}
-      {activeTab === 'threads' && (
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Sub-filter */}
-          <div className="px-3 py-2 border-b border-theme-border flex items-center justify-between text-[11px]">
-            <span className="text-theme-text-muted">Bộ lọc trạng thái:</span>
-            <div className="flex items-center gap-1">
-              <button
-                onClick={() => setFilter('unresolved')}
-                className={`px-2 py-0.5 rounded transition-colors ${filter === 'unresolved' ? 'bg-theme-accent-subtle text-theme-accent font-medium' : 'text-theme-text-muted hover:text-theme-text'}`}
-              >
-                Chưa xong
-              </button>
-              <button
-                onClick={() => setFilter('all')}
-                className={`px-2 py-0.5 rounded transition-colors ${filter === 'all' ? 'bg-theme-accent-subtle text-theme-accent font-medium' : 'text-theme-text-muted hover:text-theme-text'}`}
-              >
-                Tất cả
-              </button>
-            </div>
-          </div>
+      {/* 2. Navigation Tabs */}
+      <div className="flex border-b border-theme-border bg-theme-bg/60 p-1 gap-1 shrink-0">
+        <button
+          onClick={() => setActiveTab('threads')}
+          className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1.5 ${
+            activeTab === 'threads'
+              ? 'bg-theme-bg text-theme-accent shadow-xs'
+              : 'text-theme-text-muted hover:text-theme-text hover:bg-theme-bg-subtle'
+          }`}
+        >
+          <span>Bình Luận</span>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-theme-border/60 text-theme-text-muted font-bold">
+            {threads.filter(t => !t.thread.isResolved).length}
+          </span>
+        </button>
 
-          {/* Threads List */}
-          <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
-            {filteredThreads.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-48 text-center text-theme-text-muted text-xs">
-                <MessageSquare className="w-8 h-8 opacity-30 mb-2" />
-                <p>Không có bình luận nào.</p>
-                <p className="text-[11px] mt-1 text-theme-text-muted">Bôi đen văn bản trong tài liệu để tạo bình luận mới.</p>
+        <button
+          onClick={() => setActiveTab('chat')}
+          className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1.5 ${
+            activeTab === 'chat'
+              ? 'bg-theme-bg text-theme-accent shadow-xs'
+              : 'text-theme-text-muted hover:text-theme-text hover:bg-theme-bg-subtle'
+          }`}
+        >
+          <Hash className="w-3 h-3" />
+          <span>Phòng Chat</span>
+        </button>
+      </div>
+
+      {/* 3. Tab Contents */}
+      <div className="flex-1 overflow-y-auto min-h-0 select-text">
+        {/* =========================================================================
+            TAB 1: THREADS LIST (CONTEXTUAL COMMENTS)
+            ========================================================================= */}
+        {activeTab === 'threads' && (
+          <div className="p-3 space-y-3">
+            {/* Status Filter Selector */}
+            <div className="flex items-center justify-between pb-1 text-[11px] text-theme-text-muted">
+              <div className="flex items-center gap-1 font-medium">
+                <Filter className="w-3 h-3" />
+                <span>Bộ lọc:</span>
               </div>
-            ) : (
-              filteredThreads.map(thread => (
-                <div 
-                  key={thread.id} 
-                  className={`bg-theme-card border rounded-xl p-3 flex flex-col gap-2.5 transition-all ${thread.isResolved ? 'opacity-60 border-theme-border' : 'border-theme-border hover:border-theme-accent/40 shadow-xs'}`}
+              <div className="flex items-center gap-1 bg-theme-bg-subtle/80 p-0.5 rounded-md border border-theme-border/50">
+                <button
+                  onClick={() => setFilter('unresolved')}
+                  className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                    filter === 'unresolved' ? 'bg-theme-bg text-theme-accent shadow-xs font-semibold' : 'text-theme-text-muted hover:text-theme-text'
+                  }`}
                 >
-                  {/* Quoted Text Snapshot */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="border-l-2 border-amber-500 pl-2 text-[11px] text-theme-text-secondary italic line-clamp-2">
+                  Chưa xong
+                </button>
+                <button
+                  onClick={() => setFilter('resolved')}
+                  className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                    filter === 'resolved' ? 'bg-theme-bg text-theme-accent shadow-xs font-semibold' : 'text-theme-text-muted hover:text-theme-text'
+                  }`}
+                >
+                  Đã xong
+                </button>
+                <button
+                  onClick={() => setFilter('all')}
+                  className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                    filter === 'all' ? 'bg-theme-bg text-theme-accent shadow-xs font-semibold' : 'text-theme-text-muted hover:text-theme-text'
+                  }`}
+                >
+                  Tất cả
+                </button>
+              </div>
+            </div>
+
+            {/* Empty State */}
+            {filteredThreads.length === 0 && (
+              <div className="text-center py-10 px-4">
+                <div className="w-10 h-10 rounded-full bg-theme-bg-subtle mx-auto flex items-center justify-center text-theme-text-muted mb-2.5">
+                  <MessageSquare className="w-5 h-5 opacity-60" />
+                </div>
+                <p className="text-xs font-medium text-theme-text">Không có bình luận nào</p>
+                <p className="text-[11px] text-theme-text-muted mt-1 leading-relaxed">
+                  Bôi đen đoạn văn bản trong trình soạn thảo và chọn <strong>Thêm bình luận</strong> để mở luồng thảo luận.
+                </p>
+              </div>
+            )}
+
+            {/* Thread Cards List */}
+            {filteredThreads.map(({ thread, isOrphaned }) => {
+              const isSelected = activeThreadId === thread.id;
+
+              return (
+                <div
+                  key={thread.id}
+                  ref={el => { threadCardRefs.current[thread.id] = el; }}
+                  onClick={() => onSelectThread && onSelectThread(thread.id)}
+                  className={`group rounded-lg border p-3 transition-all cursor-pointer ${
+                    isSelected
+                      ? 'border-amber-500/80 bg-theme-bg shadow-sm ring-1 ring-amber-500/30'
+                      : 'border-theme-border bg-theme-bg hover:border-theme-border-strong hover:shadow-xs'
+                  }`}
+                >
+                  {/* Quoted Text Preview Banner */}
+                  <div className="mb-2.5 pl-2.5 border-l-2 border-amber-500/80 py-0.5 bg-amber-500/5 rounded-r">
+                    <p className="text-[11px] font-serif italic text-theme-text line-clamp-2 leading-relaxed">
                       "{thread.quotedText}"
-                    </div>
-                    <button
-                      onClick={() => toggleResolve(thread.id)}
-                      title={thread.isResolved ? 'Đánh dấu chưa giải quyết' : 'Đánh dấu đã giải quyết'}
-                      className={`p-1 rounded-md shrink-0 transition-colors ${thread.isResolved ? 'bg-emerald-500/10 text-emerald-600' : 'hover:bg-theme-bg-subtle text-theme-text-muted hover:text-emerald-500'}`}
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                    </button>
+                    </p>
+                    {isOrphaned && (
+                      <div className="flex items-center gap-1 mt-1 text-[10px] text-amber-600 dark:text-amber-400 font-sans font-medium">
+                        <AlertTriangle className="w-3 h-3 shrink-0" />
+                        <span>Đoạn văn bản gốc đã bị xóa khỏi tài liệu</span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Messages Flow */}
-                  <div className="flex flex-col gap-2 pt-1">
-                    {thread.messages.map(msg => (
-                      <div key={msg.id} className="flex flex-col gap-1 text-xs">
-                        <div className="flex items-center justify-between text-[11px]">
+                  {/* Message Replies Flow */}
+                  <div className="space-y-2.5 divide-y divide-theme-border/30">
+                    {thread.replies.map((reply, idx) => (
+                      <div key={reply.id} className={idx > 0 ? 'pt-2' : ''}>
+                        <div className="flex items-center justify-between mb-1">
                           <div className="flex items-center gap-1.5">
-                            <div className={`w-4 h-4 rounded-full ${msg.avatarColor} text-white flex items-center justify-center text-[9px] font-bold`}>
-                              {msg.author.charAt(0)}
+                            <div className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[9px] font-bold">
+                              {reply.authorName.charAt(0)}
                             </div>
-                            <span className="font-medium text-theme-text">{msg.author}</span>
+                            <span className="text-[11px] font-semibold text-theme-text">
+                              {reply.authorName}
+                            </span>
                           </div>
-                          <span className="text-[10px] text-theme-text-muted font-mono">{msg.time}</span>
+                          <span className="text-[9px] text-theme-text-muted font-mono">
+                            {new Date(reply.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
                         </div>
-                        <p className="text-theme-text-secondary pl-5 leading-relaxed">{msg.content}</p>
+                        <p className="text-xs text-theme-text-muted leading-relaxed pl-5.5 whitespace-pre-wrap break-words">
+                          {reply.content}
+                        </p>
                       </div>
                     ))}
                   </div>
 
-                  {/* Reply Input Box */}
-                  {!thread.isResolved && (
-                    <div className="flex items-center gap-1.5 pt-2 border-t border-theme-border">
+                  {/* Actions & Reply Form */}
+                  <div className="mt-3 pt-2.5 border-t border-theme-border/50 flex flex-col gap-2">
+                    <div className="flex items-center gap-1.5">
                       <Input
                         placeholder="Trả lời bình luận..."
                         value={replyInputs[thread.id] || ''}
-                        onChange={(e) => setReplyInputs(prev => ({ ...prev, [thread.id]: e.target.value }))}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
+                        onChange={e => setReplyInputs(prev => ({ ...prev, [thread.id]: e.target.value }))}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
                             e.preventDefault();
-                            sendReply(thread.id);
+                            handleSendReply(thread.id);
                           }
                         }}
+                        className="text-xs flex-1 h-7"
                       />
-                      <Button variant="secondary" size="icon" onClick={() => sendReply(thread.id)}>
-                        <CornerDownRight className="w-3.5 h-3.5 text-theme-accent" />
+                      <Button
+                        size="sm"
+                        variant="primary"
+                        onClick={() => handleSendReply(thread.id)}
+                        disabled={!replyInputs[thread.id]?.trim()}
+                        className="h-7 w-7 p-0 flex items-center justify-center shrink-0"
+                        title="Gửi phản hồi"
+                      >
+                        <CornerDownRight className="w-3.5 h-3.5" />
                       </Button>
                     </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
 
-      {/* Tab 2: Global Workspace Chat */}
-      {activeTab === 'chat' && (
-        <div className="flex-1 flex flex-col overflow-hidden">
-          {/* Chat Room Metadata */}
-          <div className="px-3 py-2 border-b border-theme-border flex items-center justify-between text-[11px] text-theme-text-muted">
-            <div className="flex items-center gap-1.5">
-              <Hash className="w-3.5 h-3.5 text-theme-accent" />
-              <span className="truncate max-w-[180px] font-medium text-theme-text">{activeDocumentTitle}</span>
-            </div>
-            <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-mono">
-              <Lock className="w-3 h-3" /> E2EE
-            </span>
-          </div>
+                    {/* Footer Controls: Resolve & Delete */}
+                    <div className="flex items-center justify-between pt-1 text-[10px] text-theme-text-muted">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleResolve(thread.id, thread.isResolved);
+                        }}
+                        className="flex items-center gap-1 hover:text-theme-text transition-colors"
+                      >
+                        {thread.isResolved ? (
+                          <>
+                            <RotateCcw className="w-3 h-3 text-amber-500" />
+                            <span>Mở lại</span>
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-500" />
+                            <span>Giải quyết</span>
+                          </>
+                        )}
+                      </button>
 
-          {/* Chat Messages Log */}
-          <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
-            {chatMessages.map(msg => (
-              <div key={msg.id} className="flex flex-col gap-1 text-xs">
-                <div className="flex items-center justify-between text-[11px]">
-                  <div className="flex items-center gap-1.5">
-                    <div className={`w-4 h-4 rounded-full ${msg.avatarColor} text-white flex items-center justify-center text-[9px] font-bold`}>
-                      {msg.author.charAt(0)}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteThread(thread.id);
+                        }}
+                        className="flex items-center gap-1 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                        title="Xóa bình luận"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Xóa</span>
+                      </button>
                     </div>
-                    <span className="font-medium text-theme-text">{msg.author}</span>
                   </div>
-                  <span className="text-[10px] text-theme-text-muted font-mono">{msg.time}</span>
                 </div>
-                <p className="text-theme-text-secondary pl-5 leading-relaxed bg-theme-card p-2 rounded-lg border border-theme-border">
-                  {msg.content}
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
+        )}
 
-          {/* Chat Input Form */}
-          <form onSubmit={sendChatMessage} className="p-3 border-t border-theme-border bg-theme-card/40 flex items-center gap-1.5">
-            <Input
-              placeholder="Nhập tin nhắn mã hóa..."
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-            />
-            <Button variant="primary" size="icon" type="submit">
-              <Send className="w-3.5 h-3.5" />
-            </Button>
-          </form>
-        </div>
-      )}
+        {/* =========================================================================
+            TAB 2: GLOBAL ROOM CHAT (REALTIME E2EE CHATBOX)
+            ========================================================================= */}
+        {activeTab === 'chat' && (
+          <div className="flex flex-col h-full">
+            {/* E2EE Info Pill */}
+            <div className="p-2.5 mx-3 mt-3 rounded-md bg-theme-bg border border-theme-border/80 flex items-center gap-2 text-[10px] text-theme-text-muted">
+              <Lock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <span>Phòng chat mã hóa đầu-cuối bằng DocumentKey (AES-256-GCM).</span>
+            </div>
+
+            {/* Chat Messages List */}
+            <div ref={chatScrollRef} className="flex-1 p-3 space-y-3 overflow-y-auto">
+              {chatMessages.length === 0 && (
+                <div className="text-center py-10 text-theme-text-muted">
+                  <Hash className="w-8 h-8 mx-auto opacity-40 mb-2" />
+                  <p className="text-xs">Chưa có tin nhắn nào trong phòng</p>
+                  <p className="text-[11px] opacity-70 mt-0.5">Hãy gửi lời chào đầu tiên đến đồng đội!</p>
+                </div>
+              )}
+
+              {chatMessages.map(msg => {
+                const isMe = msg.authorId === currentAuthor.id;
+
+                return (
+                  <div 
+                    key={msg.id} 
+                    className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+                  >
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className="text-[10px] font-semibold text-theme-text-muted">
+                        {msg.authorName}
+                      </span>
+                      <span className="text-[9px] text-theme-text-muted/60 font-mono">
+                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+
+                    <div
+                      className={`max-w-[85%] rounded-lg px-3 py-1.5 text-xs leading-relaxed break-words ${
+                        isMe
+                          ? 'bg-theme-accent text-white rounded-br-none shadow-xs'
+                          : 'bg-theme-bg border border-theme-border text-theme-text rounded-bl-none shadow-xs'
+                      }`}
+                    >
+                      {msg.content}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Chat Input Bar */}
+            <form 
+              onSubmit={handleSendChatMessage}
+              className="p-3 border-t border-theme-border bg-theme-bg/80 shrink-0 flex items-center gap-1.5"
+            >
+              <Input
+                placeholder="Nhập tin nhắn..."
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                className="text-xs flex-1 h-8"
+              />
+              <Button
+                type="submit"
+                size="sm"
+                variant="primary"
+                disabled={!chatInput.trim()}
+                className="h-8 w-8 p-0 flex items-center justify-center shrink-0"
+                title="Gửi tin nhắn"
+              >
+                <Send className="w-3.5 h-3.5" />
+              </Button>
+            </form>
+          </div>
+        )}
+      </div>
     </aside>
   );
 };

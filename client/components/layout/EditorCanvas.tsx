@@ -5,6 +5,7 @@ import {
   Folder, 
   ChevronRight
 } from 'lucide-react';
+import * as Y from 'yjs';
 import { Badge } from '../ui/Badge';
 import { TiptapEditor } from '../editor/TiptapEditor';
 import { SAMPLE_DOCUMENTS } from '../editor/editor-sample-content';
@@ -13,16 +14,22 @@ export interface EditorCanvasProps {
   documentId?: string | undefined;
   documentTitle: string;
   folderName: string;
+  yDoc?: Y.Doc | undefined;
   onAddInlineComment?: (() => void) | undefined;
   onTitleChange?: ((newTitle: string) => void) | undefined;
+  onCommentClick?: ((threadId: string) => void) | undefined;
+  activeCommentThreadId?: string | null | undefined;
 }
 
 export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   documentId = 'doc-welcome',
   documentTitle,
   folderName,
+  yDoc,
   onAddInlineComment,
-  onTitleChange
+  onTitleChange,
+  onCommentClick,
+  activeCommentThreadId
 }) => {
   const [currentTitle, setCurrentTitle] = useState(documentTitle);
   const [content, setContent] = useState<string>(() => {
@@ -95,6 +102,9 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         onTitleChange={handleTitleChange}
         onChange={(html) => setContent(html)}
         onAddInlineComment={onAddInlineComment}
+        yDoc={yDoc}
+        onCommentClick={onCommentClick}
+        activeCommentThreadId={activeCommentThreadId}
       />
     </div>
   );

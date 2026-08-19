@@ -8,6 +8,9 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { CryptoPlaygroundModal } from '../crypto/CryptoPlaygroundModal';
 import { TreeStateManager } from '../../lib/tree/tree-state-manager';
+import { InlineCommentAnchorEngine } from '../../lib/yjs/inline-comment-engine';
+import { RoomChatEngine } from '../../lib/yjs/room-chat-engine';
+import * as Y from 'yjs';
 import { AppTheme } from '../../App';
 import {
   Download,
@@ -34,6 +37,60 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [activeDocId, setActiveDocId] = useState('doc-welcome');
   const [exportDocTitle, setExportDocTitle] = useState('Chào mừng đến VaultSync');
   const [, setTreeVersion] = useState(0);
+
+  // Yjs Collaboration & Discussion Engines
+  const [yDoc] = useState(() => new Y.Doc());
+  const [commentEngine] = useState(() => new InlineCommentAnchorEngine(yDoc));
+  const [chatEngine] = useState(() => new RoomChatEngine(yDoc));
+  const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null);
+
+  // Seed sample contextual comments & chat if empty
+  useEffect(() => {
+    const commentsMap = yDoc.getMap('vaultsync-inline-threads');
+    if (commentsMap.size === 0) {
+      const yText = yDoc.getText('content');
+      if (yText.length === 0) {
+        yText.insert(0, 'VaultSync là không gian làm việc cộng tác thời gian thực chuẩn doanh nghiệp, được bảo vệ bởi kiến trúc Mã hóa Đầu-Cuối (End-to-End Encryption / Zero-Knowledge) kết hợp cấu trúc dữ liệu phân tán CRDTs (Yjs).');
+      }
+
+      // Create initial sample threads
+      const phrase1 = 'Mã hóa Đầu-Cuối (End-to-End Encryption / Zero-Knowledge)';
+      const idx1 = yText.toString().indexOf(phrase1);
+      if (idx1 >= 0) {
+        const t1 = commentEngine.createThread({
+          yType: yText,
+          from: idx1,
+          to: idx1 + phrase1.length,
+          quotedText: phrase1,
+          authorId: 'user_alice',
+          authorName: 'Alice (Trưởng Nhóm)',
+          content: 'Đã hoàn thiện module AES-256-GCM với AAD binding để chống tấn công hoán đổi bản mã.'
+        });
+
+        commentEngine.addReply(t1.id, {
+          authorId: 'user_bob',
+          authorName: 'Bob (Reviewer)',
+          content: 'Tuyệt vời! Cần lưu ý thêm kiểm tra tính kết hợp assoc: 0 cho start anchor nhé.'
+        });
+      }
+    }
+
+    const chatArr = yDoc.getArray('vaultsync-room-chat');
+    if (chatArr.length === 0) {
+      chatEngine.sendMessage({
+        authorId: 'user_alice',
+        authorName: 'Alice',
+        authorColor: '#2563eb',
+        content: 'Chào cả phòng! Mọi người kiểm tra nhánh develop nhé.'
+      });
+      chatEngine.sendMessage({
+        authorId: 'user_bob',
+        authorName: 'Bob',
+        authorColor: '#059669',
+        content: 'Đã nhận! Đang chạy test runner kiểm tra tính năng live cursor và comment highlight.'
+      });
+    }
+  }, [yDoc, commentEngine, chatEngine]);
 
   useEffect(() => {
     const unobserve = treeManager.observe(() => {
@@ -65,6 +122,16 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     if (activeDocId) {
       treeManager.renameItem(activeDocId, newTitle);
     }
+  };
+
+  // Bidirectional interaction handlers
+  const handleCommentClickFromEditor = (threadId: string) => {
+    setActiveCommentThreadId(threadId);
+    setIsRightSidebarOpen(true);
+  };
+
+  const handleSelectThreadFromSidebar = (threadId: string | null) => {
+    setActiveCommentThreadId(threadId);
   };
 
   const mockPublicECDHKey = 'MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE7rB4K9zW1p5qLm3...';
@@ -111,8 +178,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           documentId={activeDocId}
           documentTitle={activeDocTitle}
           folderName={folderName}
+          yDoc={yDoc}
           onAddInlineComment={() => setIsRightSidebarOpen(true)}
           onTitleChange={handleTitleChange}
+          onCommentClick={handleCommentClickFromEditor}
+          activeCommentThreadId={activeCommentThreadId}
         />
 
         {/* Right Discussion & Chat Sidebar */}
@@ -120,6 +190,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           isOpen={isRightSidebarOpen}
           onClose={() => setIsRightSidebarOpen(false)}
           activeDocumentTitle={activeDocTitle}
+          commentEngine={commentEngine}
+          chatEngine={chatEngine}
+          activeThreadId={activeCommentThreadId}
+          onSelectThread={handleSelectThreadFromSidebar}
         />
       </div>
 
