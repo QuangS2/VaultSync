@@ -62,8 +62,22 @@ export interface EncryptedYjsProviderOptions {
   yDoc: Y.Doc;
   documentKey: CryptoKey;
   epoch?: number | undefined;
+  user?: AwarenessUser | undefined;
   autoConnect?: boolean | undefined;
   maxReconnectAttempts?: number | undefined;
   onStatusChange?: ((status: ProviderConnectionStatus) => void) | undefined;
   onSyncChange?: ((synced: boolean) => void) | undefined;
+}
+
+export interface AwarenessUser {
+  name: string;
+  color: string;
+  avatar?: string | undefined;
+  clientId?: number | undefined;
+}
+
+export interface CollaborationUserOptions {
+  name: string;
+  color: string;
+  avatar?: string | undefined;
 }

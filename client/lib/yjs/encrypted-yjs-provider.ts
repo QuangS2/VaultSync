@@ -1,17 +1,24 @@
 /**
- * Enterprise Encrypted Yjs WebSocket Provider (11/10 Precision)
- * Intercepts Yjs document updates and synchronizes them via WebSocket Blind Relay Server
+ * Enterprise Encrypted Yjs WebSocket Provider with Live Cursor Awareness (11/10 Precision)
+ * Intercepts Yjs document updates and awareness presence, synchronizing them via WebSocket Blind Relay Server
  * with 100% End-to-End Encryption (AES-256-GCM).
  */
 
 import * as Y from 'yjs';
+import * as awarenessProtocol from 'y-protocols/awareness.js';
 import { BinaryCodec, MessageType, BinaryFrame } from '../../../shared/protocol/binary-codec';
 import { WebCryptoEngine } from '../crypto/web-crypto-engine';
-import { EncryptedYjsProviderOptions, ProviderConnectionStatus } from './types';
+import { 
+  EncryptedYjsProviderOptions, 
+  ProviderConnectionStatus,
+  AwarenessUser 
+} from './types';
 
 export class EncryptedYjsProvider {
   public readonly yDoc: Y.Doc;
   public readonly roomId: string;
+  public readonly awareness: awarenessProtocol.Awareness;
+
   private serverUrl: string;
   private documentKey: CryptoKey;
   private epoch: number;
@@ -43,11 +50,29 @@ export class EncryptedYjsProvider {
     this.onStatusChange = options.onStatusChange;
     this.onSyncChange = options.onSyncChange;
 
+    this.awareness = new awarenessProtocol.Awareness(this.yDoc);
+    if (options.user) {
+      this.setUser(options.user);
+    }
+
     this.setupYjsListeners();
+    this.setupAwarenessListeners();
 
     if (options.autoConnect !== false) {
       this.connect();
     }
+  }
+
+  /**
+   * Sets or updates the local user profile in the awareness protocol.
+   */
+  public setUser(user: AwarenessUser): void {
+    this.awareness.setLocalStateField('user', {
+      name: user.name,
+      color: user.color,
+      avatar: user.avatar,
+      clientId: this.yDoc.clientID
+    });
   }
 
   /**
@@ -115,6 +140,18 @@ export class EncryptedYjsProvider {
           this.sendRaw(sync1Frame);
         } catch (err) {
           console.error('[EncryptedYjsProvider] Failed to send initial state vector:', err);
+        }
+
+        // 3. Broadcast initial awareness presence
+        try {
+          const localAwareness = awarenessProtocol.encodeAwarenessUpdate(this.awareness, [this.yDoc.clientID]);
+          if (localAwareness.length > 0) {
+            const encryptedAwareness = await this.encryptPayload(localAwareness);
+            const awarenessFrame = BinaryCodec.encode(MessageType.AWARENESS, this.roomId, encryptedAwareness);
+            this.sendRaw(awarenessFrame);
+          }
+        } catch (err) {
+          console.error('[EncryptedYjsProvider] Failed to send initial awareness:', err);
         }
       };
 
@@ -208,10 +245,32 @@ export class EncryptedYjsProvider {
     });
   }
 
+  private setupAwarenessListeners(): void {
+    // Intercept awareness state changes (cursor movements, presence) -> Encrypt -> Broadcast
+    this.awareness.on('update', async ({ added, updated, removed }: { added: number[]; updated: number[]; removed: number[] }, origin: any) => {
+      // Only broadcast if the change originated locally
+      if (origin === this) return;
+
+      const changedClients = added.concat(updated).concat(removed);
+      if (changedClients.length === 0) return;
+
+      try {
+        const awarenessUpdate = awarenessProtocol.encodeAwarenessUpdate(this.awareness, changedClients);
+        const encryptedAwareness = await this.encryptPayload(awarenessUpdate);
+        if (this.status.connected && this.ws && this.ws.readyState === 1) {
+          const frame = BinaryCodec.encode(MessageType.AWARENESS, this.roomId, encryptedAwareness);
+          this.sendRaw(frame);
+        }
+      } catch (err) {
+        console.error('[EncryptedYjsProvider] Failed to encrypt and send awareness update:', err);
+      }
+    });
+  }
+
   private async handleIncomingFrame(frame: BinaryFrame): Promise<void> {
     switch (frame.messageType) {
       case MessageType.SYNC_STEP_1: {
-        // Remote peer requested missing updates based on their state vector
+        // Remote peer requested missing updates and initiated handshake
         try {
           const decryptedStateVector = await this.decryptPayload(frame.payload);
           const missingUpdate = Y.encodeStateAsUpdate(this.yDoc, decryptedStateVector);
@@ -220,6 +279,14 @@ export class EncryptedYjsProvider {
             const encryptedMissing = await this.encryptPayload(missingUpdate);
             const sync2Frame = BinaryCodec.encode(MessageType.SYNC_STEP_2, this.roomId, encryptedMissing);
             this.sendRaw(sync2Frame);
+          }
+
+          // Reply with our local awareness presence so the new peer discovers us
+          const localAwareness = awarenessProtocol.encodeAwarenessUpdate(this.awareness, [this.yDoc.clientID]);
+          if (localAwareness.length > 0) {
+            const encryptedAwareness = await this.encryptPayload(localAwareness);
+            const awarenessFrame = BinaryCodec.encode(MessageType.AWARENESS, this.roomId, encryptedAwareness);
+            this.sendRaw(awarenessFrame);
           }
         } catch (err) {
           console.error('[EncryptedYjsProvider] Failed to handle SYNC_STEP_1:', err);
@@ -237,6 +304,17 @@ export class EncryptedYjsProvider {
           this.updateStatus({ syncStatus: 'synced' });
         } catch (err) {
           console.error('[EncryptedYjsProvider] Failed to decrypt and apply remote update:', err);
+        }
+        break;
+      }
+
+      case MessageType.AWARENESS: {
+        // Decrypt incoming awareness presence update and apply to local awareness
+        try {
+          const decryptedAwareness = await this.decryptPayload(frame.payload);
+          awarenessProtocol.applyAwarenessUpdate(this.awareness, decryptedAwareness, this);
+        } catch (err) {
+          console.error('[EncryptedYjsProvider] Failed to decrypt and apply awareness update:', err);
         }
         break;
       }
@@ -313,18 +391,32 @@ export class EncryptedYjsProvider {
     }, jitteredBackoff);
   }
 
-  public disconnect(): void {
+  public async disconnect(): Promise<void> {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
     this.clearHeartbeat();
 
-    if (this.ws) {
-      if (this.status.connected && this.ws.readyState === WebSocket.OPEN) {
+    // Broadcast awareness removal before socket teardown
+    if (this.ws && this.ws.readyState === 1) {
+      try {
+        awarenessProtocol.removeAwarenessStates(this.awareness, [this.yDoc.clientID], 'disconnect');
+        const removalUpdate = awarenessProtocol.encodeAwarenessUpdate(this.awareness, [this.yDoc.clientID]);
+        if (removalUpdate.length > 0) {
+          const encryptedRemoval = await this.encryptPayload(removalUpdate);
+          const frame = BinaryCodec.encode(MessageType.AWARENESS, this.roomId, encryptedRemoval);
+          this.sendRaw(frame);
+        }
+
         const leaveFrame = BinaryCodec.encode(MessageType.ROOM_LEAVE, this.roomId);
         this.sendRaw(leaveFrame);
+      } catch {
+        // ignore
       }
+    }
+
+    if (this.ws) {
       this.ws.close();
       this.ws = null;
     }
@@ -338,6 +430,7 @@ export class EncryptedYjsProvider {
 
   public destroy(): void {
     this.isDestroyed = true;
-    this.disconnect();
+    void this.disconnect();
+    this.awareness.destroy();
   }
 }

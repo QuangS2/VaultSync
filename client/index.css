@@ -338,3 +338,56 @@
 [data-theme="night"] .hljs-number { color: #fbbf24; }
 [data-theme="night"] .hljs-type { color: #38bdf8; }
 [data-theme="night"] .hljs-variable { color: #f472b6; }
+
+/* ==========================================================================
+   LIVE COLLABORATION CURSOR & AWARENESS (60 FPS SMOOTH CARET & NAME PILL)
+   ========================================================================== */
+
+.ProseMirror-yjs-cursor {
+  position: relative;
+  margin-left: -1px;
+  margin-right: -1px;
+  border-left: 2px solid currentColor;
+  border-right: 0 solid currentColor;
+  border-color: inherit;
+  word-break: normal;
+  pointer-events: none;
+  transition: transform 0.08s cubic-bezier(0.2, 0, 0, 1), opacity 0.15s ease;
+  z-index: 20;
+}
+
+.ProseMirror-yjs-cursor > div {
+  position: absolute;
+  top: -1.35em;
+  left: -2px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: inherit;
+  line-height: normal;
+  user-select: none;
+  color: #ffffff;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.18);
+  animation: cursor-pill-fade-in 0.15s ease-out;
+  letter-spacing: 0.01em;
+}
+
+@keyframes cursor-pill-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.ProseMirror-yjs-selection {
+  opacity: 0.25;
+  border-radius: 2px;
+}
+
