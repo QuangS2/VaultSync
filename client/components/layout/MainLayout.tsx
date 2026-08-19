@@ -511,13 +511,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         </div>
       </Modal>
 
-      {/* MODAL: Xuất Dữ Liệu Đa Định Dạng (Markdown & Standalone HTML) */}
+      {/* MODAL: Xuất Dữ Liệu Đa Định Dạng (Markdown & Standalone HTML & .vault) */}
       <ExportModal
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         documentTitle={exportDocTitle || activeDocTitle}
         documentId={activeDocId}
         folderName={folderName}
+        treeManager={treeManager}
       />
 
       {/* Dual-Pane Guest Sandbox */}
