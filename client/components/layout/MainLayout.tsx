@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 
 import { DualPaneGuestSandbox } from '../sandbox/DualPaneGuestSandbox';
+import { LiveE2EEInspectorDrawer } from '../inspector/LiveE2EEInspectorDrawer';
 import { IdentityKeys, ECDHKeyPair } from '../../lib/crypto/identity-keys';
 import { EnvelopeEncryptionManager, WrappedKeyEnvelope } from '../../lib/crypto/envelope-encryption';
 
@@ -139,6 +140,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isSandboxModalOpen, setIsSandboxModalOpen] = useState(false);
   const [isCryptoModalOpen, setIsCryptoModalOpen] = useState(false);
+  const [isInspectorOpen, setIsInspectorOpen] = useState(false);
   const [recipientKeyInput, setRecipientKeyInput] = useState('');
   const [recipientIdInput, setRecipientIdInput] = useState('user_bob_peer');
   const [copiedKey, setCopiedKey] = useState(false);
@@ -221,6 +223,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         }}
         onOpenSandboxModal={() => setIsSandboxModalOpen(true)}
         onOpenCryptoModal={() => setIsCryptoModalOpen(true)}
+        onOpenInspectorModal={() => setIsInspectorOpen(true)}
         activeCollaboratorCount={2}
       />
 
@@ -419,6 +422,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       <DualPaneGuestSandbox
         isOpen={isSandboxModalOpen}
         onClose={() => setIsSandboxModalOpen(false)}
+      />
+
+      {/* Live E2EE Network & Cryptographic Inspector Drawer */}
+      <LiveE2EEInspectorDrawer
+        isOpen={isInspectorOpen}
+        onClose={() => setIsInspectorOpen(false)}
       />
     </div>
   );

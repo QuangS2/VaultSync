@@ -27,6 +27,7 @@ export interface HeaderBarProps {
   onOpenExportModal: () => void;
   onOpenSandboxModal: () => void;
   onOpenCryptoModal: () => void;
+  onOpenInspectorModal?: (() => void) | undefined;
   activeCollaboratorCount?: number;
 }
 
@@ -41,11 +42,12 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onOpenExportModal,
   onOpenSandboxModal,
   onOpenCryptoModal,
+  onOpenInspectorModal,
   activeCollaboratorCount = 2
 }) => {
   return (
-    <header className="h-13 bg-theme-bg-subtle border-b border-theme-border px-4 flex items-center justify-between shrink-0 select-none z-30">
-      {/* Left controls: Toggle Sidebar & Workspace Logo */}
+    <header className="h-12 border-b border-theme-border bg-theme-bg/80 backdrop-blur-md px-4 flex items-center justify-between z-10 select-none">
+      {/* Left Area: Toggle Sidebar, Logo, Document Status */}
       <div className="flex items-center gap-3">
         <Button
           variant="ghost"
@@ -66,16 +68,16 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         </div>
       </div>
 
-      {/* Center: Security Badge & WebCrypto Playground Trigger */}
+      {/* Center: Security Badge & E2EE Zero-Knowledge Inspector Trigger */}
       <div className="flex items-center gap-2">
         <button
-          onClick={onOpenCryptoModal}
-          title="Mở Trung Tâm Kiểm Thử Mật Mã (WebCrypto Playground)"
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-theme-card hover:bg-theme-card-hover border border-theme-border text-xs font-mono transition-colors cursor-pointer"
+          onClick={onOpenInspectorModal || onOpenCryptoModal}
+          title="Mở Thanh Tra Mật Mã Trực Tiếp (Live E2EE Inspector)"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs font-mono transition-colors cursor-pointer"
         >
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-          <span className="text-theme-text-secondary hidden sm:inline">WebCrypto:</span>
-          <span className="text-emerald-600 dark:text-emerald-400 font-medium">AES-NI Verified</span>
+          <span className="text-theme-text-secondary hidden sm:inline">E2EE:</span>
+          <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Zero-Knowledge Verified</span>
         </button>
 
         <div className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded-md bg-theme-card border border-theme-border text-[11px] text-theme-text-muted">
