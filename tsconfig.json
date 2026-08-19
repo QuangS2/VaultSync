@@ -34,8 +34,9 @@
     /* Paths */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./client/*"]
+      "@/*": ["./client/*"],
+      "@shared/*": ["./shared/*"]
     }
   },
-  "include": ["client", "server", "vite.config.ts"]
+  "include": ["client", "server", "shared", "vite.config.ts"]
 }
