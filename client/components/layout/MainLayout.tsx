@@ -19,6 +19,7 @@ import {
 
 import { CommandPaletteModal } from '../palette/CommandPaletteModal';
 import { ExportModal } from '../export/ExportModal';
+import { SettingsModal } from '../settings/SettingsModal';
 import { CommandPaletteEngine, PaletteAction } from '../../lib/palette/command-palette-engine';
 import { IdentityKeys, ECDHKeyPair } from '../../lib/crypto/identity-keys';
 import { EnvelopeEncryptionManager, WrappedKeyEnvelope } from '../../lib/crypto/envelope-encryption';
@@ -260,6 +261,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   // Modals state
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [recipientKeyInput, setRecipientKeyInput] = useState('');
   const [recipientIdInput, setRecipientIdInput] = useState('user_bob_peer');
@@ -319,6 +321,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         category: 'Security',
         keywords: ['share', 'chia se', 'quyen', 'member'],
         handler: () => setIsShareModalOpen(true)
+      },
+      {
+        id: 'open-settings',
+        title: 'Cài đặt kho lưu trữ',
+        subtitle: 'Quản lý hồ sơ, mật khẩu, bộ nhớ và giao diện',
+        category: 'Preferences',
+        shortcut: 'Ctrl+,',
+        keywords: ['settings', 'cai dat', 'preferences', 'profile', 'password', 'theme'],
+        handler: () => setIsSettingsModalOpen(true)
       },
       {
         id: 'lock-vault',
@@ -487,6 +498,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           setIsExportModalOpen(true);
         }}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
         onLockVault={onLockVault}
         providerStatus={providerStatus}
         awarenessUsers={awarenessUsers}
@@ -645,6 +657,17 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         engine={commandPaletteEngine}
+      />
+
+      {/* Vault Settings Center Modal */}
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        session={session}
+        theme={theme}
+        onThemeChange={onThemeChange}
+        onLockVault={onLockVault}
+        storage={storage}
       />
     </div>
   );
