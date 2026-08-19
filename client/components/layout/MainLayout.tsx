@@ -328,7 +328,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         subtitle: 'Quản lý hồ sơ, mật khẩu, bộ nhớ và giao diện',
         category: 'Preferences',
         shortcut: 'Ctrl+,',
-        keywords: ['settings', 'cai dat', 'preferences', 'profile', 'password', 'theme'],
+        keywords: ['settings', 'cai dat', 'cài đặt', 'preferences', 'profile', 'password', 'theme'],
         handler: () => setIsSettingsModalOpen(true)
       },
       {
