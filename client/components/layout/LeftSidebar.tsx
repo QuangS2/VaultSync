@@ -15,8 +15,9 @@ export interface LeftSidebarProps {
   isOpen: boolean;
   activeDocId: string;
   onSelectDoc: (id: string) => void;
-  onExportDoc?: (docId: string, docTitle: string) => void;
-  treeManager?: TreeStateManager;
+  onExportDoc?: ((docId: string, docTitle: string) => void) | undefined;
+  treeManager?: TreeStateManager | undefined;
+  onOpenCommandPalette?: (() => void) | undefined;
 }
 
 export const LeftSidebar: React.FC<LeftSidebarProps> = ({
@@ -24,7 +25,8 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   activeDocId,
   onSelectDoc,
   onExportDoc,
-  treeManager: externalTreeManager
+  treeManager: externalTreeManager,
+  onOpenCommandPalette
 }) => {
   const [treeManager] = useState(() => externalTreeManager || new TreeStateManager());
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,14 +67,20 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
         <Badge variant="outline" size="sm">CRDT Tree</Badge>
       </div>
 
-      {/* Quick Search */}
+      {/* Quick Search Trigger */}
       <div className="p-3 border-b border-theme-border">
-        <Input
-          placeholder="Tìm kiếm tài liệu... (Cmd+K)"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          prefixIcon={<Search className="w-3.5 h-3.5" />}
-        />
+        <div 
+          onClick={onOpenCommandPalette}
+          className="cursor-pointer"
+        >
+          <Input
+            placeholder="Tìm kiếm tài liệu... (Cmd+K)"
+            value={searchQuery}
+            readOnly={Boolean(onOpenCommandPalette)}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            prefixIcon={<Search className="w-3.5 h-3.5" />}
+          />
+        </div>
       </div>
 
       {/* Quick Filter Navigation */}

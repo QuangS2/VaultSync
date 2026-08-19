@@ -24,6 +24,8 @@ import {
 
 import { DualPaneGuestSandbox } from '../sandbox/DualPaneGuestSandbox';
 import { LiveE2EEInspectorDrawer } from '../inspector/LiveE2EEInspectorDrawer';
+import { CommandPaletteModal } from '../palette/CommandPaletteModal';
+import { CommandPaletteEngine, PaletteAction } from '../../lib/palette/command-palette-engine';
 import { IdentityKeys, ECDHKeyPair } from '../../lib/crypto/identity-keys';
 import { EnvelopeEncryptionManager, WrappedKeyEnvelope } from '../../lib/crypto/envelope-encryption';
 
@@ -141,9 +143,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [isSandboxModalOpen, setIsSandboxModalOpen] = useState(false);
   const [isCryptoModalOpen, setIsCryptoModalOpen] = useState(false);
   const [isInspectorOpen, setIsInspectorOpen] = useState(false);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [recipientKeyInput, setRecipientKeyInput] = useState('');
   const [recipientIdInput, setRecipientIdInput] = useState('user_bob_peer');
   const [copiedKey, setCopiedKey] = useState(false);
+
+  // Command Palette Engine instance
+  const [commandPaletteEngine] = useState(() => new CommandPaletteEngine([], (state) => {
+    setIsCommandPaletteOpen(state.isOpen);
+  }));
 
   const handleExportDoc = (docId: string, docTitle: string) => {
     setActiveDocId(docId);
@@ -156,6 +164,148 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       treeManager.renameItem(activeDocId, newTitle);
     }
   };
+
+  // Sync actions into CommandPaletteEngine whenever dependencies change
+  useEffect(() => {
+    const allDocs = treeManager.getAllItems().filter(i => i.type === 'document' && !i.isTrash);
+    
+    const baseActions: PaletteAction[] = [
+      // 1. Document Actions
+      {
+        id: 'new-doc',
+        title: 'Tạo ghi chú mới',
+        subtitle: 'Tạo tài liệu mới trong cây thư mục CRDTs',
+        category: 'Document',
+        shortcut: 'Ctrl+N',
+        keywords: ['tao', 'ghi chu', 'new', 'doc', 'note', 'create'],
+        handler: () => {
+          const newDoc = treeManager.createItem('Ghi chú mới', 'document');
+          setActiveDocId(newDoc.id);
+        }
+      },
+      {
+        id: 'new-folder',
+        title: 'Tạo thư mục mới',
+        subtitle: 'Tạo thư mục lưu trữ trong Engineering Vault',
+        category: 'Document',
+        shortcut: 'Ctrl+Shift+N',
+        keywords: ['thu muc', 'folder', 'new', 'directory'],
+        handler: () => {
+          treeManager.createItem('Thư mục mới', 'folder');
+        }
+      },
+      // 2. Security & Recruiter Experience
+      {
+        id: 'open-sandbox',
+        title: 'Mở 1-Click Guest Sandbox',
+        subtitle: 'Môi trường cộng tác thời gian thực 2 cửa sổ Alice & Bob',
+        category: 'Security',
+        shortcut: 'Ctrl+Shift+S',
+        keywords: ['sandbox', 'guest', 'demo', 'alice', 'bob', 'dual-pane', 'recruiter'],
+        handler: () => setIsSandboxModalOpen(true)
+      },
+      {
+        id: 'open-inspector',
+        title: 'Mở Thanh Tra Mật Mã Trực Tiếp (Live E2EE Inspector)',
+        subtitle: 'Đối chiếu Gói tin mã hóa trên mạng vs Dữ liệu giải mã trong máy khách',
+        category: 'Security',
+        shortcut: 'Ctrl+Shift+I',
+        keywords: ['inspector', 'thanh tra', 'e2ee', 'zero-knowledge', 'hex', 'network', 'wire'],
+        handler: () => setIsInspectorOpen(true)
+      },
+      {
+        id: 'open-crypto',
+        title: 'Mở Trung Tâm Mật Mã Học (WebCrypto Lab)',
+        subtitle: 'Kiểm thử AES-256-GCM, PBKDF2, ECDH & Xoay vòng kỷ nguyên khóa',
+        category: 'Security',
+        shortcut: 'Ctrl+Shift+C',
+        keywords: ['crypto', 'lab', 'ecdh', 'hkdf', 'epoch', 'rotation', 'aes', 'gcm'],
+        handler: () => setIsCryptoModalOpen(true)
+      },
+      {
+        id: 'share-key',
+        title: 'Chia sẻ khóa tài liệu E2EE (DEK Envelope)',
+        subtitle: 'Bọc khóa tài liệu đối xứng bằng khóa công khai của thành viên mới',
+        category: 'Security',
+        keywords: ['share', 'chia se', 'envelope', 'dek', 'ecdh'],
+        handler: () => setIsShareModalOpen(true)
+      },
+      // 3. Theme Preferences
+      {
+        id: 'theme-sun',
+        title: 'Giao diện Kem Sữa (Sun Theme)',
+        subtitle: 'Tông ấm áp, trang nhã, tương phản cao',
+        category: 'Preferences',
+        shortcut: 'Alt+1',
+        keywords: ['sun', 'sang', 'kem sua', 'light'],
+        handler: () => onThemeChange('sun')
+      },
+      {
+        id: 'theme-cloud',
+        title: 'Giao diện Mây Trắng Xám (Cloud Theme)',
+        subtitle: 'Tông mây trắng xám sáng dịu mát, chống mỏi mắt',
+        category: 'Preferences',
+        shortcut: 'Alt+2',
+        keywords: ['cloud', 'may xam', 'gray'],
+        handler: () => onThemeChange('cloud')
+      },
+      {
+        id: 'theme-night',
+        title: 'Giao diện Đêm Huyền Bí (Night Theme)',
+        subtitle: 'Tông đen/slate sâu tinh tế, bảo vệ thị lực ban đêm',
+        category: 'Preferences',
+        shortcut: 'Alt+3',
+        keywords: ['night', 'toi', 'dark', 'black'],
+        handler: () => onThemeChange('night')
+      },
+      // 4. Export Actions
+      {
+        id: 'export-md',
+        title: 'Xuất tài liệu sang Markdown (.md)',
+        subtitle: 'Tải về định dạng Markdown tiêu chuẩn',
+        category: 'Export',
+        keywords: ['export', 'xuat', 'markdown', 'md'],
+        handler: () => {
+          setExportDocTitle(activeDocTitle);
+          setIsExportModalOpen(true);
+        }
+      },
+      {
+        id: 'export-html',
+        title: 'Xuất trang HTML độc lập (.html)',
+        subtitle: 'Tải về tệp HTML hoàn chỉnh có nhúng CSS',
+        category: 'Export',
+        keywords: ['export', 'xuat', 'html', 'web'],
+        handler: () => {
+          setExportDocTitle(activeDocTitle);
+          setIsExportModalOpen(true);
+        }
+      },
+      {
+        id: 'export-vault',
+        title: 'Sao lưu nhị phân mã hóa (.vault)',
+        subtitle: 'Bảo toàn toàn bộ cây thư mục & khóa mã hóa',
+        category: 'Export',
+        keywords: ['export', 'xuat', 'vault', 'backup', 'sao luu'],
+        handler: () => {
+          setExportDocTitle(activeDocTitle);
+          setIsExportModalOpen(true);
+        }
+      }
+    ];
+
+    // Dynamic document navigation items
+    const docActions: PaletteAction[] = allDocs.map(doc => ({
+      id: `doc-${doc.id}`,
+      title: doc.name,
+      subtitle: `Tài liệu trong ${folderName}`,
+      category: 'Navigation',
+      keywords: ['chuyen', 'mo', 'open', 'doc', doc.name.toLowerCase()],
+      handler: () => setActiveDocId(doc.id)
+    }));
+
+    commandPaletteEngine.setActions([...baseActions, ...docActions]);
+  }, [treeManager, activeDocId, activeDocTitle, folderName, commandPaletteEngine, onThemeChange]);
 
   // Bidirectional interaction handlers
   const handleCommentClickFromEditor = (threadId: string) => {
@@ -236,6 +386,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           onSelectDoc={(id) => setActiveDocId(id)}
           onExportDoc={handleExportDoc}
           treeManager={treeManager}
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         />
 
         {/* Center Editor Canvas */}
@@ -428,6 +579,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       <LiveE2EEInspectorDrawer
         isOpen={isInspectorOpen}
         onClose={() => setIsInspectorOpen(false)}
+      />
+
+      {/* Spotlight Command Palette (Cmd+K / Ctrl+K) */}
+      <CommandPaletteModal
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        engine={commandPaletteEngine}
       />
     </div>
   );
