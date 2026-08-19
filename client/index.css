@@ -145,9 +145,40 @@
   font-style: italic;
 }
 
+.tiptap u {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 .tiptap s {
   text-decoration: line-through;
   color: var(--theme-text-muted);
+}
+
+.tiptap a,
+.tiptap .vaultsync-link {
+  color: var(--theme-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.tiptap a:hover,
+.tiptap .vaultsync-link:hover {
+  opacity: 0.8;
+}
+
+.tiptap mark,
+.tiptap .vaultsync-highlight {
+  border-radius: 0.2rem;
+  padding: 0.05rem 0.25rem;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+[data-theme="night"] .tiptap mark {
+  color: #0b0e14;
 }
 
 .tiptap code:not(pre code) {

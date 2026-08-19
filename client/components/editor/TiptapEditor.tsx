@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { getVaultSyncExtensions } from './extensions';
+import { EditorBubbleMenu } from './EditorBubbleMenu';
 import { 
   Bold, 
   Italic, 
+  Underline as UnderlineIcon,
   Strikethrough, 
   Code, 
   Heading1, 
@@ -155,6 +157,18 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({
           </button>
 
           <button
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+            title="Gạch chân (Ctrl+U)"
+            className={`p-1.5 rounded transition-colors cursor-pointer ${
+              editor.isActive('underline')
+                ? 'bg-theme-accent-subtle text-theme-accent font-bold'
+                : 'text-theme-text-secondary hover:text-theme-text hover:bg-theme-card-hover'
+            }`}
+          >
+            <UnderlineIcon className="w-4 h-4" />
+          </button>
+
+          <button
             onClick={() => editor.chain().focus().toggleStrike().run()}
             title="Gạch ngang chữ"
             className={`p-1.5 rounded transition-colors cursor-pointer ${
@@ -287,6 +301,12 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({
           )}
         </div>
       </div>
+
+      {/* Floating Contextual Bubble Menu */}
+      <EditorBubbleMenu 
+        editor={editor} 
+        onAddComment={onAddInlineComment} 
+      />
 
       {/* 2. Editor Canvas Content Area */}
       <div className="flex-1 overflow-y-auto px-6 md:px-16 py-8 flex flex-col max-w-4xl w-full mx-auto">
