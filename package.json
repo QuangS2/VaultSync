@@ -13,6 +13,8 @@
     "server:prod": "node dist/server/relay-server.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test",
     "test:crypto": "vitest run client/lib/crypto"
   },
   "dependencies": {
@@ -42,6 +44,7 @@
     "yjs": "^13.6.23"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^22.13.4",
     "@types/react": "^18.3.18",

@@ -56,7 +56,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: 🤝 Run Multi-User E2E Collaboration Tests
-        run: npx playwright test
+        run: npm run test:e2e
 
       - name: 🏗️ Verify Production Bundle Builds
         run: npm run build
