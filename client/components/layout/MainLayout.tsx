@@ -69,6 +69,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     const initialDoc = new Y.Doc();
     return initialDoc;
   });
+  const [isDocHydrated, setIsDocHydrated] = useState(false);
 
   const [commentEngine, setCommentEngine] = useState(() => new InlineCommentAnchorEngine(yDoc));
   const [chatEngine, setChatEngine] = useState(() => new RoomChatEngine(yDoc));
@@ -106,6 +107,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   // Isolate and switch Y.Doc per active document to prevent cross-document text bleeding
   useEffect(() => {
+    setIsDocHydrated(false);
     let currentYDoc = yDocsRef.current.get(activeDocId);
     if (!currentYDoc) {
       currentYDoc = new Y.Doc();
@@ -184,6 +186,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         }
       } catch (err) {
         console.error('Lỗi khôi phục dữ liệu mã hóa cục bộ:', err);
+      } finally {
+        if (isMounted) {
+          setIsDocHydrated(true);
+        }
       }
     }
 
@@ -195,7 +201,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   // Auto-save Document Snapshot to Encrypted IndexedDB on change (Debounced 300ms)
   useEffect(() => {
-    if (!documentKey) return;
+    if (!documentKey || !isDocHydrated) return;
     const currentKey = documentKey;
 
     let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -232,7 +238,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       yDoc.off('update', handleYDocUpdate);
       void performSave();
     };
-  }, [yDoc, activeDocId, documentKey, storage]);
+  }, [yDoc, activeDocId, documentKey, storage, isDocHydrated]);
 
   // Auto-save File Tree Snapshot to Encrypted IndexedDB on change (Debounced 500ms)
   useEffect(() => {
@@ -519,6 +525,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           awarenessUsers={awarenessUsers}
           saveStatus={saveStatus}
           lastSavedTime={lastSavedTime}
+          isDocHydrated={isDocHydrated}
           onAddInlineComment={() => setIsRightSidebarOpen(true)}
           onTitleChange={handleTitleChange}
           onCommentClick={handleCommentClickFromEditor}

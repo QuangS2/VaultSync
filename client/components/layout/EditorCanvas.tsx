@@ -29,6 +29,7 @@ export interface EditorCanvasProps {
   onTitleChange?: ((newTitle: string) => void) | undefined;
   onCommentClick?: ((threadId: string) => void) | undefined;
   activeCommentThreadId?: string | null | undefined;
+  isDocHydrated?: boolean | undefined;
 }
 
 export const EditorCanvas: React.FC<EditorCanvasProps> = ({
@@ -42,6 +43,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   awarenessUsers = [],
   saveStatus = 'saved',
   lastSavedTime,
+  isDocHydrated = true,
   onAddInlineComment,
   onTitleChange,
   onCommentClick,
@@ -157,19 +159,28 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       </div>
 
       {/* Main Tiptap ProseMirror Editor */}
-      <TiptapEditor
-        key={documentId}
-        content={content}
-        documentTitle={currentTitle}
-        onTitleChange={handleTitleChange}
-        onChange={(html) => setContent(html)}
-        onAddInlineComment={onAddInlineComment}
-        yDoc={yDoc}
-        provider={provider}
-        user={user}
-        onCommentClick={onCommentClick}
-        activeCommentThreadId={activeCommentThreadId}
-      />
+      {isDocHydrated ? (
+        <TiptapEditor
+          key={documentId}
+          content={content}
+          documentTitle={currentTitle}
+          onTitleChange={handleTitleChange}
+          onChange={(html) => setContent(html)}
+          onAddInlineComment={onAddInlineComment}
+          yDoc={yDoc}
+          provider={provider}
+          user={user}
+          onCommentClick={onCommentClick}
+          activeCommentThreadId={activeCommentThreadId}
+        />
+      ) : (
+        <div className="flex-1 flex items-center justify-center text-xs text-theme-text-muted">
+          <div className="flex items-center gap-2">
+            <RefreshCw className="w-4 h-4 animate-spin text-theme-accent" />
+            <span>Đang nạp dữ liệu tài liệu bảo mật...</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
