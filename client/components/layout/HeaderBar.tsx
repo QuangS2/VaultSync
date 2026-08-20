@@ -10,10 +10,6 @@ import {
   PanelLeft,
   ShieldCheck,
   Download,
-  Wifi,
-  WifiOff,
-  RefreshCw,
-  Users,
   Search,
   Settings,
   LogOut,
@@ -24,7 +20,6 @@ import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { AppTheme } from '../../App';
 import { ProviderConnectionStatus, AwarenessUser, CollaborationUserOptions } from '../../lib/yjs/types';
-import { OnlineCollaboratorsPopover } from './OnlineCollaboratorsPopover';
 
 export interface HeaderBarProps {
   theme: AppTheme;
@@ -59,24 +54,16 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onOpenCommandPalette,
   onOpenSettingsModal,
   onLockVault,
-  activeCollaboratorCount,
-  providerStatus,
-  awarenessUsers = [],
-  currentUser,
   hasUnreadDiscussion,
   isMobileMenuOpen: controlledMobileMenuOpen,
   onCloseMobileMenu
 }) => {
-  const [isCollaboratorsOpen, setIsCollaboratorsOpen] = useState(false);
   const [internalMobileMenuOpen, setInternalMobileMenuOpen] = useState(false);
   const isMobileMenuOpen = controlledMobileMenuOpen !== undefined ? controlledMobileMenuOpen : internalMobileMenuOpen;
   const setIsMobileMenuOpen = (open: boolean) => {
     setInternalMobileMenuOpen(open);
     if (!open && onCloseMobileMenu) onCloseMobileMenu();
   };
-
-  const isConnected = providerStatus?.connected ?? false;
-  const isConnecting = providerStatus?.connecting ?? false;
   
   // Handle Escape key to close mobile menu
   React.useEffect(() => {
@@ -89,20 +76,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isMobileMenuOpen]);
 
-  const uniqueUsers = React.useMemo(() => {
-    const map = new Map<string, AwarenessUser>();
-    for (const u of awarenessUsers) {
-      if (u.name) map.set(u.name, u);
-    }
-    return Array.from(map.values());
-  }, [awarenessUsers]);
-
-  const onlineCount = uniqueUsers.length > 0 ? uniqueUsers.length : (activeCollaboratorCount ?? 1);
-
   return (
-    <header className="h-12 border-b border-theme-border bg-theme-bg/80 backdrop-blur-md px-2 sm:px-4 flex items-center justify-between z-20 select-none relative flex-nowrap gap-1 sm:gap-2">
-      {/* 1. Left Section: Sidebar Toggle & Brand Identity */}
-      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+    <header className="h-12 border-b border-theme-border bg-theme-bg/80 backdrop-blur-md px-4 flex items-center justify-center sm:justify-between z-20 select-none relative flex-nowrap">
+      {/* 1. Left Section (Centered on Mobile): Sidebar Toggle & Brand Identity */}
+      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
         <Button
           variant="ghost"
           size="icon"
@@ -113,8 +90,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           <PanelLeft className="w-4 h-4" />
         </Button>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <div className="w-6.5 h-6.5 rounded-md bg-theme-accent text-white flex items-center justify-center shadow-xs shrink-0">
+        <div className="flex items-center gap-2">
+          <div className="w-6.5 h-6.5 rounded-lg bg-theme-accent text-white flex items-center justify-center shadow-xs shrink-0">
             <Lock className="w-3.5 h-3.5" />
           </div>
           <span className="font-semibold text-sm tracking-tight text-theme-text">VaultSync</span>
@@ -124,14 +101,13 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         </div>
       </div>
 
-      {/* 2. Center Section: Quick Search Command Bar & Status Badge */}
-      <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
-        {/* Spotlight Command Search Trigger */}
+      {/* 2. Center Section (Desktop Only): Quick Search Command Bar */}
+      <div className="hidden md:flex items-center gap-3 min-w-0">
         {onOpenCommandPalette && (
           <button
             onClick={onOpenCommandPalette}
             title="Tìm kiếm nhanh hoặc thực hiện lệnh (Ctrl+K)"
-            className="hidden md:flex items-center gap-2 px-3 py-1 rounded-lg bg-theme-card hover:bg-theme-card-hover border border-theme-border text-xs text-theme-text-muted hover:text-theme-text transition-all shadow-xs cursor-pointer w-36 lg:w-56 justify-between shrink-0"
+            className="flex items-center gap-2 px-3 py-1 rounded-lg bg-theme-card hover:bg-theme-card-hover border border-theme-border text-xs text-theme-text-muted hover:text-theme-text transition-all shadow-xs cursor-pointer w-48 lg:w-64 justify-between shrink-0"
           >
             <span className="flex items-center gap-1.5 truncate">
               <Search className="w-3.5 h-3.5 text-theme-text-muted shrink-0" />
@@ -143,40 +119,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           </button>
         )}
 
-        {/* Security Pill Badge */}
         <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
           <span>Bảo Vệ Đầu-Cuối</span>
         </div>
-
-        {/* Live WebSocket Online Collaborators Trigger */}
-        <button
-          onClick={() => setIsCollaboratorsOpen(!isCollaboratorsOpen)}
-          title="Xem danh sách thành viên trực tuyến"
-          className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-1 rounded-md bg-theme-card hover:bg-theme-card-hover border border-theme-border text-[11px] text-theme-text-muted transition-colors cursor-pointer shrink-0"
-        >
-          {isConnected ? (
-            <>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-              <Wifi className="w-3 h-3 text-emerald-500 shrink-0" />
-              <span className="hidden sm:inline">Đã đồng bộ •</span>
-              <span>{onlineCount} online</span>
-              <Users className="w-3 h-3 ml-0.5 text-theme-accent shrink-0 hidden sm:inline" />
-            </>
-          ) : isConnecting ? (
-            <>
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping shrink-0" />
-              <RefreshCw className="w-3 h-3 text-amber-500 animate-spin shrink-0" />
-              <span>Đang kết nối lại...</span>
-            </>
-          ) : (
-            <>
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
-              <WifiOff className="w-3 h-3 text-slate-400 shrink-0" />
-              <span>Ngoại tuyến</span>
-            </>
-          )}
-        </button>
       </div>
 
       {/* 3. Right Section: Action Controls & User Menu */}
@@ -283,14 +229,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           )}
         </Button>
       </div>
-
-      {/* Online Collaborators Popover */}
-      <OnlineCollaboratorsPopover
-        isOpen={isCollaboratorsOpen}
-        onClose={() => setIsCollaboratorsOpen(false)}
-        users={uniqueUsers}
-        currentUser={currentUser}
-      />
 
       {/* Mobile Quick Action Bottom Sheet Drawer (< 640px) */}
       {isMobileMenuOpen && typeof document !== 'undefined' && createPortal(
