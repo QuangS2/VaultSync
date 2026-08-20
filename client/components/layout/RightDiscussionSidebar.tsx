@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   MessageSquare, 
+  MessageSquarePlus,
   Send, 
   Check, 
   X, 
@@ -18,6 +19,12 @@ import { InlineCommentAnchorEngine } from '../../lib/yjs/inline-comment-engine';
 import { RoomChatEngine, RoomChatMessage } from '../../lib/yjs/room-chat-engine';
 import { ThreadWithLivePosition } from '../../lib/yjs/types';
 
+export interface CommentDraft {
+  from: number;
+  to: number;
+  quotedText: string;
+}
+
 export interface RightDiscussionSidebarProps {
   isOpen: boolean;
   onClose: () => void;
@@ -26,6 +33,8 @@ export interface RightDiscussionSidebarProps {
   chatEngine?: RoomChatEngine | undefined;
   activeThreadId?: string | null | undefined;
   onSelectThread?: ((threadId: string | null) => void) | undefined;
+  commentDraft?: CommentDraft | null | undefined;
+  onClearCommentDraft?: (() => void) | undefined;
   currentAuthor?: {
     id: string;
     name: string;
@@ -42,6 +51,8 @@ export const RightDiscussionSidebar: React.FC<RightDiscussionSidebarProps> = ({
   chatEngine,
   activeThreadId,
   onSelectThread,
+  commentDraft,
+  onClearCommentDraft,
   currentAuthor = {
     id: 'user_current',
     name: 'Tôi (Quang Lê)',
@@ -54,9 +65,22 @@ export const RightDiscussionSidebar: React.FC<RightDiscussionSidebarProps> = ({
   const [chatMessages, setChatMessages] = useState<RoomChatMessage[]>([]);
   const [replyInputs, setReplyInputs] = useState<Record<string, string>>({});
   const [chatInput, setChatInput] = useState('');
+  const [draftContent, setDraftContent] = useState('');
+  const [isManualDraftOpen, setIsManualDraftOpen] = useState(false);
 
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const threadCardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const draftTextareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-focus draft input when draft arrives
+  useEffect(() => {
+    if (commentDraft || isManualDraftOpen) {
+      setActiveTab('threads');
+      setTimeout(() => {
+        draftTextareaRef.current?.focus();
+      }, 100);
+    }
+  }, [commentDraft, isManualDraftOpen]);
 
   // 1. Subscribe to Live Comment Threads
   useEffect(() => {
@@ -106,6 +130,39 @@ export const RightDiscussionSidebar: React.FC<RightDiscussionSidebarProps> = ({
     return true;
   });
 
+  const handleCreateComment = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const content = draftContent.trim();
+    if (!content) return;
+
+    if (commentEngine) {
+      const from = commentDraft?.from ?? 0;
+      const to = commentDraft?.to ?? 0;
+      const quotedText = commentDraft?.quotedText || (activeDocumentTitle ? `[Ghi chú: ${activeDocumentTitle}]` : '[Toàn bộ tài liệu]');
+
+      const thread = commentEngine.createThread({
+        from,
+        to,
+        quotedText,
+        authorId: currentAuthor.id,
+        authorName: currentAuthor.name,
+        authorAvatar: currentAuthor.avatar,
+        authorColor: currentAuthor.color,
+        content
+      });
+
+      if (onSelectThread) {
+        onSelectThread(thread.id);
+      }
+    }
+
+    setDraftContent('');
+    setIsManualDraftOpen(false);
+    if (onClearCommentDraft) {
+      onClearCommentDraft();
+    }
+  };
+
   const handleSendReply = (threadId: string) => {
     const text = replyInputs[threadId]?.trim();
     if (!text) return;
@@ -115,6 +172,7 @@ export const RightDiscussionSidebar: React.FC<RightDiscussionSidebarProps> = ({
         authorId: currentAuthor.id,
         authorName: currentAuthor.name,
         authorAvatar: currentAuthor.avatar,
+        authorColor: currentAuthor.color,
         content: text
       });
     }
@@ -178,7 +236,7 @@ export const RightDiscussionSidebar: React.FC<RightDiscussionSidebarProps> = ({
       <div className="flex border-b border-theme-border bg-theme-bg/60 p-1 gap-1 shrink-0">
         <button
           onClick={() => setActiveTab('threads')}
-          className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === 'threads'
               ? 'bg-theme-bg text-theme-accent shadow-xs'
               : 'text-theme-text-muted hover:text-theme-text hover:bg-theme-bg-subtle'
@@ -192,7 +250,7 @@ export const RightDiscussionSidebar: React.FC<RightDiscussionSidebarProps> = ({
 
         <button
           onClick={() => setActiveTab('chat')}
-          className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === 'chat'
               ? 'bg-theme-bg text-theme-accent shadow-xs'
               : 'text-theme-text-muted hover:text-theme-text hover:bg-theme-bg-subtle'
@@ -200,6 +258,11 @@ export const RightDiscussionSidebar: React.FC<RightDiscussionSidebarProps> = ({
         >
           <Hash className="w-3 h-3" />
           <span>Phòng Chat</span>
+          {chatMessages.length > 0 && (
+            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-theme-border/60 text-theme-text-muted font-bold">
+              {chatMessages.length}
+            </span>
+          )}
         </button>
       </div>
 
@@ -210,6 +273,92 @@ export const RightDiscussionSidebar: React.FC<RightDiscussionSidebarProps> = ({
             ========================================================================= */}
         {activeTab === 'threads' && (
           <div className="p-3 space-y-3">
+            {/* New Comment Draft Box (from Selection or Manual Action) */}
+            {(commentDraft || isManualDraftOpen) && (
+              <form onSubmit={handleCreateComment} className="p-3 rounded-xl bg-theme-card border-2 border-theme-accent/70 shadow-md flex flex-col gap-2.5 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="flex items-center justify-between pb-1 border-b border-theme-border/60">
+                  <span className="text-xs font-bold text-theme-accent flex items-center gap-1.5">
+                    <MessageSquarePlus className="w-3.5 h-3.5" />
+                    Thêm Bình Luận Mới
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsManualDraftOpen(false);
+                      setDraftContent('');
+                      if (onClearCommentDraft) onClearCommentDraft();
+                    }}
+                    className="text-theme-text-muted hover:text-theme-text p-1 rounded cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {commentDraft?.quotedText ? (
+                  <div className="pl-2.5 border-l-2 border-amber-500/80 py-1 bg-amber-500/10 rounded-r text-[11px] font-serif italic text-theme-text line-clamp-3">
+                    "{commentDraft.quotedText}"
+                  </div>
+                ) : (
+                  <div className="text-[11px] text-theme-text-muted italic">
+                    Bình luận chung cho tài liệu: <strong>{activeDocumentTitle}</strong>
+                  </div>
+                )}
+
+                <textarea
+                  ref={draftTextareaRef}
+                  value={draftContent}
+                  onChange={(e) => setDraftContent(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey || !e.shiftKey)) {
+                      e.preventDefault();
+                      handleCreateComment();
+                    }
+                  }}
+                  rows={3}
+                  placeholder="Nhập nội dung bình luận... (Enter để gửi, Shift+Enter xuống dòng)"
+                  className="w-full p-2.5 rounded-lg bg-theme-bg border border-theme-border text-xs text-theme-text focus:outline-none focus:ring-1 focus:ring-theme-accent resize-none placeholder:text-theme-text-muted"
+                />
+
+                <div className="flex items-center justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setIsManualDraftOpen(false);
+                      setDraftContent('');
+                      if (onClearCommentDraft) onClearCommentDraft();
+                    }}
+                  >
+                    Hủy
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="sm"
+                    disabled={!draftContent.trim()}
+                    className="gap-1 text-xs"
+                  >
+                    <Send className="w-3 h-3" />
+                    <span>Gửi Bình Luận</span>
+                  </Button>
+                </div>
+              </form>
+            )}
+
+            {/* Quick Action to Add Manual Comment if not drafting */}
+            {!commentDraft && !isManualDraftOpen && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setIsManualDraftOpen(true)}
+                className="w-full gap-1.5 text-xs py-2 border-dashed"
+              >
+                <MessageSquarePlus className="w-3.5 h-3.5 text-theme-accent" />
+                <span>+ Thêm Bình Luận Mới</span>
+              </Button>
+            )}
+
             {/* Status Filter Selector */}
             <div className="flex items-center justify-between pb-1 text-[11px] text-theme-text-muted">
               <div className="flex items-center gap-1 font-medium">
@@ -245,14 +394,14 @@ export const RightDiscussionSidebar: React.FC<RightDiscussionSidebarProps> = ({
             </div>
 
             {/* Empty State */}
-            {filteredThreads.length === 0 && (
+            {filteredThreads.length === 0 && !commentDraft && !isManualDraftOpen && (
               <div className="text-center py-10 px-4">
                 <div className="w-10 h-10 rounded-full bg-theme-bg-subtle mx-auto flex items-center justify-center text-theme-text-muted mb-2.5">
                   <MessageSquare className="w-5 h-5 opacity-60" />
                 </div>
                 <p className="text-xs font-medium text-theme-text">Không có bình luận nào</p>
                 <p className="text-[11px] text-theme-text-muted mt-1 leading-relaxed">
-                  Bôi đen đoạn văn bản trong trình soạn thảo và chọn <strong>Thêm bình luận</strong> để mở luồng thảo luận.
+                  Bôi đen đoạn văn bản trong trình soạn thảo hoặc bấm <strong>+ Thêm Bình Luận Mới</strong> để bắt đầu.
                 </p>
               </div>
             )}

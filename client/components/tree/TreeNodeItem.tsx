@@ -29,6 +29,8 @@ export interface TreeNodeItemProps {
   onRenameSubmit: (id: string, newName: string) => void;
   onRenameCancel: () => void;
   onStartRename: (id: string) => void;
+  hasUnread?: boolean | undefined;
+  unreadDocIds?: string[] | undefined;
 }
 
 export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
@@ -45,7 +47,9 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
   onContextMenu,
   onRenameSubmit,
   onRenameCancel,
-  onStartRename
+  onStartRename,
+  hasUnread,
+  unreadDocIds
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const [isInvalidDrop, setIsInvalidDrop] = useState(false);
@@ -280,6 +284,8 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
                 onRenameSubmit={onRenameSubmit}
                 onRenameCancel={onRenameCancel}
                 onStartRename={onStartRename}
+                hasUnread={unreadDocIds?.includes(child.id)}
+                unreadDocIds={unreadDocIds}
               />
             ))}
           </div>
@@ -330,6 +336,13 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
 
         {node.isFavorite && (
           <Star className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0" />
+        )}
+
+        {(hasUnread || unreadDocIds?.includes(node.id)) && !isActive && (
+          <span 
+            className="w-2 h-2 rounded-full bg-rose-500 shrink-0 ml-auto mr-1 shadow-xs animate-pulse" 
+            title="Có thảo luận hoặc tin nhắn mới" 
+          />
         )}
       </div>
 

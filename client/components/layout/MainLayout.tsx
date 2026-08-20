@@ -88,6 +88,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [commentEngine, setCommentEngine] = useState(() => new InlineCommentAnchorEngine(yDoc));
   const [chatEngine, setChatEngine] = useState(() => new RoomChatEngine(yDoc));
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null);
+  const [commentDraft, setCommentDraft] = useState<{ from: number; to: number; quotedText: string } | null>(null);
+  const [hasUnreadActiveDiscussion, setHasUnreadActiveDiscussion] = useState(false);
+  const [unreadDocIds, setUnreadDocIds] = useState<string[]>([]);
 
   // Document encryption key registry
   const documentKeysRef = React.useRef<Map<string, CryptoKey>>(new Map());
@@ -651,12 +654,40 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     const item = treeManager.getItem(id);
     if (item && item.type === 'document') {
       setActiveDocId(id);
+      setUnreadDocIds(prev => prev.filter(docId => docId !== id));
       // Auto-close left navigation drawer on mobile screens
       if (typeof window !== 'undefined' && window.innerWidth < 768) {
         setIsLeftSidebarOpen(false);
       }
     }
   };
+
+  // Subscribe to live comment/chat updates to trigger unread indicators
+  useEffect(() => {
+    const unsubComments = commentEngine.onThreadsChange((threads) => {
+      if (!isRightSidebarOpen && threads.length > 0) {
+        setHasUnreadActiveDiscussion(true);
+      }
+    });
+
+    const unsubChat = chatEngine.onMessagesChange((messages) => {
+      if (!isRightSidebarOpen && messages.length > 0) {
+        setHasUnreadActiveDiscussion(true);
+      }
+    });
+
+    return () => {
+      unsubComments();
+      unsubChat();
+    };
+  }, [commentEngine, chatEngine, isRightSidebarOpen]);
+
+  // When Right Sidebar is opened, clear unread status for active doc
+  useEffect(() => {
+    if (isRightSidebarOpen) {
+      setHasUnreadActiveDiscussion(false);
+    }
+  }, [isRightSidebarOpen]);
 
   const activeItem = treeManager.getItem(activeDocId);
   const activeDocTitle = activeItem?.name || 'Chào mừng đến với VaultSync';
@@ -946,6 +977,16 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     setActiveCommentThreadId(threadId);
   };
 
+  const handleAddInlineComment = (draft: { from: number; to: number; quotedText: string }) => {
+    setCommentDraft(draft);
+    setIsRightSidebarOpen(true);
+  };
+
+  const handleCreateNewNote = () => {
+    const newDoc = treeManager.createItem('Ghi chú mới', 'document');
+    setActiveDocId(newDoc.id);
+  };
+
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-theme-bg text-theme-text font-sans">
       {/* 1. Header Bar */}
@@ -967,6 +1008,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         providerStatus={providerStatus}
         awarenessUsers={awarenessUsers}
         currentUser={currentUserOptions}
+        hasUnreadDiscussion={hasUnreadActiveDiscussion}
       />
 
       {/* 2. Main 3-Pane Body */}
@@ -990,6 +1032,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           treeManager={treeManager}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           onOpenJoinRoomModal={() => setIsJoinRoomModalOpen(true)}
+          unreadDocIds={unreadDocIds}
         />
 
         {/* Center Editor Canvas */}
@@ -1005,10 +1048,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           saveStatus={saveStatus}
           lastSavedTime={lastSavedTime}
           isDocHydrated={isDocHydrated}
-          onAddInlineComment={() => setIsRightSidebarOpen(true)}
+          onAddInlineComment={handleAddInlineComment}
           onTitleChange={handleTitleChange}
           onCommentClick={handleCommentClickFromEditor}
           activeCommentThreadId={activeCommentThreadId}
+          onOpenShareModal={handleOpenShareDocument}
+          onOpenDiscussionSidebar={() => setIsRightSidebarOpen(true)}
+          onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+          onCreateNewNote={handleCreateNewNote}
         />
 
         {/* Mobile Backdrop Overlay for Right Drawer */}
@@ -1028,6 +1075,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           chatEngine={chatEngine}
           activeThreadId={activeCommentThreadId}
           onSelectThread={handleSelectThreadFromSidebar}
+          commentDraft={commentDraft}
+          onClearCommentDraft={() => setCommentDraft(null)}
           currentAuthor={{
             id: session?.userProfile.userId || session?.userProfile.displayName || 'user_local',
             name: currentUserOptions.name,

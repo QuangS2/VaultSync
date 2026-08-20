@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import { getVaultSyncExtensions } from './extensions';
 import { EditorBubbleMenu } from './EditorBubbleMenu';
+import { QuickstartWorkflowGuide } from '../guide/QuickstartWorkflowGuide';
 import { 
   Bold, 
   Italic, 
@@ -31,13 +32,17 @@ export interface TiptapEditorProps {
   onTitleChange?: ((newTitle: string) => void) | undefined;
   onChange?: ((html: string) => void) | undefined;
   onSelectionChange?: ((selectedText: string) => void) | undefined;
-  onAddInlineComment?: (() => void) | undefined;
+  onAddInlineComment?: ((draft: { from: number; to: number; quotedText: string }) => void) | undefined;
   readOnly?: boolean | undefined;
   yDoc?: Y.Doc | undefined;
   provider?: any | undefined;
   user?: CollaborationUserOptions | undefined;
   onCommentClick?: ((threadId: string) => void) | undefined;
   activeCommentThreadId?: string | null | undefined;
+  onOpenShareModal?: (() => void) | undefined;
+  onOpenDiscussionSidebar?: (() => void) | undefined;
+  onOpenCommandPalette?: (() => void) | undefined;
+  onCreateNewNote?: (() => void) | undefined;
 }
 
 export const TiptapEditor: React.FC<TiptapEditorProps> = ({
@@ -52,7 +57,11 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({
   provider,
   user,
   onCommentClick,
-  activeCommentThreadId
+  activeCommentThreadId,
+  onOpenShareModal,
+  onOpenDiscussionSidebar,
+  onOpenCommandPalette,
+  onCreateNewNote
 }) => {
   const [selectedText, setSelectedText] = useState('');
 
@@ -305,8 +314,14 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({
             <Button 
               variant="primary" 
               size="sm" 
-              onClick={onAddInlineComment}
-              className="animate-in fade-in zoom-in-95 duration-150 shadow-xs h-7 px-2 sm:px-3 text-xs"
+              onClick={() => {
+                if (onAddInlineComment && editor) {
+                  const { from, to } = editor.state.selection;
+                  const quotedText = editor.state.doc.textBetween(from, to, ' ').trim();
+                  onAddInlineComment({ from, to, quotedText });
+                }
+              }}
+              className="animate-in fade-in zoom-in-95 duration-150 shadow-xs h-7 px-2 sm:px-3 text-xs cursor-pointer"
             >
               <MessageSquarePlus className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Thêm Bình Luận ({selectedText.length})</span>
@@ -330,6 +345,14 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({
 
       {/* 2. Editor Canvas Content Area */}
       <div className="flex-1 overflow-y-auto px-4 sm:px-8 md:px-16 py-4 sm:py-8 flex flex-col max-w-4xl w-full mx-auto">
+        {/* Guided Quickstart & Core Use Cases */}
+        <QuickstartWorkflowGuide
+          onCreateNote={onCreateNewNote || (() => {})}
+          onOpenShare={onOpenShareModal || (() => {})}
+          onOpenDiscussions={onOpenDiscussionSidebar || (() => onAddInlineComment?.({ from: 0, to: 0, quotedText: '' }))}
+          onOpenCommandPalette={onOpenCommandPalette || (() => {})}
+        />
+
         {/* Document Title Input */}
         <input
           value={documentTitle}
