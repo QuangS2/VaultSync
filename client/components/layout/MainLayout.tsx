@@ -1025,7 +1025,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           setExportDocTitle(activeDocTitle);
           setIsExportModalOpen(true);
         }}
-        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
         onLockVault={onLockVault}
         providerStatus={providerStatus}
@@ -1058,6 +1057,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           onOpenJoinRoomModal={() => setIsJoinRoomModalOpen(true)}
           unreadDocIds={unreadDocIds}
+          vaultName={session?.vaultName}
         />
 
         {/* Center Editor Canvas */}
@@ -1120,7 +1120,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         isRightSidebarOpen={isRightSidebarOpen}
         onToggleLeftSidebar={() => setIsLeftSidebarOpen(prev => !prev)}
         onToggleRightSidebar={() => setIsRightSidebarOpen(prev => !prev)}
-        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onCreateNewNote={handleCreateNewNote}
         onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
         hasUnreadDiscussion={hasUnreadActiveDiscussion}

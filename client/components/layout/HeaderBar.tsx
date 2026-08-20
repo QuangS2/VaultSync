@@ -8,16 +8,13 @@ import {
   Share2,
   MessageSquare,
   PanelLeft,
-  ShieldCheck,
   Download,
-  Search,
   Settings,
   LogOut,
   X,
   ChevronRight
 } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { Badge } from '../ui/Badge';
 import { VaultSyncBrandLogo } from '../ui/VaultSyncBrandLogo';
 import { AppTheme } from '../../App';
 import { ProviderConnectionStatus, AwarenessUser, CollaborationUserOptions } from '../../lib/yjs/types';
@@ -31,7 +28,6 @@ export interface HeaderBarProps {
   onToggleRightSidebar: () => void;
   onOpenShareModal: () => void;
   onOpenExportModal: () => void;
-  onOpenCommandPalette?: (() => void) | undefined;
   onOpenSettingsModal?: (() => void) | undefined;
   onLockVault?: (() => void) | undefined;
   providerStatus?: ProviderConnectionStatus | undefined;
@@ -52,7 +48,6 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   onToggleRightSidebar,
   onOpenShareModal,
   onOpenExportModal,
-  onOpenCommandPalette,
   onOpenSettingsModal,
   onLockVault,
   hasUnreadDiscussion,
@@ -94,37 +89,10 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         <div className="flex items-center gap-2">
           <VaultSyncBrandLogo size="sm" animated />
           <span className="font-semibold text-sm tracking-tight text-theme-text font-sans">VaultSync</span>
-          <Badge variant="accent" size="sm" className="hidden lg:inline-flex text-[10px] py-0 px-1.5 font-mono">
-            Bảo Mật Riêng Tư
-          </Badge>
         </div>
       </div>
 
-      {/* 2. Center Section (Desktop Only): Quick Search Command Bar */}
-      <div className="hidden md:flex items-center gap-3 min-w-0">
-        {onOpenCommandPalette && (
-          <button
-            onClick={onOpenCommandPalette}
-            title="Tìm kiếm nhanh hoặc thực hiện lệnh (Ctrl+K)"
-            className="flex items-center gap-2 px-3 py-1 rounded-lg bg-theme-card hover:bg-theme-card-hover border border-theme-border text-xs text-theme-text-muted hover:text-theme-text transition-all shadow-xs cursor-pointer w-48 lg:w-64 justify-between shrink-0"
-          >
-            <span className="flex items-center gap-1.5 truncate">
-              <Search className="w-3.5 h-3.5 text-theme-text-muted shrink-0" />
-              <span className="truncate">Tìm kiếm & Lệnh...</span>
-            </span>
-            <kbd className="px-1.5 py-0.2 text-[10px] font-mono bg-theme-bg rounded border border-theme-border text-theme-text-muted shrink-0">
-              Ctrl K
-            </kbd>
-          </button>
-        )}
-
-        <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-          <span>Bảo Vệ Đầu-Cuối</span>
-        </div>
-      </div>
-
-      {/* 3. Right Section: Action Controls & User Menu */}
+      {/* 2. Right Section: Action Controls & User Menu */}
       <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
         {/* Desktop Action Controls (>= 640px) */}
         <div className="hidden sm:flex items-center gap-1 sm:gap-1.5">

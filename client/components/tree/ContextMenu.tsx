@@ -10,7 +10,8 @@ import {
   Link2, 
   FolderOpen, 
   FolderClosed,
-  RotateCw
+  RotateCw,
+  CornerDownRight
 } from 'lucide-react';
 import { TreeNode } from '../../lib/tree/types';
 import { Share2, RotateCcw } from 'lucide-react';
@@ -23,6 +24,7 @@ export interface ContextMenuProps {
   onClose: () => void;
   onRename?: ((item: TreeNode) => void) | undefined;
   onDuplicate?: ((item: TreeNode) => void) | undefined;
+  onMove?: ((item: TreeNode) => void) | undefined;
   onCreateDoc?: ((parentId: string | null) => void) | undefined;
   onCreateFolder?: ((parentId: string | null) => void) | undefined;
   onToggleFavorite?: ((item: TreeNode) => void) | undefined;
@@ -46,6 +48,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   onClose,
   onRename,
   onDuplicate,
+  onMove,
   onCreateDoc,
   onCreateFolder,
   onToggleFavorite,
@@ -278,6 +281,16 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           </button>
 
           <button
+            onClick={() => handleAction(() => onMove?.(targetItem))}
+            className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text transition-colors text-left cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <CornerDownRight className="w-3.5 h-3.5 text-theme-accent" />
+              <span>Di chuyển thư mục...</span>
+            </div>
+          </button>
+
+          <button
             onClick={() => handleAction(() => onToggleExpandBranch?.(targetItem.id))}
             className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text transition-colors text-left cursor-pointer"
           >
@@ -343,6 +356,16 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               <span>Nhân bản tài liệu</span>
             </div>
             <span className="text-[10px] font-mono text-theme-text-muted">⌘D</span>
+          </button>
+
+          <button
+            onClick={() => handleAction(() => onMove?.(targetItem))}
+            className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text transition-colors text-left cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <CornerDownRight className="w-3.5 h-3.5 text-theme-accent" />
+              <span>Di chuyển tài liệu...</span>
+            </div>
           </button>
 
           <button

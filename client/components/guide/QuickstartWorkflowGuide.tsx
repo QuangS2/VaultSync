@@ -62,13 +62,10 @@ export const QuickstartWorkflowGuide: React.FC<QuickstartWorkflowGuideProps> = (
           </div>
           <div className="min-w-0">
             <h3 className="text-sm font-bold text-theme-text flex items-center gap-2">
-              <span className="truncate">Chào mừng đến với VaultSync</span>
-              <span className="hidden sm:inline-flex text-[10px] font-normal px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 font-mono shrink-0 whitespace-nowrap">
-                Zero-Knowledge E2EE
-              </span>
+              <span className="truncate">Hướng Dẫn Bắt Đầu Nhanh</span>
             </h3>
             <p className="text-xs text-theme-text-muted truncate">
-              Hệ thống ghi chép & cộng tác bảo mật riêng tư tuyệt đối trên mọi thiết bị
+              Ghi chép và làm việc nhóm tiện lợi, an toàn trên mọi thiết bị
             </p>
           </div>
         </div>
@@ -95,7 +92,7 @@ export const QuickstartWorkflowGuide: React.FC<QuickstartWorkflowGuideProps> = (
       {isExpanded && (
         <div className="pt-4 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            {/* Use Case 1: Ghi Chú Bảo Mật */}
+            {/* Use Case 1: Ghi Chú */}
             <div className="p-3.5 rounded-xl bg-theme-bg/80 border border-theme-border flex flex-col justify-between gap-3 group hover:border-theme-accent/40 transition-colors">
               <div className="space-y-1.5">
                 <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs">
@@ -103,10 +100,10 @@ export const QuickstartWorkflowGuide: React.FC<QuickstartWorkflowGuideProps> = (
                 </div>
                 <h4 className="text-xs font-bold text-theme-text flex items-center gap-1.5">
                   <FileText className="w-3.5 h-3.5 text-emerald-500" />
-                  Ghi Chú Bảo Mật Riêng Tư
+                  Soạn Thảo Ghi Chú
                 </h4>
                 <p className="text-[11px] text-theme-text-muted leading-relaxed">
-                  Soạn thảo Markdown, bảng biểu, danh sách việc cần làm. Dữ liệu tự động mã hóa AES-256 trên thiết bị của bạn.
+                  Soạn thảo văn bản, bảng biểu, danh sách công việc và tự động lưu trữ an toàn trên thiết bị của bạn.
                 </p>
               </div>
               <Button
@@ -128,10 +125,10 @@ export const QuickstartWorkflowGuide: React.FC<QuickstartWorkflowGuideProps> = (
                 </div>
                 <h4 className="text-xs font-bold text-theme-text flex items-center gap-1.5">
                   <MessageSquare className="w-3.5 h-3.5 text-blue-500" />
-                  Bình Luận & Thảo Luận Live
+                  Bình Luận & Trao Đổi
                 </h4>
                 <p className="text-[11px] text-theme-text-muted leading-relaxed">
-                  Bôi đen đoạn văn bản trong trình soạn thảo để mở luồng bình luận nội dòng hoặc chat trực tiếp trong phòng cộng tác.
+                  Bôi đen đoạn văn bản để tạo bình luận trực tiếp hoặc trao đổi công việc trong phòng thảo luận.
                 </p>
               </div>
               <Button
@@ -141,11 +138,11 @@ export const QuickstartWorkflowGuide: React.FC<QuickstartWorkflowGuideProps> = (
                 className="w-full gap-1.5 text-xs text-blue-600 hover:text-white hover:bg-blue-600 dark:text-blue-400"
               >
                 <MessageSquare className="w-3.5 h-3.5" />
-                <span>Mở thảo luận & chat</span>
+                <span>Mở thảo luận</span>
               </Button>
             </div>
 
-            {/* Use Case 3: Chia Sẻ & Quét QR */}
+            {/* Use Case 3: Chia Sẻ */}
             <div className="p-3.5 rounded-xl bg-theme-bg/80 border border-theme-border flex flex-col justify-between gap-3 group hover:border-theme-accent/40 transition-colors">
               <div className="space-y-1.5">
                 <div className="w-7 h-7 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-xs">
@@ -153,10 +150,10 @@ export const QuickstartWorkflowGuide: React.FC<QuickstartWorkflowGuideProps> = (
                 </div>
                 <h4 className="text-xs font-bold text-theme-text flex items-center gap-1.5">
                   <Share2 className="w-3.5 h-3.5 text-purple-500" />
-                  Chia Sẻ Mã QR & Passcode
+                  Chia Sẻ Tài Liệu
                 </h4>
                 <p className="text-[11px] text-theme-text-muted leading-relaxed">
-                  Chia sẻ tài liệu cho đồng nghiệp hoặc liên kết điện thoại di động qua mã QR SVG hoặc Passcode tự mã hóa <code className="text-[10px] bg-theme-card px-1 py-0.5 rounded">VS-KEY:...</code>.
+                  Chia sẻ tài liệu cho đồng nghiệp hoặc liên kết điện thoại di động qua mã QR hoặc liên kết bảo mật.
                 </p>
               </div>
               <Button
@@ -166,7 +163,7 @@ export const QuickstartWorkflowGuide: React.FC<QuickstartWorkflowGuideProps> = (
                 className="w-full gap-1.5 text-xs text-purple-600 hover:text-white hover:bg-purple-600 dark:text-purple-400"
               >
                 <Share2 className="w-3.5 h-3.5" />
-                <span>Chia sẻ & Quét QR</span>
+                <span>Chia sẻ tài liệu</span>
               </Button>
             </div>
           </div>
@@ -175,7 +172,7 @@ export const QuickstartWorkflowGuide: React.FC<QuickstartWorkflowGuideProps> = (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 text-[11px] text-theme-text-muted bg-theme-bg/50 px-3 py-2 rounded-xl border border-theme-border/50">
             <span className="flex items-center gap-1.5">
               <Lock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-              Khóa khôi phục 12 từ BIP-39 giúp bạn đăng nhập và phục hồi kho trên bất kỳ thiết bị mới nào.
+              12 từ khóa khôi phục bí mật giúp bạn mở lại kho lưu trữ trên thiết bị mới bất cứ lúc nào.
             </span>
             <button
               onClick={onOpenCommandPalette}

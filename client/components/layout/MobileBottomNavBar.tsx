@@ -1,8 +1,7 @@
 import React from 'react';
 import { 
   FolderTree, 
-  Search, 
-  Plus, 
+  PlusCircle, 
   MessageSquare, 
   MoreHorizontal
 } from 'lucide-react';
@@ -10,7 +9,6 @@ import {
 export interface MobileBottomNavBarProps {
   onToggleLeftSidebar: () => void;
   onToggleRightSidebar: () => void;
-  onOpenCommandPalette: () => void;
   onCreateNewNote: () => void;
   onOpenMobileMenu: () => void;
   isLeftSidebarOpen: boolean;
@@ -22,7 +20,6 @@ export interface MobileBottomNavBarProps {
 export const MobileBottomNavBar: React.FC<MobileBottomNavBarProps> = ({
   onToggleLeftSidebar,
   onToggleRightSidebar,
-  onOpenCommandPalette,
   onCreateNewNote,
   onOpenMobileMenu,
   isLeftSidebarOpen,
@@ -30,8 +27,11 @@ export const MobileBottomNavBar: React.FC<MobileBottomNavBarProps> = ({
   hasUnreadDiscussion,
   activeDocCount
 }) => {
+  // Hide bottom navigation bar when discussion panel is open to avoid blocking chat input
+  if (isRightSidebarOpen) return null;
+
   return (
-    <nav className="sm:hidden fixed bottom-0 inset-x-0 h-14 bg-theme-bg/95 backdrop-blur-xl border-t border-theme-border flex items-center justify-around z-40 select-none px-2 shadow-lg">
+    <nav className="sm:hidden fixed bottom-0 inset-x-0 h-13 bg-theme-bg/95 backdrop-blur-xl border-t border-theme-border flex items-center justify-around z-40 select-none px-2 shadow-lg">
       {/* 1. Files / Tree Drawer Trigger */}
       <button
         onClick={onToggleLeftSidebar}
@@ -41,58 +41,47 @@ export const MobileBottomNavBar: React.FC<MobileBottomNavBarProps> = ({
         }`}
       >
         <FolderTree className="w-4 h-4" />
-        <span className="text-[10px] mt-0.5">Tài liệu</span>
+        <span className="text-[10px] mt-0.5 font-medium">Tài liệu</span>
         {activeDocCount !== undefined && activeDocCount > 0 && (
-          <span className="absolute top-0 right-3 text-[9px] px-1 bg-theme-border rounded-full font-mono">
+          <span className="absolute top-0.5 right-4 text-[9px] px-1 bg-theme-border rounded-full font-mono">
             {activeDocCount}
           </span>
         )}
       </button>
 
-      {/* 2. Spotlight Search Trigger */}
+      {/* 2. Create New Note (Flat & Uniform) */}
       <button
-        onClick={onOpenCommandPalette}
-        title="Tìm kiếm tài liệu & lệnh nhanh"
+        onClick={onCreateNewNote}
+        title="Tạo ghi chú mới"
         className="flex flex-col items-center justify-center flex-1 py-1 text-theme-text-muted hover:text-theme-text transition-colors cursor-pointer"
       >
-        <Search className="w-4 h-4" />
-        <span className="text-[10px] mt-0.5">Tìm kiếm</span>
+        <PlusCircle className="w-4 h-4" />
+        <span className="text-[10px] mt-0.5 font-medium">Tạo mới</span>
       </button>
 
-      {/* 3. Primary Center FAB: Create New Note */}
-      <div className="flex items-center justify-center flex-1">
-        <button
-          onClick={onCreateNewNote}
-          title="Tạo ghi chú bảo mật mới"
-          className="w-10 h-10 rounded-full bg-theme-accent text-white flex items-center justify-center shadow-md hover:bg-theme-accent-hover active:scale-95 transition-all -translate-y-1.5 cursor-pointer ring-3 ring-theme-bg"
-        >
-          <Plus className="w-5 h-5" />
-        </button>
-      </div>
-
-      {/* 4. Discussions & Chat Trigger */}
+      {/* 3. Discussions & Chat Trigger */}
       <button
         onClick={onToggleRightSidebar}
-        title="Thảo luận & Bình luận"
+        title="Thảo luận & Chat"
         className={`flex flex-col items-center justify-center flex-1 py-1 transition-colors cursor-pointer relative ${
           isRightSidebarOpen ? 'text-theme-accent font-semibold' : 'text-theme-text-muted hover:text-theme-text'
         }`}
       >
         <MessageSquare className="w-4 h-4" />
-        <span className="text-[10px] mt-0.5">Thảo luận</span>
+        <span className="text-[10px] mt-0.5 font-medium">Thảo luận</span>
         {hasUnreadDiscussion && !isRightSidebarOpen && (
-          <span className="absolute top-0.5 right-3 w-2 h-2 rounded-full bg-rose-500 ring-1 ring-theme-bg animate-pulse" />
+          <span className="absolute top-0.5 right-4 w-2 h-2 rounded-full bg-rose-500 ring-1 ring-theme-bg animate-pulse shadow-xs" />
         )}
       </button>
 
-      {/* 5. Mobile More Menu / Settings Trigger */}
+      {/* 4. Mobile More Menu / Settings Trigger */}
       <button
         onClick={onOpenMobileMenu}
-        title="Tùy chọn tài khoản & Giao diện"
+        title="Tùy chọn & Cài đặt"
         className="flex flex-col items-center justify-center flex-1 py-1 text-theme-text-muted hover:text-theme-text transition-colors cursor-pointer"
       >
         <MoreHorizontal className="w-4 h-4" />
-        <span className="text-[10px] mt-0.5">Tùy chọn</span>
+        <span className="text-[10px] mt-0.5 font-medium">Tùy chọn</span>
       </button>
     </nav>
   );

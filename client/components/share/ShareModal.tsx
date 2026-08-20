@@ -321,7 +321,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 
                   <div className="p-3 rounded-lg bg-theme-card border border-theme-border flex items-start gap-2.5 text-xs text-theme-text-muted">
                     <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <span>Mọi dữ liệu trao đổi được tự động mã hóa bằng thuật toán AES-256-GCM. Máy chủ trung gian hoàn toàn không thể đọc trộm nội dung.</span>
+                    <span>Liên kết này chỉ có hiệu lực với những ai được bạn chia sẻ trực tiếp.</span>
                   </div>
                 </div>
               )}

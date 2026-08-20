@@ -26,7 +26,6 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { Badge } from '../ui/Badge';
 import { VaultSyncBrandLogo } from '../ui/VaultSyncBrandLogo';
 import { VaultAuthEngine } from '../../lib/auth/vault-auth-engine';
 import { validateMnemonic12 } from '../../lib/auth/bip39-wordlist';
@@ -295,9 +294,6 @@ export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
             <div className="flex flex-col">
               <h1 className="text-base sm:text-lg font-bold text-theme-text flex items-center gap-2">
                 <span>VaultSync</span>
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  Zero-Knowledge
-                </span>
               </h1>
               <p className="text-xs text-theme-text-muted">
                 {authMode === 'register' ? 'Đăng Ký & Khởi Tạo Kho Lưu Trữ Mới' : 'Đăng Nhập & Khôi Phục Kho Lưu Trữ'}
@@ -461,10 +457,9 @@ export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
                         {displayName.trim() || 'Người dùng mới'}
                       </p>
                       <p className="text-[11px] text-theme-text-muted truncate">
-                        {vaultName.trim() || 'Kho Cá Nhân'} • Mã hóa riêng tư
+                        {vaultName.trim() || 'Kho Cá Nhân'}
                       </p>
                     </div>
-                    <Badge variant="accent" size="sm">Bảo Mật Riêng Tư</Badge>
                   </div>
 
                   <div className="flex flex-col gap-1.5">
@@ -557,7 +552,7 @@ export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
 
                   <div className="p-3 rounded-lg bg-theme-card border border-theme-border flex items-start gap-2.5 text-xs text-theme-text-muted">
                     <ShieldCheck className="w-4 h-4 text-theme-accent shrink-0 mt-0.5" />
-                    <span>Mật khẩu này dùng để tạo khóa mã hóa AES-256-GCM bảo vệ kho lưu trữ trên thiết bị của bạn.</span>
+                    <span>Mật khẩu này dùng để bảo vệ và mở khóa an toàn kho lưu trữ trên thiết bị của bạn.</span>
                   </div>
 
                   <div className="flex items-center justify-between pt-2">

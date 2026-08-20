@@ -51,12 +51,12 @@ test.describe('Fix-14 Verification Suite: Guided Use Cases, Full Comment Creatio
     await setupAndOnboard(page);
 
     // 1. Verify Quickstart banner renders with the 3 pillars
-    const guideHeading = page.locator('text=Chào mừng đến với VaultSync');
+    const guideHeading = page.locator('text=Hướng Dẫn Bắt Đầu Nhanh');
     await expect(guideHeading).toBeVisible({ timeout: 5000 });
 
-    const pillar1 = page.locator('text=Ghi Chú Bảo Mật Riêng Tư');
-    const pillar2 = page.locator('text=Bình Luận & Thảo Luận Live');
-    const pillar3 = page.locator('text=Chia Sẻ Mã QR & Passcode');
+    const pillar1 = page.locator('h4:has-text("Soạn Thảo Ghi Chú")');
+    const pillar2 = page.locator('h4:has-text("Bình Luận & Trao Đổi")');
+    const pillar3 = page.locator('h4:has-text("Chia Sẻ Tài Liệu")');
 
     await expect(pillar1).toBeVisible();
     await expect(pillar2).toBeVisible();

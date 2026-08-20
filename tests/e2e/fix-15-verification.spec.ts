@@ -51,7 +51,7 @@ test.describe('Fix-15 Verification Suite: Precise Quickstart Persistence, Inline
     await setupAndOnboard(page);
 
     // 1. Quickstart banner is initially visible
-    const guideHeading = page.locator('text=Chào mừng đến với VaultSync');
+    const guideHeading = page.locator('text=Hướng Dẫn Bắt Đầu Nhanh');
     await expect(guideHeading).toBeVisible({ timeout: 5000 });
 
     const shot1 = path.join(evidenceDirs.fix15_1, '01_initial_quickstart_guide.png');
@@ -145,13 +145,11 @@ test.describe('Fix-15 Verification Suite: Precise Quickstart Persistence, Inline
     await expect(bottomNav).toBeVisible();
 
     const filesBtn = page.locator('nav.sm\\:hidden button:has-text("Tài liệu")');
-    const searchBtn = page.locator('nav.sm\\:hidden button:has-text("Tìm kiếm")');
     const fabBtn = page.locator('nav.sm\\:hidden button[title*="Tạo ghi chú"]');
     const discussBtn = page.locator('nav.sm\\:hidden button:has-text("Thảo luận")');
     const optionsBtn = page.locator('nav.sm\\:hidden button:has-text("Tùy chọn")');
 
     await expect(filesBtn).toBeVisible();
-    await expect(searchBtn).toBeVisible();
     await expect(fabBtn).toBeVisible();
     await expect(discussBtn).toBeVisible();
     await expect(optionsBtn).toBeVisible();
