@@ -12,6 +12,7 @@ import { CommandPaletteModal } from '../palette/CommandPaletteModal';
 import { ExportModal } from '../export/ExportModal';
 import { SettingsModal } from '../settings/SettingsModal';
 import { ShareModal } from '../share/ShareModal';
+import { JoinRoomModal } from '../share/JoinRoomModal';
 import { CommandPaletteEngine, PaletteAction } from '../../lib/palette/command-palette-engine';
 import { EnvelopeEncryptionManager } from '../../lib/crypto/envelope-encryption';
 import { UnlockedVaultSession } from '../../lib/auth/types';
@@ -92,42 +93,67 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   });
 
   const [awarenessUsers, setAwarenessUsers] = useState<AwarenessUser[]>([]);
+  const [isJoinRoomModalOpen, setIsJoinRoomModalOpen] = useState(false);
+
+  // Helper to extract or restore pending share information
+  const getPendingShareInfo = React.useCallback(() => {
+    if (typeof window === 'undefined') return null;
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomParam = urlParams.get('room');
+    const titleParam = urlParams.get('title');
+    const keyParam = urlParams.get('key');
+
+    if (roomParam) {
+      const shareData = {
+        room: roomParam,
+        title: titleParam ? decodeURIComponent(titleParam) : 'Tài Liệu Được Chia Sẻ',
+        key: keyParam || null
+      };
+      sessionStorage.setItem('vaultsync_pending_share', JSON.stringify(shareData));
+      return shareData;
+    }
+
+    const saved = sessionStorage.getItem('vaultsync_pending_share');
+    if (saved) {
+      try {
+        return JSON.parse(saved) as { room: string; title: string; key: string | null };
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }, []);
 
   // Automatically register shared room document from URL if present
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      const roomParam = urlParams.get('room');
-      const titleParam = urlParams.get('title');
-      const keyParam = urlParams.get('key');
-
-      if (keyParam) {
-        try {
-          const rawKeyBytes = BinaryUtils.base64UrlToBytes(keyParam);
-          crypto.subtle.importKey(
-            'raw',
-            rawKeyBytes as BufferSource,
-            { name: 'AES-GCM', length: 256 },
-            true,
-            ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
-          ).then(importedKey => {
-            setDocumentKey(importedKey);
-          }).catch(err => {
-            console.error('Lỗi nhập khóa mã hóa tài liệu từ URL:', err);
-          });
-        } catch (err) {
-          console.error('Lỗi giải mã khóa chia sẻ từ URL:', err);
+      const shareInfo = getPendingShareInfo();
+      if (shareInfo) {
+        if (shareInfo.key) {
+          try {
+            const rawKeyBytes = BinaryUtils.base64UrlToBytes(shareInfo.key);
+            crypto.subtle.importKey(
+              'raw',
+              rawKeyBytes as BufferSource,
+              { name: 'AES-GCM', length: 256 },
+              true,
+              ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
+            ).then(importedKey => {
+              setDocumentKey(importedKey);
+            }).catch(err => {
+              console.error('Lỗi nhập khóa mã hóa tài liệu từ URL:', err);
+            });
+          } catch (err) {
+            console.error('Lỗi giải mã khóa chia sẻ từ URL:', err);
+          }
         }
-      }
 
-      if (roomParam) {
-        const decodedTitle = titleParam ? decodeURIComponent(titleParam) : 'Tài Liệu Được Chia Sẻ';
-        treeManager.ensureItem(roomParam, decodedTitle, 'document', null, 'Share2');
-        setActiveDocId(roomParam);
+        treeManager.ensureItem(shareInfo.room, shareInfo.title, 'document', null, 'Share2');
+        setActiveDocId(shareInfo.room);
         setTreeVersion(v => v + 1);
       }
     }
-  }, [treeManager]);
+  }, [treeManager, getPendingShareInfo]);
 
   // Isolate and switch Y.Doc per active document to prevent cross-document text bleeding
   useEffect(() => {
@@ -204,13 +230,21 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           treeManager.applyStateUpdate(treeSnapshot);
         }
 
-        // Validate active document exists and is not deleted in trash
-        const currentItem = treeManager.getItem(activeDocId);
-        if (!currentItem || currentItem.isTrash) {
-          const validDocs = treeManager.getAllItems().filter(i => i.type === 'document' && !i.isTrash);
-          if (validDocs.length > 0 && validDocs[0] && isMounted) {
-            setActiveDocId(validDocs[0].id);
-            return;
+        // If there is a pending shared document, ensure it is added to tree and selected
+        const pendingShare = getPendingShareInfo();
+        if (pendingShare && isMounted) {
+          treeManager.ensureItem(pendingShare.room, pendingShare.title, 'document', null, 'Share2');
+          setActiveDocId(pendingShare.room);
+          setTreeVersion(v => v + 1);
+        } else {
+          // Validate active document exists and is not deleted in trash
+          const currentItem = treeManager.getItem(activeDocId);
+          if (!currentItem || currentItem.isTrash) {
+            const validDocs = treeManager.getAllItems().filter(i => i.type === 'document' && !i.isTrash);
+            if (validDocs.length > 0 && validDocs[0] && isMounted) {
+              setActiveDocId(validDocs[0].id);
+              return;
+            }
           }
         }
 
@@ -375,6 +409,16 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     setIsExportModalOpen(true);
   };
 
+  const handleJoinRoom = (roomId: string, title?: string, key?: CryptoKey) => {
+    if (key) {
+      setDocumentKey(key);
+    }
+    const cleanTitle = title || 'Tài Liệu Cộng Tác';
+    treeManager.ensureItem(roomId, cleanTitle, 'document', null, 'Share2');
+    setActiveDocId(roomId);
+    setTreeVersion(v => v + 1);
+  };
+
   const handleTitleChange = (newTitle: string) => {
     if (activeDocId) {
       treeManager.renameItem(activeDocId, newTitle);
@@ -414,6 +458,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         handler: () => {
           treeManager.createItem('Thư mục mới', 'folder');
         }
+      },
+      {
+        id: 'join-room',
+        title: 'Tham gia phòng cộng tác (Join Room)',
+        subtitle: 'Nhập mã phòng rút gọn hoặc dán liên kết để bắt đầu',
+        category: 'Security',
+        shortcut: 'Ctrl+J',
+        keywords: ['join', 'tham gia', 'phong', 'room', 'code', 'ma'],
+        handler: () => setIsJoinRoomModalOpen(true)
       },
       // 2. Security & Sharing
       {
@@ -578,6 +631,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           onExportDoc={handleExportDoc}
           treeManager={treeManager}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+          onOpenJoinRoomModal={() => setIsJoinRoomModalOpen(true)}
         />
 
         {/* Center Editor Canvas */}
@@ -609,7 +663,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           activeThreadId={activeCommentThreadId}
           onSelectThread={handleSelectThreadFromSidebar}
           currentAuthor={{
-            id: session?.userProfile.displayName || 'user_local',
+            id: session?.userProfile.userId || session?.userProfile.displayName || 'user_local',
             name: currentUserOptions.name,
             color: currentUserOptions.color,
             avatar: currentUserOptions.avatar
@@ -626,6 +680,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         documentKey={documentKey}
         awarenessUsers={awarenessUsers}
         currentUser={currentUserOptions}
+      />
+
+      {/* MODAL: Tham Gia Phòng Bằng Mã Rút Gọn Hoặc Liên Kết (Join Room) */}
+      <JoinRoomModal
+        isOpen={isJoinRoomModalOpen}
+        onClose={() => setIsJoinRoomModalOpen(false)}
+        onJoinRoom={handleJoinRoom}
       />
 
       {/* MODAL: Xuất Dữ Liệu Đa Định Dạng (Markdown & Standalone HTML & .vault) */}

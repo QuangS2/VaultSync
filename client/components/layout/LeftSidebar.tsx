@@ -18,6 +18,7 @@ export interface LeftSidebarProps {
   onExportDoc?: ((docId: string, docTitle: string) => void) | undefined;
   treeManager?: TreeStateManager | undefined;
   onOpenCommandPalette?: (() => void) | undefined;
+  onOpenJoinRoomModal?: (() => void) | undefined;
 }
 
 export const LeftSidebar: React.FC<LeftSidebarProps> = ({
@@ -26,7 +27,8 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onSelectDoc,
   onExportDoc,
   treeManager: externalTreeManager,
-  onOpenCommandPalette
+  onOpenCommandPalette,
+  onOpenJoinRoomModal
 }) => {
   const [treeManager] = useState(() => externalTreeManager || new TreeStateManager());
   const [searchQuery, setSearchQuery] = useState('');
@@ -129,6 +131,21 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
           </div>
           <span className="text-[10px] font-mono text-theme-text-muted">{counts.trash}</span>
         </button>
+
+        {/* Join Shared Room Quick Trigger */}
+        {onOpenJoinRoomModal && (
+          <button 
+            onClick={onOpenJoinRoomModal}
+            className="flex items-center justify-between px-2.5 py-1.5 rounded-md transition-colors cursor-pointer hover:bg-theme-card-hover text-emerald-600 dark:text-emerald-400 mt-1 border border-emerald-500/20 bg-emerald-500/5"
+            title="Nhập mã phòng rút gọn hoặc liên kết để cộng tác (Ctrl+J)"
+          >
+            <div className="flex items-center gap-2">
+              <HardDrive className="w-3.5 h-3.5 text-emerald-500" />
+              <span className="font-semibold text-xs">Tham gia phòng</span>
+            </div>
+            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 border border-emerald-500/20">Ctrl J</span>
+          </button>
+        )}
       </div>
 
       {/* Main Drag & Drop Tree View */}

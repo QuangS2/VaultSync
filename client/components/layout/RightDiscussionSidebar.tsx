@@ -416,8 +416,15 @@ export const RightDiscussionSidebar: React.FC<RightDiscussionSidebarProps> = ({
 
                     <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[80%]`}>
                       <div className="flex items-center gap-1.5 mb-0.5">
-                        <span className="text-[10px] font-semibold text-theme-text">
-                          {isMe ? 'Bạn' : msg.authorName}
+                        <span className="text-[10px] font-semibold text-theme-text flex items-center gap-1">
+                          {isMe ? (
+                            <>
+                              <span className="px-1 py-0.2 rounded bg-theme-accent-subtle text-theme-accent text-[9px] font-bold">Tôi</span>
+                              <span>{msg.authorName}</span>
+                            </>
+                          ) : (
+                            <span>{msg.authorName}</span>
+                          )}
                         </span>
                         <span className="text-[9px] text-theme-text-muted/60 font-mono">
                           {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
