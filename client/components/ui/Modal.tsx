@@ -49,28 +49,28 @@ export const Modal: React.FC<ModalProps> = ({
       />
 
       {/* Dialog Body */}
-      <div className={`relative w-full ${maxWidthClasses} bg-theme-bg-subtle border border-theme-border rounded-xl shadow-xl overflow-hidden z-10 flex flex-col`}>
+      <div className={`relative w-full ${maxWidthClasses} max-h-[92vh] max-h-[92dvh] bg-theme-bg-subtle border border-theme-border rounded-xl shadow-2xl overflow-hidden z-10 flex flex-col my-auto`}>
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-theme-border">
-          <div>
-            <h3 className="text-sm font-semibold text-theme-text">{title}</h3>
+        <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 sm:py-4 border-b border-theme-border shrink-0">
+          <div className="min-w-0 pr-2">
+            <h3 className="text-sm font-semibold text-theme-text truncate">{title}</h3>
             {description && (
-              <p className="text-xs text-theme-text-muted mt-0.5">{description}</p>
+              <p className="text-xs text-theme-text-muted mt-0.5 line-clamp-2">{description}</p>
             )}
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close dialog">
+          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close dialog" className="shrink-0 h-8 w-8">
             <X className="w-4 h-4" />
           </Button>
         </div>
 
         {/* Content */}
-        <div className="p-5 text-xs text-theme-text-secondary leading-relaxed">
+        <div className="p-4 sm:p-5 text-xs text-theme-text-secondary leading-relaxed overflow-y-auto flex-1 overscroll-contain">
           {children}
         </div>
 
         {/* Footer */}
         {footer && (
-          <div className="px-5 py-3 bg-theme-card border-t border-theme-border flex items-center justify-end gap-2">
+          <div className="px-4 sm:px-5 py-3 bg-theme-card border-t border-theme-border flex items-center justify-end gap-2 shrink-0 flex-wrap sm:flex-nowrap">
             {footer}
           </div>
         )}

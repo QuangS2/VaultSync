@@ -4,15 +4,18 @@ import {
   Search, 
   Star, 
   Trash2, 
-  HardDrive
+  HardDrive,
+  X
 } from 'lucide-react';
 import { Input } from '../ui/Input';
 import { Badge } from '../ui/Badge';
+import { Button } from '../ui/Button';
 import { TreeView } from '../tree/TreeView';
 import { TreeStateManager } from '../../lib/tree/tree-state-manager';
 
 export interface LeftSidebarProps {
   isOpen: boolean;
+  onClose?: (() => void) | undefined;
   activeDocId: string;
   onSelectDoc: (id: string) => void;
   onExportDoc?: ((docId: string, docTitle: string) => void) | undefined;
@@ -24,6 +27,7 @@ export interface LeftSidebarProps {
 
 export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   isOpen,
+  onClose,
   activeDocId,
   onSelectDoc,
   onExportDoc,
@@ -59,16 +63,29 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   if (!isOpen) return null;
 
   return (
-    <aside className="w-64 bg-theme-bg-subtle border-r border-theme-border flex flex-col shrink-0 select-none h-full transition-all duration-200">
+    <aside className="w-72 max-w-[85vw] max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:shadow-2xl md:w-64 md:relative bg-theme-bg-subtle border-r border-theme-border flex flex-col shrink-0 select-none h-full transition-all duration-200">
       {/* Workspace Header & Switcher */}
       <div className="p-3 border-b border-theme-border flex items-center justify-between">
-        <div className="flex items-center gap-2 overflow-hidden">
-          <div className="w-6 h-6 rounded bg-theme-accent-subtle text-theme-accent flex items-center justify-center text-xs font-bold font-mono">
+        <div className="flex items-center gap-2 overflow-hidden min-w-0">
+          <div className="w-6 h-6 rounded bg-theme-accent-subtle text-theme-accent flex items-center justify-center text-xs font-bold font-mono shrink-0">
             V
           </div>
           <span className="font-semibold text-xs text-theme-text truncate">Engineering Vault</span>
         </div>
-        <Badge variant="outline" size="sm">CRDT Tree</Badge>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <Badge variant="outline" size="sm">CRDT</Badge>
+          {onClose && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="md:hidden h-7 w-7 text-theme-text-muted hover:text-theme-text"
+              title="Đóng thanh điều hướng"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Quick Search Trigger */}
