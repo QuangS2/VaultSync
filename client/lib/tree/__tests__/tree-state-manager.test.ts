@@ -98,4 +98,69 @@ describe('TreeStateManager — CRDT Hierarchical Workspace Unit Tests', () => {
     expect(folderOnB).toBeDefined();
     expect(folderOnB?.name).toBe('Dự Án Alpha');
   });
+
+  it('should auto-restore a trashed item when ensureItem is called upon re-joining/re-invitation', () => {
+    const yDoc = new Y.Doc();
+    const manager = new TreeStateManager(yDoc);
+
+    const doc = manager.createItem('Shared Doc X', 'document', null);
+    manager.moveToTrash(doc.id);
+
+    expect(manager.getItem(doc.id)?.isTrash).toBe(true);
+
+    // Re-join/re-invite calls ensureItem on the doc ID
+    const ensured = manager.ensureItem(doc.id, 'Shared Doc X');
+    expect(ensured.isTrash).toBe(false);
+    expect(ensured.trashedAt).toBeUndefined();
+    expect(manager.getItem(doc.id)?.isTrash).toBe(false);
+  });
+
+  it('should manage trash operations: moveToTrash, getTrashItems, permanentDelete, and emptyTrash', () => {
+    const yDoc = new Y.Doc();
+    const manager = new TreeStateManager(yDoc);
+
+    const folder = manager.createItem('Folder A', 'folder', null);
+    const subDoc = manager.createItem('Doc A1', 'document', folder.id);
+
+    manager.moveToTrash(folder.id);
+
+    const trashItems = manager.getTrashItems();
+    expect(trashItems.some(i => i.id === folder.id)).toBe(true);
+    expect(trashItems.some(i => i.id === subDoc.id)).toBe(true);
+
+    // Restore folder
+    manager.restoreFromTrash(folder.id);
+    expect(manager.getItem(folder.id)?.isTrash).toBe(false);
+    expect(manager.getItem(subDoc.id)?.isTrash).toBe(false);
+
+    // Move to trash and permanent delete
+    manager.moveToTrash(folder.id);
+    manager.permanentDelete(folder.id);
+    expect(manager.getItem(folder.id)).toBeUndefined();
+    expect(manager.getItem(subDoc.id)).toBeUndefined();
+
+    // Create another and empty trash
+    const trashDoc = manager.createItem('Trash Doc', 'document', null);
+    manager.moveToTrash(trashDoc.id);
+    expect(manager.getTrashItems().length).toBeGreaterThanOrEqual(1);
+
+    manager.emptyTrash();
+    expect(manager.getTrashItems().length).toBe(0);
+  });
+
+  it('should generate a valid folder manifest for folder sharing', () => {
+    const yDoc = new Y.Doc();
+    const manager = new TreeStateManager(yDoc);
+
+    const folder = manager.createItem('Project Root', 'folder', null);
+    const doc1 = manager.createItem('Architecture.md', 'document', folder.id);
+    const doc2 = manager.createItem('Spec.md', 'document', folder.id);
+
+    const manifest = manager.getFolderManifest(folder.id);
+    expect(manifest).not.toBeNull();
+    expect(manifest?.folder.id).toBe(folder.id);
+    expect(manifest?.items.length).toBe(2);
+    expect(manifest?.items.some(i => i.id === doc1.id)).toBe(true);
+    expect(manifest?.items.some(i => i.id === doc2.id)).toBe(true);
+  });
 });

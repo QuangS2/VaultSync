@@ -16,6 +16,7 @@ export interface LeftSidebarProps {
   activeDocId: string;
   onSelectDoc: (id: string) => void;
   onExportDoc?: ((docId: string, docTitle: string) => void) | undefined;
+  onShareFolder?: ((folderId: string, folderTitle: string) => void) | undefined;
   treeManager?: TreeStateManager | undefined;
   onOpenCommandPalette?: (() => void) | undefined;
   onOpenJoinRoomModal?: (() => void) | undefined;
@@ -26,6 +27,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   activeDocId,
   onSelectDoc,
   onExportDoc,
+  onShareFolder,
   treeManager: externalTreeManager,
   onOpenCommandPalette,
   onOpenJoinRoomModal
@@ -155,6 +157,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
           activeDocId={activeDocId}
           onSelectDoc={onSelectDoc}
           onExportDoc={onExportDoc}
+          onShareFolder={onShareFolder}
           searchQuery={searchQuery}
           viewFilter={viewFilter}
         />

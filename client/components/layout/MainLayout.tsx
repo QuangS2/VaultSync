@@ -127,19 +127,37 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     }
   }, []);
 
-  // Helper to extract or restore pending share information
+  // Helper to extract or restore pending share information (supports both single doc and folder sharing)
   const getPendingShareInfo = React.useCallback(() => {
     if (typeof window === 'undefined') return null;
     const urlParams = new URLSearchParams(window.location.search);
     const roomParam = urlParams.get('room');
+    const folderParam = urlParams.get('folder');
     const titleParam = urlParams.get('title');
     const keyParam = urlParams.get('key');
+    const manifestParam = urlParams.get('manifest');
+
+    if (folderParam) {
+      const shareData = {
+        isFolder: true,
+        folderId: folderParam,
+        room: folderParam,
+        title: titleParam ? decodeURIComponent(titleParam) : 'Thư Mục Được Chia Sẻ',
+        key: keyParam || null,
+        manifest: manifestParam || null
+      };
+      sessionStorage.setItem('vaultsync_pending_share', JSON.stringify(shareData));
+      return shareData;
+    }
 
     if (roomParam) {
       const shareData = {
+        isFolder: false,
+        folderId: null,
         room: roomParam,
         title: titleParam ? decodeURIComponent(titleParam) : 'Tài Liệu Được Chia Sẻ',
-        key: keyParam || null
+        key: keyParam || null,
+        manifest: null
       };
       sessionStorage.setItem('vaultsync_pending_share', JSON.stringify(shareData));
       return shareData;
@@ -148,7 +166,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     const saved = sessionStorage.getItem('vaultsync_pending_share');
     if (saved) {
       try {
-        return JSON.parse(saved) as { room: string; title: string; key: string | null };
+        return JSON.parse(saved) as {
+          isFolder?: boolean;
+          room?: string;
+          folderId?: string | null;
+          title: string;
+          key: string | null;
+          manifest?: string | null;
+        };
       } catch {
         return null;
       }
@@ -156,35 +181,101 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     return null;
   }, []);
 
-  // Automatically register shared room document from URL if present (runs once and cleans URL/sessionStorage)
+  // Automatically register shared room document / folder from URL if present (runs once and cleans URL/sessionStorage)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const shareInfo = getPendingShareInfo();
       if (shareInfo) {
-        if (shareInfo.key) {
-          try {
-            const rawKeyBytes = BinaryUtils.base64UrlToBytes(shareInfo.key);
-            crypto.subtle.importKey(
-              'raw',
-              rawKeyBytes as BufferSource,
-              { name: 'AES-GCM', length: 256 },
-              true,
-              ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
-            ).then(async importedKey => {
-              documentKeysRef.current.set(shareInfo.room, importedKey);
-              await saveSharedDocKey(shareInfo.room, importedKey);
-              setDocumentKey(importedKey);
-            }).catch(err => {
-              console.error('Lỗi nhập khóa mã hóa tài liệu từ URL:', err);
-            });
-          } catch (err) {
-            console.error('Lỗi giải mã khóa chia sẻ từ URL:', err);
-          }
-        }
+        if (shareInfo.isFolder && shareInfo.folderId) {
+          // Folder Sharing Provisioning
+          const folderId = shareInfo.folderId;
+          const folderTitle = shareInfo.title || 'Thư Mục Chia Sẻ';
 
-        treeManager.ensureItem(shareInfo.room, shareInfo.title, 'document', null, 'Share2');
-        setActiveDocId(shareInfo.room);
-        setTreeVersion(v => v + 1);
+          // 1. Ensure folder item in tree
+          treeManager.ensureItem(folderId, folderTitle, 'folder', null, 'Folder');
+
+          // 2. Decode manifest if provided
+          let firstDocId: string | null = null;
+          if (shareInfo.manifest) {
+            try {
+              const manifestJson = new TextDecoder().decode(BinaryUtils.base64UrlToBytes(shareInfo.manifest));
+              const manifest = JSON.parse(manifestJson);
+              if (manifest.items && Array.isArray(manifest.items)) {
+                for (const item of manifest.items) {
+                  treeManager.ensureItem(item.id, item.name, item.type, item.parentId || folderId, item.icon);
+                  if (item.type === 'document' && !firstDocId) {
+                    firstDocId = item.id;
+                  }
+                }
+              }
+            } catch (err) {
+              console.error('Lỗi giải mã manifest thư mục chia sẻ:', err);
+            }
+          }
+
+          // 3. Import & Save Key for folder and child docs
+          if (shareInfo.key) {
+            try {
+              const rawKeyBytes = BinaryUtils.base64UrlToBytes(shareInfo.key);
+              crypto.subtle.importKey(
+                'raw',
+                rawKeyBytes as BufferSource,
+                { name: 'AES-GCM', length: 256 },
+                true,
+                ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
+              ).then(async importedKey => {
+                documentKeysRef.current.set(folderId, importedKey);
+                await saveSharedDocKey(folderId, importedKey);
+
+                // Also map key to all child items in folder
+                const descendants = treeManager.getAllDescendantIds(folderId);
+                for (const descId of descendants) {
+                  documentKeysRef.current.set(descId, importedKey);
+                  await saveSharedDocKey(descId, importedKey);
+                }
+
+                if (firstDocId) {
+                  setDocumentKey(importedKey);
+                }
+              }).catch(err => {
+                console.error('Lỗi nhập khóa thư mục chia sẻ:', err);
+              });
+            } catch (err) {
+              console.error('Lỗi giải mã chuỗi khóa thư mục:', err);
+            }
+          }
+
+          if (firstDocId) {
+            setActiveDocId(firstDocId);
+          }
+          setTreeVersion(v => v + 1);
+        } else if (shareInfo.room) {
+          // Single Document Sharing
+          if (shareInfo.key) {
+            try {
+              const rawKeyBytes = BinaryUtils.base64UrlToBytes(shareInfo.key);
+              crypto.subtle.importKey(
+                'raw',
+                rawKeyBytes as BufferSource,
+                { name: 'AES-GCM', length: 256 },
+                true,
+                ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
+              ).then(async importedKey => {
+                documentKeysRef.current.set(shareInfo.room!, importedKey);
+                await saveSharedDocKey(shareInfo.room!, importedKey);
+                setDocumentKey(importedKey);
+              }).catch(err => {
+                console.error('Lỗi nhập khóa mã hóa tài liệu từ URL:', err);
+              });
+            } catch (err) {
+              console.error('Lỗi giải mã khóa chia sẻ từ URL:', err);
+            }
+          }
+
+          treeManager.ensureItem(shareInfo.room, shareInfo.title, 'document', null, 'Share2');
+          setActiveDocId(shareInfo.room);
+          setTreeVersion(v => v + 1);
+        }
 
         // Clean URL query parameters and clear pending share to prevent trapping user
         if (window.location.search) {
@@ -305,12 +396,23 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           treeManager.applyStateUpdate(treeSnapshot);
         }
 
-        // If there is a pending shared document, ensure it is added to tree and selected
+        // If there is a pending shared document or folder, ensure it is added to tree and selected
         const pendingShare = getPendingShareInfo();
         if (pendingShare && isMounted) {
-          treeManager.ensureItem(pendingShare.room, pendingShare.title, 'document', null, 'Share2');
-          setActiveDocId(pendingShare.room);
-          setTreeVersion(v => v + 1);
+          const targetId = pendingShare.room || pendingShare.folderId;
+          if (targetId) {
+            treeManager.ensureItem(
+              targetId,
+              pendingShare.title,
+              pendingShare.isFolder ? 'folder' : 'document',
+              null,
+              pendingShare.isFolder ? 'Folder' : 'Share2'
+            );
+            if (!pendingShare.isFolder) {
+              setActiveDocId(targetId);
+            }
+            setTreeVersion(v => v + 1);
+          }
 
           if (typeof window !== 'undefined') {
             if (window.location.search) {
@@ -518,7 +620,19 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const folderName = parentFolder?.name || 'Kho Lưu Trữ';
 
   // Modals state
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [shareModalConfig, setShareModalConfig] = useState<{
+    isOpen: boolean;
+    targetId: string;
+    targetTitle: string;
+    targetType: 'document' | 'folder';
+    folderManifest?: any;
+    key?: CryptoKey | null;
+  }>({
+    isOpen: false,
+    targetId: '',
+    targetTitle: '',
+    targetType: 'document'
+  });
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
@@ -534,7 +648,73 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     setIsExportModalOpen(true);
   };
 
-  const handleJoinRoom = async (roomId: string, title?: string, key?: CryptoKey) => {
+  const handleOpenShareDocument = () => {
+    setShareModalConfig({
+      isOpen: true,
+      targetId: activeDocId,
+      targetTitle: activeDocTitle,
+      targetType: 'document',
+      key: documentKey
+    });
+  };
+
+  const handleShareFolder = async (folderId: string, folderTitle: string) => {
+    const manifest = treeManager.getFolderManifest(folderId);
+    let key = documentKeysRef.current.get(folderId);
+    if (!key) {
+      if (session?.vaultRootKey) {
+        key = session.vaultRootKey;
+      } else {
+        key = await EnvelopeEncryptionManager.generateDocumentKey();
+        documentKeysRef.current.set(folderId, key);
+      }
+    }
+    setShareModalConfig({
+      isOpen: true,
+      targetId: folderId,
+      targetTitle: folderTitle,
+      targetType: 'folder',
+      folderManifest: manifest,
+      key
+    });
+  };
+
+  const handleJoinRoom = async (
+    roomId: string,
+    title?: string,
+    key?: CryptoKey,
+    isFolder?: boolean,
+    manifestData?: any
+  ) => {
+    if (isFolder) {
+      const folderTitle = title || 'Thư Mục Cộng Tác';
+      treeManager.ensureItem(roomId, folderTitle, 'folder', null, 'Folder');
+      if (key) {
+        documentKeysRef.current.set(roomId, key);
+        await saveSharedDocKey(roomId, key);
+      }
+
+      let firstDocId: string | null = null;
+      if (manifestData && Array.isArray(manifestData.items)) {
+        for (const item of manifestData.items) {
+          treeManager.ensureItem(item.id, item.name, item.type, item.parentId || roomId, item.icon);
+          if (key) {
+            documentKeysRef.current.set(item.id, key);
+            await saveSharedDocKey(item.id, key);
+          }
+          if (item.type === 'document' && !firstDocId) {
+            firstDocId = item.id;
+          }
+        }
+      }
+
+      if (firstDocId) {
+        handleSelectDoc(firstDocId);
+      }
+      setTreeVersion(v => v + 1);
+      return;
+    }
+
     if (key) {
       documentKeysRef.current.set(roomId, key);
       await saveSharedDocKey(roomId, key);
@@ -601,11 +781,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       // 2. Security & Sharing
       {
         id: 'share-key',
-        title: 'Chia sẻ quyền truy cập tài liệu',
+        title: 'Chia sẻ quyền truy cập tài liệu / thư mục',
         subtitle: 'Mã hóa an toàn cho thành viên mới',
         category: 'Security',
-        keywords: ['share', 'chia se', 'quyen', 'member'],
-        handler: () => setIsShareModalOpen(true)
+        keywords: ['share', 'chia se', 'quyen', 'member', 'folder'],
+        handler: () => handleOpenShareDocument()
       },
       {
         id: 'open-settings',
@@ -677,32 +857,21 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           setExportDocTitle(activeDocTitle);
           setIsExportModalOpen(true);
         }
-      },
-      {
-        id: 'export-vault',
-        title: 'Sao lưu nhị phân mã hóa (.vault)',
-        subtitle: 'Bảo toàn toàn bộ cây thư mục & khóa mã hóa',
-        category: 'Export',
-        keywords: ['export', 'xuat', 'vault', 'backup', 'sao luu'],
-        handler: () => {
-          setExportDocTitle(activeDocTitle);
-          setIsExportModalOpen(true);
-        }
       }
     ];
 
     // Dynamic document navigation items
     const docActions: PaletteAction[] = allDocs.map(doc => ({
-      id: `doc-${doc.id}`,
+      id: `open-${doc.id}`,
       title: doc.name,
-      subtitle: `Tài liệu trong ${folderName}`,
-      category: 'Navigation',
+      subtitle: `Mở tài liệu: ${doc.name}`,
+      category: 'Document',
       keywords: ['chuyen', 'mo', 'open', 'doc', doc.name.toLowerCase()],
       handler: () => setActiveDocId(doc.id)
     }));
 
     commandPaletteEngine.setActions([...baseActions, ...docActions]);
-  }, [treeManager, activeDocId, activeDocTitle, folderName, commandPaletteEngine, onThemeChange, onLockVault]);
+  }, [treeManager, activeDocId, activeDocTitle, folderName, commandPaletteEngine, onThemeChange, onLockVault, handleOpenShareDocument]);
 
   // Global hotkeys (Ctrl+Shift+L to lock vault)
   useEffect(() => {
@@ -738,7 +907,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         onToggleLeftSidebar={() => setIsLeftSidebarOpen(prev => !prev)}
         isRightSidebarOpen={isRightSidebarOpen}
         onToggleRightSidebar={() => setIsRightSidebarOpen(prev => !prev)}
-        onOpenShareModal={() => setIsShareModalOpen(true)}
+        onOpenShareModal={handleOpenShareDocument}
         onOpenExportModal={() => {
           setExportDocTitle(activeDocTitle);
           setIsExportModalOpen(true);
@@ -759,6 +928,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           activeDocId={activeDocId}
           onSelectDoc={handleSelectDoc}
           onExportDoc={handleExportDoc}
+          onShareFolder={handleShareFolder}
           treeManager={treeManager}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           onOpenJoinRoomModal={() => setIsJoinRoomModalOpen(true)}
@@ -801,13 +971,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         />
       </div>
 
-      {/* MODAL: Chia Sẻ Quyền Cộng Tác Chuẩn Thương Mại (1-Click Invite & Password Gate) */}
+      {/* MODAL: Chia Sẻ Quyền Cộng Tác Chuẩn Thương Mại (Document & Folder Multi-room Share) */}
       <ShareModal
-        isOpen={isShareModalOpen}
-        onClose={() => setIsShareModalOpen(false)}
-        documentId={activeDocId}
-        documentTitle={activeDocTitle}
-        documentKey={documentKey}
+        isOpen={shareModalConfig.isOpen}
+        onClose={() => setShareModalConfig(prev => ({ ...prev, isOpen: false }))}
+        documentId={shareModalConfig.targetId || activeDocId}
+        documentTitle={shareModalConfig.targetTitle || activeDocTitle}
+        targetType={shareModalConfig.targetType}
+        folderManifest={shareModalConfig.folderManifest}
+        documentKey={shareModalConfig.key || documentKey}
         awarenessUsers={awarenessUsers}
         currentUser={currentUserOptions}
       />

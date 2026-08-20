@@ -25,6 +25,8 @@ export interface ShareModalProps {
   onClose: () => void;
   documentId: string;
   documentTitle: string;
+  targetType?: 'document' | 'folder' | undefined;
+  folderManifest?: { folder: any; items: any[] } | null | undefined;
   documentKey?: CryptoKey | null | undefined;
   awarenessUsers?: AwarenessUser[] | undefined;
   currentUser?: AwarenessUser | undefined;
@@ -35,6 +37,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   onClose,
   documentId,
   documentTitle,
+  targetType = 'document',
+  folderManifest,
   documentKey,
   awarenessUsers = [],
   currentUser
@@ -56,9 +60,18 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const [exportedKeyB64, setExportedKeyB64] = useState<string>('');
   const [showRawKey, setShowRawKey] = useState(false);
 
+  const isFolder = targetType === 'folder';
+  const manifestB64 = isFolder && folderManifest
+    ? BinaryUtils.bufferToBase64Url(new TextEncoder().encode(JSON.stringify(folderManifest)))
+    : '';
+
   const originUrl = typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:5173';
-  const shareLink = `${originUrl}/?room=${encodeURIComponent(documentId)}&title=${encodeURIComponent(documentTitle)}${exportedKeyB64 ? `&key=${exportedKeyB64}` : ''}`;
-  const roomCode = `VS-${documentId.replace(/[^a-zA-Z0-9]/g, '').slice(-6).toUpperCase() || '789214'}`;
+  const shareLink = isFolder
+    ? `${originUrl}/?folder=${encodeURIComponent(documentId)}&title=${encodeURIComponent(documentTitle)}${exportedKeyB64 ? `&key=${exportedKeyB64}` : ''}${manifestB64 ? `&manifest=${manifestB64}` : ''}`
+    : `${originUrl}/?room=${encodeURIComponent(documentId)}&title=${encodeURIComponent(documentTitle)}${exportedKeyB64 ? `&key=${exportedKeyB64}` : ''}`;
+  const roomCode = isFolder
+    ? `VS-DIR-${documentId.replace(/[^a-zA-Z0-9]/g, '').slice(-6).toUpperCase() || 'DIR999'}`
+    : `VS-${documentId.replace(/[^a-zA-Z0-9]/g, '').slice(-6).toUpperCase() || '789214'}`;
 
   // Export document key when modal opens
   useEffect(() => {
@@ -157,13 +170,18 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             </div>
             <div className="flex flex-col">
               <h3 className="font-semibold text-sm sm:text-base text-theme-text flex items-center gap-2">
-                <span>Chia Sẻ Quyền Cộng Tác</span>
+                <span>{isFolder ? 'Chia Sẻ Thư Mục & Đa Phòng' : 'Chia Sẻ Quyền Cộng Tác'}</span>
                 <span className="text-[10px] font-normal px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  Mã Hóa Đầu-Cuối
+                  {isFolder ? 'E2EE Multi-Room' : 'Mã Hóa Đầu-Cuối'}
                 </span>
               </h3>
               <span className="text-xs text-theme-text-muted truncate max-w-xs sm:max-w-sm">
-                Tài liệu: <strong className="text-theme-text">{documentTitle}</strong>
+                {isFolder ? 'Thư mục: ' : 'Tài liệu: '}<strong className="text-theme-text">{documentTitle}</strong>
+                {isFolder && folderManifest?.items && (
+                  <span className="ml-1.5 text-[10px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-mono">
+                    {folderManifest.items.length} tệp con
+                  </span>
+                )}
               </span>
             </div>
           </div>

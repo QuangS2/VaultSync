@@ -7,7 +7,7 @@ import { BinaryUtils } from '../../lib/crypto/binary-utils';
 export interface JoinRoomModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onJoinRoom: (roomCode: string, title?: string, key?: CryptoKey) => void;
+  onJoinRoom: (roomId: string, title?: string, key?: CryptoKey, isFolder?: boolean, manifestData?: any) => void;
 }
 
 export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
@@ -37,21 +37,38 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
       let roomTitle = 'Tài Liệu Cộng Tác';
       let rawKeyStr = keyInput.trim();
       let isUrl = false;
+      let isFolder = false;
+      let manifestData: any = null;
 
-      // Check if user pasted a full URL
-      if (rawInput.includes('?room=') || rawInput.startsWith('http://') || rawInput.startsWith('https://')) {
+      // Check if user pasted a full URL (doc or folder)
+      if (rawInput.includes('?room=') || rawInput.includes('?folder=') || rawInput.startsWith('http://') || rawInput.startsWith('https://')) {
         try {
           const url = new URL(rawInput, window.location.origin);
           const roomParam = url.searchParams.get('room');
+          const folderParam = url.searchParams.get('folder');
           const titleParam = url.searchParams.get('title');
           const keyParam = url.searchParams.get('key');
+          const manifestParam = url.searchParams.get('manifest');
 
-          if (roomParam) {
+          if (folderParam) {
+            roomId = folderParam;
+            isUrl = true;
+            isFolder = true;
+          } else if (roomParam) {
             roomId = roomParam;
             isUrl = true;
           }
+
           if (titleParam) roomTitle = decodeURIComponent(titleParam);
           if (keyParam) rawKeyStr = keyParam;
+          if (manifestParam) {
+            try {
+              const decoded = new TextDecoder().decode(BinaryUtils.base64UrlToBytes(manifestParam));
+              manifestData = JSON.parse(decoded);
+            } catch {
+              // ignore
+            }
+          }
         } catch {
           // continue with raw input
         }
@@ -60,10 +77,13 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
       // Format room ID if raw code was entered
       if (!isUrl) {
         roomId = roomId.trim();
-        if (roomId.toUpperCase().startsWith('VS-')) {
+        if (roomId.toUpperCase().startsWith('VS-DIR-')) {
+          roomId = roomId.slice(7).toLowerCase();
+          isFolder = true;
+        } else if (roomId.toUpperCase().startsWith('VS-')) {
           roomId = roomId.slice(3).toLowerCase();
         }
-        if (!roomId.startsWith('doc-') && !roomId.startsWith('item-')) {
+        if (!roomId.startsWith('doc-') && !roomId.startsWith('item-') && !roomId.startsWith('folder-') && !isFolder) {
           roomId = `doc-${roomId.toLowerCase()}`;
         }
       }
@@ -84,7 +104,7 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
         }
       }
 
-      onJoinRoom(roomId, roomTitle, importedKey);
+      onJoinRoom(roomId, roomTitle, importedKey, isFolder, manifestData);
       onClose();
     } catch (err) {
       setError('Không thể tham gia phòng. Vui lòng kiểm tra lại mã phòng hoặc liên kết.');
