@@ -98,6 +98,18 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({
     }
   }, [content, editor, yDoc]);
 
+  // Smooth scroll into view when active comment thread is selected
+  useEffect(() => {
+    if (!activeCommentThreadId || !editor) return;
+    const timeout = setTimeout(() => {
+      const highlightEl = document.querySelector(`.vaultsync-comment-highlight[data-thread-id="${activeCommentThreadId}"]`);
+      if (highlightEl) {
+        highlightEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 50);
+    return () => clearTimeout(timeout);
+  }, [activeCommentThreadId, editor]);
+
   // Statistics
   const stats = useMemo(() => {
     if (!editor) return { words: 0, characters: 0 };

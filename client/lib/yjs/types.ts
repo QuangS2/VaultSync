@@ -45,6 +45,7 @@ export interface InlineCommentThread {
   updatedAt: number;
   isResolved: boolean;
   isOrphaned: boolean;
+  isGeneralComment?: boolean | undefined;
   replies: CommentReply[];
   lastResolvedRange?: { from: number; to: number } | undefined;
 }

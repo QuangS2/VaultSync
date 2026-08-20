@@ -84,7 +84,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   const isConnecting = providerStatus?.connecting ?? false;
 
   return (
-    <div className="flex-1 bg-theme-bg flex flex-col h-full overflow-hidden select-text">
+    <div className="flex-1 bg-theme-bg flex flex-col h-full overflow-hidden select-text pb-14 sm:pb-0">
       {/* Top Breadcrumb & Document Metadata Toolbar */}
       <div className="h-11 px-3 sm:px-6 border-b border-theme-border flex items-center justify-between shrink-0 bg-theme-bg-subtle/50 select-none gap-2">
         {/* Breadcrumb Path */}
