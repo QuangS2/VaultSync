@@ -16,7 +16,7 @@ async function onboardUser(page: Page, name = 'Quang Le', theme: 'sun' | 'cloud'
   // Step 1: User Profile
   await page.waitForSelector('input[placeholder*="Lê Anh Quang"]', { timeout: 10000 });
   await page.fill('input[placeholder*="Lê Anh Quang"]', name);
-  await page.click('button:has-text("Tiếp tục: Mật khẩu chủ")');
+  await page.click('button:has-text("Tiếp tục: Mật khẩu bảo vệ")');
   await page.waitForTimeout(200);
 
   // Step 2: Passphrase
@@ -61,7 +61,7 @@ test.describe('Generate High-Resolution Enterprise Screenshots for README', () =
     await page.screenshot({ path: path.join(docsImagesDir, '01_onboarding_profile.png') });
 
     // Step 2: Passphrase
-    await page.click('button:has-text("Tiếp tục: Mật khẩu chủ")');
+    await page.click('button:has-text("Tiếp tục: Mật khẩu bảo vệ")');
     await page.waitForSelector('input[placeholder*="mật khẩu an toàn"]', { timeout: 5000 });
     await page.fill('input[placeholder*="mật khẩu an toàn"]', 'VaultSync2026@EnterpriseSecurity');
     await page.fill('input[placeholder*="chính xác mật khẩu"]', 'VaultSync2026@EnterpriseSecurity');

@@ -192,7 +192,7 @@ export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
     }
 
     if (!importPassword || importPassword.length < 6) {
-      setErrorMessage('Vui lòng đặt mật khẩu chủ mới (ít nhất 6 ký tự) cho thiết bị này.');
+      setErrorMessage('Vui lòng đặt mật khẩu mới (ít nhất 6 ký tự) cho thiết bị này.');
       return;
     }
 
@@ -242,7 +242,7 @@ export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
     }
 
     if (!backupPassword) {
-      setErrorMessage('Vui lòng nhập mật khẩu chủ của tệp sao lưu.');
+      setErrorMessage('Vui lòng nhập mật khẩu của tệp sao lưu.');
       return;
     }
 
@@ -424,7 +424,7 @@ export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
                     2
                   </span>
                   <span className={`font-medium ${step >= 2 ? 'text-theme-text font-semibold' : 'text-theme-text-muted'}`}>
-                    Mật khẩu chủ
+                    Mật khẩu bảo vệ
                   </span>
                 </div>
                 <div className="h-0.5 w-8 bg-theme-border" />
@@ -508,7 +508,7 @@ export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
 
                   <div className="flex justify-end pt-2">
                     <Button variant="primary" size="md" type="submit" disabled={!displayName.trim()}>
-                      <span>Tiếp tục: Mật khẩu chủ</span>
+                      <span>Tiếp tục: Mật khẩu bảo vệ</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </Button>
                   </div>
@@ -519,7 +519,7 @@ export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
               {step === 2 && (
                 <form onSubmit={handleNextToRecovery} className="flex flex-col gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-theme-text">Đặt Mật Khẩu Chủ:</label>
+                    <label className="text-xs font-medium text-theme-text">Đặt Mật Khẩu:</label>
                     <Input
                       type={showPassword ? 'text' : 'password'}
                       placeholder="Nhập mật khẩu an toàn (tối thiểu 6 ký tự)..."
@@ -540,7 +540,7 @@ export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
                   </div>
 
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-theme-text">Xác Nhận Mật Khẩu Chủ:</label>
+                    <label className="text-xs font-medium text-theme-text">Xác Nhận Mật Khẩu:</label>
                     <Input
                       type={showPassword ? 'text' : 'password'}
                       placeholder="Nhập chính xác mật khẩu..."
@@ -711,10 +711,10 @@ export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs font-medium text-theme-text">Đặt Mật Khẩu Chủ Mới:</label>
+                      <label className="text-xs font-medium text-theme-text">Đặt Mật Khẩu Mới:</label>
                       <Input
                         type={showImportPassword ? 'text' : 'password'}
-                        placeholder="Mật khẩu chủ..."
+                        placeholder="Mật khẩu mới..."
                         value={importPassword}
                         onChange={(e) => setImportPassword(e.target.value)}
                         prefixIcon={<Lock className="w-3.5 h-3.5" />}

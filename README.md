@@ -1,8 +1,8 @@
-# VaultSync — Enterprise-Grade Zero-Knowledge Collaborative Workspace
-
 <div align="center">
 
-![VaultSync Logo](public/favicon.svg)
+# <img src="public/favicon.svg" width="38" height="38" alt="VaultSync Logo" style="vertical-align: middle; display: inline-block; margin-right: 8px;" /> VaultSync
+
+### Enterprise-Grade Zero-Knowledge Real-Time Collaborative Workspace
 
 **Nền tảng ghi chú và không gian làm việc cộng tác thời gian thực với bảo mật Zero-Knowledge, mã hóa đầu cuối (E2EE) và kiến trúc Local-First.**
 
@@ -15,7 +15,7 @@
 [![Docker](https://img.shields.io/badge/Deployment-Docker_Compose-2496ed.svg?style=flat-square&logo=docker)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-MIT-purple.svg?style=flat-square)](LICENSE)
 
-[Tổng Quan](#-tổng-quan--giá-trị-cốt-lõi) • [Trưng Bày Tính Năng](#-trưng-bày-tính-năng--trải-nghiệm-sản-phẩm) • [Kiến Trúc Kỹ Thuật](#-kiến-trúc-hệ-thống--kỹ-thuật-mật-mã-chuyên-sâu) • [Điểm Nhấn Ứng Viên](#-năng-lực-kỹ-thuật-dành-cho-nhà-tuyển-dụng) • [Hướng Dẫn Triển Khai](#-hướng-dẫn-cài-đặt--triển-khai)
+[Tổng Quan](#-tổng-quan--giá-trị-cốt-lõi) • [Trưng Bày Tính Năng](#-trưng-bày-tính-năng--trải-nghiệm-sản-phẩm) • [Kiến Trúc Kỹ Thuật](#-kiến-trúc-hệ-thống--kỹ-thuật-mật-mã-chuyên-sâu) • [Chuẩn Mực Kỹ Thuật](#-nguyên-tắc-thiết-kế--chuẩn-mực-kỹ-thuật-engineering-principles--security-standards) • [Hướng Dẫn Triển Khai](#-hướng-dẫn-cài-đặt--triển-khai)
 
 </div>
 
@@ -27,18 +27,18 @@
 
 Hầu hết các nền tảng ghi chú thương mại hiện nay (Notion, Google Docs, Confluence) lưu trữ và xử lý dữ liệu ở dạng văn bản thuần (plaintext) trên máy chủ, tạo ra nguy cơ rò rỉ dữ liệu hoặc bị kiểm duyệt. Ngược lại, các công cụ mã hóa truyền thống lại hy sinh khả năng làm việc nhóm trực tiếp. **VaultSync khắc phục triệt để rào cản này bằng kiến trúc kết hợp 3 lớp độc bản:**
 
-1. **Zero-Knowledge Blind Relay:** Máy chủ trung gian đóng vai trò là một "người đưa thư mù". Toàn bộ nội dung, tiêu đề, cây thư mục, bình luận và tin nhắn trò chuyện đều được mã hóa bằng thuật toán `AES-256-GCM` trực tiếp tại trình duyệt client trước khi truyền tải. Máy chủ không bao giờ sở hữu khóa giải mã.
+1. **Zero-Knowledge Blind Relay:** Máy chủ trung gian đóng vai trò chuyển tiếp bảo mật (Relay Server). Toàn bộ nội dung, tiêu đề, cây thư mục, bình luận và tin nhắn trò chuyện đều được mã hóa bằng thuật toán `AES-256-GCM` trực tiếp tại trình duyệt client trước khi truyền tải. Máy chủ hoàn toàn không có khóa giải mã.
 2. **Local-First & Offline Resilience:** Dữ liệu được lưu trữ mã hóa an toàn trên `IndexedDB` của máy khách. Ứng dụng hoạt động mượt mà khi mất kết nối mạng và tự động đồng bộ bù (delta sync) ngay khi trực tuyến trở lại mà không gây xung đột dữ liệu.
-3. **Fine-Grained Role-Based Access Control (RBAC):** Chủ sở hữu (Owner) có toàn quyền cấp phát, điều chỉnh hoặc thu hồi quyền (`Chỉnh sửa` vs `Chỉ xem`) của khách trực tiếp theo thời gian thực cho từng thư mục hoặc tệp tài liệu riêng biệt mà không cần tải lại trang.
+3. **Quản Lý Phân Quyền Linh Hoạt (Fine-Grained RBAC):** Người tạo (Owner) có toàn quyền cấp phát, điều chỉnh hoặc thu hồi quyền (`Chỉnh sửa` vs `Chỉ xem`) của thành viên trực tiếp theo thời gian thực cho từng thư mục hoặc tệp tài liệu riêng biệt mà không cần tải lại trang.
 
 ---
 
 ## 🌟 Trưng Bày Tính Năng & Trải Nghiệm Sản Phẩm
 
 ### 1. Khởi Tạo Kho Lưu Trữ Mật Mã & Khôi Phục Bí Mật BIP-39
-Mỗi người dùng khi tạo kho lưu trữ được bảo vệ bởi mật khẩu chủ mạnh mẽ và nhận **12 từ khóa khôi phục bí mật (BIP-39 Mnemonic)** được dẫn xuất với entropy 128-bit. Khóa gốc của kho được bảo vệ hoàn toàn cục bộ.
+Mỗi người dùng khi tạo kho lưu trữ được bảo vệ bởi mật khẩu an toàn và nhận **12 từ khóa khôi phục bí mật (BIP-39 Mnemonic)** được tạo với entropy 128-bit. Dữ liệu kho được bảo vệ hoàn toàn cục bộ trên thiết bị.
 
-| 1. Hồ Sơ & Danh Tính | 2. Mật Khẩu Chủ An Toàn | 3. 12 Từ Khóa Khôi Phục |
+| 1. Hồ Sơ Tài Khoản | 2. Mật Khẩu Bảo Vệ | 3. 12 Từ Khóa Khôi Phục |
 | :---: | :---: | :---: |
 | ![Profile](docs/images/01_onboarding_profile.png) | ![Passphrase](docs/images/02_onboarding_passphrase.png) | ![Mnemonic](docs/images/03_onboarding_mnemonic.png) |
 
@@ -59,7 +59,7 @@ Giao diện tuân thủ tiêu chuẩn chống mỏi mắt và thiết kế tối
 ### 3. Cộng Tác Đa Người Dùng & Quản Lý Quyền Trực Tiếp
 - **Hiện diện con trỏ thời gian thực (Live Presence):** Nhận biết vị trí soạn thảo, con trỏ và màu sắc của từng đồng nghiệp trong phòng.
 - **Bảng điều khiển quyền trực tiếp (Live Permissions Popover):** Chủ phòng có thể chuyển đổi quyền của khách giữa `Chỉnh sửa (Editor)` và `Chỉ xem (Viewer)` ngay trên giao diện phòng trực tuyến.
-- **Chia sẻ thư mục & tệp linh hoạt (Share Modal):** Hỗ trợ mã hóa khóa phong bì (Envelope Encryption) kèm mã truy cập nhanh (Passcode) hoặc URL chứa khóa.
+- **Chia sẻ thư mục & tệp linh hoạt (Share Modal):** Hỗ trợ chia sẻ an toàn với mã hóa khóa phong bì (Envelope Encryption) kèm mã truy cập nhanh (Passcode) hoặc URL chứa khóa.
 
 | Quản Lý Quyền Trực Tiếp Trong Popover | Modal Chia Sẻ & Phát Quyền Chuẩn Doanh Nghiệp |
 | :---: | :---: |
@@ -128,7 +128,7 @@ sequenceDiagram
 
 ```mermaid
 graph TD
-    UserPass["🔑 Mật khẩu chủ của người dùng (Master Passphrase)"] -->|PBKDF2 100.000 vòng + Salt 16B| MasterKey["🔐 Khóa Gốc Kho Lưu Trữ (Vault Root Key: AES-256-GCM)"]
+    UserPass["🔑 Mật khẩu bảo vệ của người dùng (Password)"] -->|PBKDF2 100.000 vòng + Salt 16B| MasterKey["🔐 Khóa Gốc Kho Lưu Trữ (Vault Root Key: AES-256-GCM)"]
     Mnemonic["📜 12 Từ Khóa Khôi Phục (BIP-39 Mnemonic 128-bit)"] -->|Dẫn xuất Entropy HMAC-SHA512| MasterKey
     
     MasterKey -->|Mã hóa bảo vệ| LocalStorage["💾 IndexedDB Encrypted Local Vault"]
@@ -158,27 +158,23 @@ graph TD
 
 ---
 
-## 💼 Năng Lực Kỹ Thuật Dành Cho Nhà Tuyển Dụng
+## 🛡️ Nguyên Tắc Thiết Kế & Chuẩn Mực Kỹ Thuật (Engineering Principles & Security Standards)
 
-> [!TIP]
-> **Điểm Nhấn Hồ Sơ Ứng Viên (Engineering Highlights):**
-> Dự án này minh chứng năng lực xây dựng các hệ thống phần mềm thương mại phức tạp ở cấp độ Senior / Lead Engineer:
+Hệ thống VaultSync được xây dựng dựa trên 4 trụ cột kỹ thuật cốt lõi nhằm đảm bảo tính toàn vẹn, độ tin cậy và sự riêng tư tuyệt đối cho người dùng và tổ chức:
 
-1. **Làm Chủ Mật Mã Học Ứng Dụng (Applied Cryptography & Zero-Trust):**
-   - Triển khai thành thạo các chuẩn mật mã hiện đại: `PBKDF2` (100k rounds), `AES-256-GCM` (với AAD và IV 96-bit duy nhất chống Replay Attack), `ECDH P-256` key agreement, `BIP-39` mnemonic dictionary và Key Wrapping.
-   - Xây dựng kiến trúc Zero-Knowledge đúng nghĩa: bảo vệ tuyệt đối quyền riêng tư của dữ liệu khách hàng.
-2. **Hệ Thống Phân Tán & Đồng Bộ Thời Gian Thực (Distributed Systems & CRDTs):**
-   - Làm chủ cơ chế đồng bộ phi tập trung (Conflict-Free Replicated Data Types - CRDTs), quản lý trạng thái Y.Doc đa phòng nền (`sharedFolderProvidersRef`), xử lý kết nối gián đoạn và tái đồng bộ tự động.
-   - Ứng dụng kỹ thuật `Yjs Relative Positions` giải quyết bài toán neo bình luận ngữ cảnh trong môi trường cộng tác nhiều người viết đồng thời.
-3. **Kỹ Thuật Giao Diện & Trải Nghiệm Người Dùng (Ergonomic UI/UX & Design Systems):**
-   - Thiết kế hệ thống theme 3 tầng theo tiêu chuẩn công thái học, loại bỏ hoàn toàn các màu sắc lòe loẹt hoặc văn phong mang tính AI đại trà.
-   - Đáp ứng trọn vẹn mọi kích thước màn hình từ Desktop (3-pane layout) đến Mobile (Bottom nav, touch modals).
-4. **Quy Trình Kiểm Thử & Đảm Bảo Chất Lượng Chuẩn Doanh Nghiệp (Quality Assurance & Testing Rigor):**
-   - **59/59 Vitest Unit Tests:** Bao phủ toàn bộ thuật toán sinh khóa, giải mã, chuyển đổi nhị phân và logic phân quyền.
-   - **30/30 Playwright E2E Tests:** Kiểm thử trực quan tự động trên môi trường trình duyệt thực, tự động thu thập bằng chứng kiểm thử vào các thư mục báo cáo chuyên biệt.
-5. **DevOps & Triển Khai Production (Containerization & Deployment):**
-   - Viết Dockerfile tối ưu multi-stage build cho cả Frontend và Relay Server.
-   - Thiết lập cấu hình `docker-compose` chuẩn sản xuất với Nginx Reverse Proxy, SSL tự động và Redis caching.
+1. **Bảo Mật Bất Khả Xâm Phạm (Zero-Trust & Cryptographic Hardening):**
+   - Triển khai chuẩn mật mã W3C WebCrypto tăng tốc phần cứng: `PBKDF2` (100.000 vòng lặp) bảo vệ mật khẩu người dùng, `AES-256-GCM` (với AAD và IV 96-bit duy nhất cho từng gói tin chống Replay Attack), `ECDH P-256` key agreement và `BIP-39` mnemonic 128-bit.
+   - Kiến trúc Zero-Knowledge thực thụ: Toàn bộ quá trình mã hóa và giải mã diễn ra độc quyền tại trình duyệt client; máy chủ Blind Relay không bao giờ có quyền truy cập khóa giải mã.
+2. **Đồng Bộ Thời Gian Thực & Khả Năng Ngoại Tuyến (Distributed CRDTs & Local-First Resilience):**
+   - Ứng dụng thuật toán CRDT (Conflict-Free Replicated Data Types) phân tán qua Yjs, đảm bảo việc đồng thời chỉnh sửa của nhiều thành viên luôn tự động hội tụ về một trạng thái nhất quán với độ trễ dưới 5ms mà không cần khóa phân tán.
+   - Quản lý kênh đồng bộ thư mục nền đa phòng (`sharedFolderProvidersRef`) đảm bảo cập nhật trạng thái thêm, xóa, đổi tên tệp tức thì.
+   - Neo vị trí bình luận ngữ cảnh chính xác tuyệt đối qua `Yjs Relative Positions`, tự động co giãn theo các thay đổi văn bản xung quanh.
+3. **Công Thái Học & Trải Nghiệm Người Dùng Thực Tế (Ergonomic UX & Anti-Distraction):**
+   - Hệ thống 3 bảng màu tối ưu quang học (Sun, Night, Cloud), loại bỏ hoàn toàn các hiệu ứng màu sắc gây xao nhãng hoặc văn phong máy móc.
+   - Thiết kế đáp ứng toàn diện (Responsive Design) với trải nghiệm Mobile-First mượt mà, hỗ trợ đầy đủ thao tác cảm ứng và phím tắt chuyên nghiệp (`Ctrl+K`, `Ctrl+B`, `Ctrl+Shift+D`).
+4. **Quy Trình Kiểm Thử & Đảm Bảo Chất Lượng Khắt Khe (Rigorous Automated Quality Gate):**
+   - Bộ kiểm thử tự động toàn diện gồm **59 Vitest unit tests** (bao phủ các thuật toán mã hóa, chuyển đổi nhị phân, xử lý cây thư mục) và **30 Playwright E2E tests** (xác thực trực quan trên môi trường trình duyệt thực tế).
+   - Đảm bảo 100% Type-Safe với TypeScript Strict Mode và hệ thống CI/CD tự động kiểm định chất lượng trước mỗi bản phát hành.
 
 ---
 

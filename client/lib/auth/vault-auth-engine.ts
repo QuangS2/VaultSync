@@ -90,7 +90,7 @@ export class VaultAuthEngine {
     } = params;
 
     if (!masterPassword || masterPassword.length < 6) {
-      throw new Error('Mật khẩu chủ phải có ít nhất 6 ký tự.');
+      throw new Error('Mật khẩu phải có ít nhất 6 ký tự.');
     }
 
     if (!displayName || displayName.trim().length === 0) {
@@ -225,7 +225,7 @@ export class VaultAuthEngine {
     masterPassword: string
   ): Promise<UnlockedVaultSession> {
     if (!masterPassword) {
-      throw new Error('Vui lòng nhập mật khẩu chủ để mở khóa.');
+      throw new Error('Vui lòng nhập mật khẩu để mở khóa.');
     }
 
     const masterSalt = BinaryUtils.hexToBytes(record.masterSaltHex);
@@ -239,10 +239,10 @@ export class VaultAuthEngine {
       const decryptedVerifier = await WebCryptoEngine.decryptCombined(masterKey, verifierBytes);
       const magicStr = BinaryUtils.bytesToString(decryptedVerifier);
       if (magicStr !== VaultAuthEngine.VERIFIER_MAGIC) {
-        throw new Error('Mật khẩu chủ không chính xác.');
+        throw new Error('Mật khẩu không chính xác.');
       }
     } catch {
-      throw new Error('Mật khẩu chủ không chính xác.');
+      throw new Error('Mật khẩu không chính xác.');
     }
 
     // 2. Decrypt Vault Root Key
@@ -523,7 +523,7 @@ export class VaultAuthEngine {
     masterPassword: string
   ): Promise<string> {
     if (!masterPassword) {
-      throw new Error('Vui lòng nhập mật khẩu chủ để xem 12 từ khóa khôi phục.');
+      throw new Error('Vui lòng nhập mật khẩu để xem 12 từ khóa khôi phục.');
     }
     const masterSalt = BinaryUtils.hexToBytes(record.masterSaltHex);
     const masterKey = await KeyDerivation.deriveMasterKeyPBKDF2(masterPassword, masterSalt, {
@@ -536,10 +536,10 @@ export class VaultAuthEngine {
       const decryptedVerifier = await WebCryptoEngine.decryptCombined(masterKey, verifierBytes);
       const magicStr = BinaryUtils.bytesToString(decryptedVerifier);
       if (magicStr !== VaultAuthEngine.VERIFIER_MAGIC) {
-        throw new Error('Mật khẩu chủ không chính xác.');
+        throw new Error('Mật khẩu không chính xác.');
       }
     } catch {
-      throw new Error('Mật khẩu chủ không chính xác.');
+      throw new Error('Mật khẩu không chính xác.');
     }
 
     if (record.encryptedRecoveryPhrase) {

@@ -24,7 +24,7 @@ async function setupAndOnboard(page: Page, userName = 'Chủ Sở Hữu (Owner)'
   // Step 1: User Profile
   await page.waitForSelector('input[placeholder*="Lê Anh Quang"]', { timeout: 10000 });
   await page.fill('input[placeholder*="Lê Anh Quang"]', userName);
-  await page.click('button:has-text("Tiếp tục: Mật khẩu chủ")');
+  await page.click('button:has-text("Tiếp tục: Mật khẩu bảo vệ")');
   await page.waitForTimeout(200);
 
   // Step 2: Passphrase

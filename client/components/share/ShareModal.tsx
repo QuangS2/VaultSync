@@ -126,7 +126,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     setAuthError(null);
 
     if (!passwordInput) {
-      setAuthError('Vui lòng nhập mật khẩu chủ để cấp quyền chia sẻ.');
+      setAuthError('Vui lòng nhập mật khẩu để cấp quyền chia sẻ.');
       return;
     }
 
@@ -142,7 +142,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
       setIsAuthorized(true);
       setPasswordInput('');
     } catch {
-      setAuthError('Mật khẩu chủ không chính xác. Không thể mở khóa quyền chia sẻ.');
+      setAuthError('Mật khẩu không chính xác. Không thể mở khóa quyền chia sẻ.');
     } finally {
       setIsVerifying(false);
     }
@@ -214,9 +214,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                   <Lock className="w-5 h-5" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-xs font-semibold text-theme-text">Xác Minh Mật Khẩu Chủ Trước Khi Chia Sẻ</span>
+                  <span className="text-xs font-semibold text-theme-text">Xác Minh Mật Khẩu Trước Khi Chia Sẻ</span>
                   <span className="text-[11px] text-theme-text-muted mt-0.5 leading-relaxed">
-                    Để ngăn chặn người khác tự ý copy khóa hoặc chia sẻ tài liệu khi bạn rời máy tính (AFK), vui lòng nhập mật khẩu chủ để cấp quyền.
+                    Để đảm bảo an toàn khi bạn rời máy tính, vui lòng nhập mật khẩu để cấp quyền chia sẻ tài liệu.
                   </span>
                 </div>
               </div>
@@ -224,7 +224,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               <div className="flex flex-col gap-1.5">
                 <Input
                   type="password"
-                  placeholder="Nhập mật khẩu chủ của bạn..."
+                  placeholder="Nhập mật khẩu của bạn..."
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
                   autoFocus

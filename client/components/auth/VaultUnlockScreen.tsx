@@ -50,7 +50,7 @@ export const VaultUnlockScreen: React.FC<VaultUnlockScreenProps> = ({
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!password) {
-      setErrorMessage('Vui lòng nhập mật khẩu chủ.');
+      setErrorMessage('Vui lòng nhập mật khẩu.');
       return;
     }
 
@@ -61,7 +61,7 @@ export const VaultUnlockScreen: React.FC<VaultUnlockScreenProps> = ({
       const session = await VaultAuthEngine.unlockVaultWithPassword(record, password);
       onUnlocked(session);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Mật khẩu chủ không chính xác.');
+      setErrorMessage(err.message || 'Mật khẩu không chính xác.');
       setIsLoading(false);
     }
   };
@@ -159,7 +159,7 @@ export const VaultUnlockScreen: React.FC<VaultUnlockScreenProps> = ({
                 {record.vaultName}
               </h2>
               <p className="text-xs text-theme-text-muted mt-0.5">
-                Chủ sở hữu: <span className="font-medium text-theme-text">{record.userProfile.displayName}</span>
+                Tài khoản: <span className="font-medium text-theme-text">{record.userProfile.displayName}</span>
               </p>
             </div>
           </div>
@@ -175,7 +175,7 @@ export const VaultUnlockScreen: React.FC<VaultUnlockScreenProps> = ({
           {!isRecoveryMode ? (
             <form onSubmit={handleUnlock} className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-theme-text">Mật khẩu chủ (Master Password):</label>
+                <label className="text-xs font-medium text-theme-text">Mật khẩu mở khóa:</label>
                 <div className="relative">
                   <Input
                     type={showPassword ? 'text' : 'password'}
