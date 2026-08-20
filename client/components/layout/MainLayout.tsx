@@ -1025,7 +1025,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           setExportDocTitle(activeDocTitle);
           setIsExportModalOpen(true);
         }}
-        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onOpenSettingsModal={() => setIsSettingsModalOpen(true)}
         onLockVault={onLockVault}
         providerStatus={providerStatus}
