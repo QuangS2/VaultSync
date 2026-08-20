@@ -62,7 +62,16 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
 
   const isConnected = providerStatus?.connected ?? false;
   const isConnecting = providerStatus?.connecting ?? false;
-  const onlineCount = awarenessUsers.length > 0 ? awarenessUsers.length : (activeCollaboratorCount ?? 1);
+  
+  const uniqueUsers = React.useMemo(() => {
+    const map = new Map<string, AwarenessUser>();
+    for (const u of awarenessUsers) {
+      if (u.name) map.set(u.name, u);
+    }
+    return Array.from(map.values());
+  }, [awarenessUsers]);
+
+  const onlineCount = uniqueUsers.length > 0 ? uniqueUsers.length : (activeCollaboratorCount ?? 1);
 
   return (
     <header className="h-12 border-b border-theme-border bg-theme-bg/80 backdrop-blur-md px-3 sm:px-4 flex items-center justify-between z-10 select-none relative">
@@ -248,7 +257,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       <OnlineCollaboratorsPopover
         isOpen={isCollaboratorsOpen}
         onClose={() => setIsCollaboratorsOpen(false)}
-        users={awarenessUsers}
+        users={uniqueUsers}
         currentUser={currentUser}
       />
     </header>

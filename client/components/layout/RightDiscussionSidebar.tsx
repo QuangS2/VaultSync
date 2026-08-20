@@ -399,30 +399,40 @@ export const RightDiscussionSidebar: React.FC<RightDiscussionSidebarProps> = ({
               )}
 
               {chatMessages.map(msg => {
-                const isMe = msg.authorId === currentAuthor.id;
+                const isMe = msg.authorId === currentAuthor.id || msg.authorName === currentAuthor.name;
 
                 return (
                   <div 
                     key={msg.id} 
-                    className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+                    className={`flex gap-2 ${isMe ? 'flex-row-reverse items-end' : 'flex-row items-start'}`}
                   >
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-[10px] font-semibold text-theme-text-muted">
-                        {msg.authorName}
-                      </span>
-                      <span className="text-[9px] text-theme-text-muted/60 font-mono">
-                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
+                    {/* Author Avatar */}
+                    <div 
+                      className="w-6 h-6 rounded-full text-white text-[10px] font-bold flex items-center justify-center shrink-0 shadow-xs ring-1 ring-theme-border"
+                      style={{ backgroundColor: msg.authorColor || (isMe ? currentAuthor.color : '#2563eb') }}
+                    >
+                      {msg.authorAvatar || msg.authorName.charAt(0).toUpperCase()}
                     </div>
 
-                    <div
-                      className={`max-w-[85%] rounded-lg px-3 py-1.5 text-xs leading-relaxed break-words ${
-                        isMe
-                          ? 'bg-theme-accent text-white rounded-br-none shadow-xs'
-                          : 'bg-theme-bg border border-theme-border text-theme-text rounded-bl-none shadow-xs'
-                      }`}
-                    >
-                      {msg.content}
+                    <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} max-w-[80%]`}>
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-[10px] font-semibold text-theme-text">
+                          {isMe ? 'Bạn' : msg.authorName}
+                        </span>
+                        <span className="text-[9px] text-theme-text-muted/60 font-mono">
+                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+
+                      <div
+                        className={`rounded-xl px-3 py-1.5 text-xs leading-relaxed break-words ${
+                          isMe
+                            ? 'bg-theme-accent text-white rounded-tr-none shadow-xs'
+                            : 'bg-theme-card border border-theme-border text-theme-text rounded-tl-none shadow-xs'
+                        }`}
+                      >
+                        {msg.content}
+                      </div>
                     </div>
                   </div>
                 );

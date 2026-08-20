@@ -328,6 +328,31 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     return () => unobserve();
   }, [treeManager]);
 
+  // Listen for real-time document title changes from Y.Doc metadata (E2EE Collaborative Title Sync)
+  useEffect(() => {
+    const metaMap = yDoc.getMap('metadata');
+    const handleMetaChange = () => {
+      const syncedTitle = metaMap.get('title') as string | undefined;
+      if (syncedTitle && syncedTitle.trim() && activeDocId) {
+        const currentItem = treeManager.getItem(activeDocId);
+        if (currentItem && currentItem.name !== syncedTitle) {
+          treeManager.renameItem(activeDocId, syncedTitle);
+          setTreeVersion(v => v + 1);
+        }
+      }
+    };
+    metaMap.observe(handleMetaChange);
+    const initialTitle = metaMap.get('title') as string | undefined;
+    if (initialTitle && initialTitle.trim() && activeDocId) {
+      const currentItem = treeManager.getItem(activeDocId);
+      if (currentItem && currentItem.name !== initialTitle) {
+        treeManager.renameItem(activeDocId, initialTitle);
+        setTreeVersion(v => v + 1);
+      }
+    }
+    return () => metaMap.unobserve(handleMetaChange);
+  }, [yDoc, activeDocId, treeManager]);
+
   const activeItem = treeManager.getItem(activeDocId);
   const activeDocTitle = activeItem?.name || 'Chào mừng đến với VaultSync';
   const parentFolder = activeItem?.parentId ? treeManager.getItem(activeItem.parentId) : null;
@@ -353,6 +378,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const handleTitleChange = (newTitle: string) => {
     if (activeDocId) {
       treeManager.renameItem(activeDocId, newTitle);
+      const metaMap = yDoc.getMap('metadata');
+      if (metaMap.get('title') !== newTitle) {
+        metaMap.set('title', newTitle);
+      }
+      setTreeVersion(v => v + 1);
     }
   };
 
@@ -578,6 +608,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           chatEngine={chatEngine}
           activeThreadId={activeCommentThreadId}
           onSelectThread={handleSelectThreadFromSidebar}
+          currentAuthor={{
+            id: session?.userProfile.displayName || 'user_local',
+            name: currentUserOptions.name,
+            color: currentUserOptions.color,
+            avatar: currentUserOptions.avatar
+          }}
         />
       </div>
 
