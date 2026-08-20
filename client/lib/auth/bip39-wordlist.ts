@@ -300,3 +300,34 @@ export async function validateMnemonic12(phrase: string): Promise<boolean> {
 
   return checksumExpected === actualChecksum;
 }
+
+/**
+ * Derives a 512-bit binary seed from a BIP-39 mnemonic phrase using PBKDF2 with salt "mnemonic".
+ */
+export async function mnemonicToSeed(phrase: string): Promise<Uint8Array> {
+  const cleanPhrase = phrase.trim().toLowerCase();
+  const phraseBytes = new TextEncoder().encode(cleanPhrase);
+  const saltBytes = new TextEncoder().encode('mnemonic');
+
+  const baseKey = await crypto.subtle.importKey(
+    'raw',
+    phraseBytes,
+    'PBKDF2',
+    false,
+    ['deriveBits']
+  );
+
+  const seedBuffer = await crypto.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: saltBytes,
+      iterations: 2048,
+      hash: 'SHA-512'
+    },
+    baseKey,
+    512
+  );
+
+  return new Uint8Array(seedBuffer);
+}
+

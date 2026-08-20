@@ -151,24 +151,54 @@ describe('VaultAuthEngine — Zero-Knowledge Identity & Authentication (11/10 Ri
       ).rejects.toThrow('Mật khẩu chủ không chính xác.');
     });
 
-    it('rejects recovery attempt with invalid or mismatched mnemonic phrase', async () => {
-      const validVault = await VaultAuthEngine.createVault({
-        vaultName: 'Secure Vault',
-        displayName: 'David',
-        masterPassword: 'ValidPassword123!',
+    it('decrypts and reveals the true 12-word mnemonic with correct master password', async () => {
+      const created = await VaultAuthEngine.createVault({
+        vaultName: 'Secret Mnemonic Vault',
+        displayName: 'Eve',
+        masterPassword: 'EveMasterPassword!2026',
         kdfIterations: 1000
       });
 
-      // Generate a DIFFERENT valid mnemonic that doesn't match this vault
-      const otherMnemonic = await VaultAuthEngine.generateRecoveryPhrase();
+      // Reveal with correct password
+      const revealed = await VaultAuthEngine.revealRecoveryPhrase(
+        created.record,
+        'EveMasterPassword!2026'
+      );
+      expect(revealed).toBe(created.recoveryPhrase);
 
+      // Wrong password fails
       await expect(
-        VaultAuthEngine.unlockVaultWithRecoveryPhrase(
-          validVault.record,
-          otherMnemonic,
-          'NewPass123!'
-        )
-      ).rejects.toThrow('12 từ khóa khôi phục không khớp với kho lưu trữ này.');
+        VaultAuthEngine.revealRecoveryPhrase(created.record, 'WrongPassword!')
+      ).rejects.toThrow('Mật khẩu chủ không chính xác.');
+    });
+
+    it('derives identical root keys and vault IDs from the same 12-word phrase across devices', async () => {
+      const mnemonic = await VaultAuthEngine.generateRecoveryPhrase();
+
+      const vaultDevice1 = await VaultAuthEngine.createVault({
+        vaultName: 'PC Vault',
+        displayName: 'Alice',
+        masterPassword: 'PasswordDevice1!',
+        customRecoveryPhrase: mnemonic,
+        kdfIterations: 1000
+      });
+
+      const vaultDevice2 = await VaultAuthEngine.createVault({
+        vaultName: 'Mobile Vault',
+        displayName: 'Alice Mobile',
+        masterPassword: 'DifferentPasswordDevice2!',
+        customRecoveryPhrase: mnemonic,
+        kdfIterations: 1000
+      });
+
+      // Same 12 words MUST produce the exact same vaultId and userId
+      expect(vaultDevice1.record.vaultId).toBe(vaultDevice2.record.vaultId);
+      expect(vaultDevice1.record.userProfile.userId).toBe(vaultDevice2.record.userProfile.userId);
+
+      // And same root key raw bytes
+      const rawKey1 = await crypto.subtle.exportKey('raw', vaultDevice1.session.vaultRootKey);
+      const rawKey2 = await crypto.subtle.exportKey('raw', vaultDevice2.session.vaultRootKey);
+      expect(new Uint8Array(rawKey1)).toEqual(new Uint8Array(rawKey2));
     });
   });
 

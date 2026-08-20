@@ -76,6 +76,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showSeedVerifyPassword, setShowSeedVerifyPassword] = useState(false);
   const [securityError, setSecurityError] = useState<string | null>(null);
   const [securitySuccess, setSecuritySuccess] = useState<string | null>(null);
   const [isRevealingSeed, setIsRevealingSeed] = useState(false);
@@ -139,15 +140,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         return;
       }
 
-      // Verify password & decrypt vault session
-      const unlocked = await VaultAuthEngine.unlockVaultWithPassword(record, seedVerifyPassword);
-      if (unlocked) {
-        setRevealedSeed(session?.userProfile?.displayName ? 'alpha brave champion dolphin echo flame galaxy horizon jungle knight lunar mystic' : '12 từ khóa bí mật được bảo vệ');
-        setIsRevealingSeed(false);
-        setSeedVerifyPassword('');
-      }
-    } catch {
-      setSecurityError('Mật khẩu chủ không chính xác. Không thể mở khóa từ khôi phục.');
+      // Decrypt and reveal the true 12-word recovery mnemonic
+      const phrase = await VaultAuthEngine.revealRecoveryPhrase(record, seedVerifyPassword);
+      setRevealedSeed(phrase);
+      setIsRevealingSeed(false);
+      setSeedVerifyPassword('');
+    } catch (err: any) {
+      setSecurityError(err.message || 'Mật khẩu chủ không chính xác. Không thể mở khóa từ khôi phục.');
     }
   };
 
@@ -535,13 +534,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <div className="flex flex-col gap-2">
                       <label className="text-[11px] text-theme-text-muted">Nhập mật khẩu chủ để xác minh danh tính:</label>
                       <div className="flex items-center gap-2">
-                        <Input
-                          type="password"
-                          placeholder="Mật khẩu chủ hiện tại..."
-                          value={seedVerifyPassword}
-                          onChange={(e) => setSeedVerifyPassword(e.target.value)}
-                          className="text-xs"
-                        />
+                        <div className="relative flex-1">
+                          <Input
+                            type={showSeedVerifyPassword ? 'text' : 'password'}
+                            placeholder="Mật khẩu chủ hiện tại..."
+                            value={seedVerifyPassword}
+                            onChange={(e) => setSeedVerifyPassword(e.target.value)}
+                            className="text-xs pr-8"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowSeedVerifyPassword(!showSeedVerifyPassword)}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-theme-text-muted hover:text-theme-text"
+                          >
+                            {showSeedVerifyPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
+                        </div>
                         <Button variant="primary" size="sm" onClick={handleRevealSeed}>
                           Xác Nhận
                         </Button>
