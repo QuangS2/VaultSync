@@ -109,10 +109,17 @@ export class VaultArchiveManager {
 
     const dataBytes = new TextEncoder().encode(archiveFile.payloadJson);
     const hmacKey = await VaultArchiveManager.getHMACKey(secret);
-    const expectedSignatureHex = await VaultArchiveManager.computeHMACSignature(hmacKey, dataBytes);
+    const signatureBytes = BinaryUtils.hexToBytes(archiveFile.hmacSignatureHex);
 
-    // Constant-time check comparison
-    if (expectedSignatureHex !== archiveFile.hmacSignatureHex) {
+    // 🛡️ WebCrypto native Constant-Time HMAC Verification (Anti-Timing Attack)
+    const isValid = await crypto.subtle.verify(
+      'HMAC',
+      hmacKey,
+      signatureBytes as BufferSource,
+      dataBytes as BufferSource
+    );
+
+    if (!isValid) {
       throw new Error('CHỮ KÝ XÁC THỰC HMAC-SHA256 KHÔNG HỢP LỆ! Tệp sao lưu đã bị chỉnh sửa hoặc bị giả mạo trên đường truyền.');
     }
 

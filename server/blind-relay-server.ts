@@ -16,6 +16,8 @@ export interface ClientConnection {
   lastHeartbeat: number;
   ip: string;
   connectedAt: number;
+  messageCountWindow: number;
+  windowStart: number;
 }
 
 export interface RelayServerStats {
@@ -32,9 +34,14 @@ export interface BlindRelayServerOptions {
   host?: string | undefined;
   maxPayload?: number | undefined;
   clusterAdapter?: RelayClusterAdapter | undefined;
+  maxRoomsPerClient?: number | undefined;
+  maxFramesPerSecond?: number | undefined;
 }
 
 export class BlindRelayServer {
+  public static readonly DEFAULT_MAX_ROOMS_PER_CLIENT = 100;
+  public static readonly DEFAULT_MAX_FRAMES_PER_SECOND = 120;
+
   private wss: WebSocketServer;
   private clients = new Map<WebSocket, ClientConnection>();
   private rooms = new Map<string, Set<WebSocket>>();
@@ -43,6 +50,8 @@ export class BlindRelayServer {
   private startedAt = Date.now();
   private totalFramesRelayed = 0;
   private totalBytesRelayed = 0;
+  private maxRoomsPerClient: number;
+  private maxFramesPerSecond: number;
   public readonly nodeId = randomUUID();
 
   constructor(options: BlindRelayServerOptions = {}) {
@@ -50,6 +59,8 @@ export class BlindRelayServer {
     const host = options.host ?? '0.0.0.0';
     const maxPayload = options.maxPayload ?? BinaryCodec.MAX_PAYLOAD_SIZE;
 
+    this.maxRoomsPerClient = options.maxRoomsPerClient ?? BlindRelayServer.DEFAULT_MAX_ROOMS_PER_CLIENT;
+    this.maxFramesPerSecond = options.maxFramesPerSecond ?? BlindRelayServer.DEFAULT_MAX_FRAMES_PER_SECOND;
     this.clusterAdapter = options.clusterAdapter ?? new InMemoryClusterAdapter();
 
     this.wss = new WebSocketServer({
@@ -67,12 +78,15 @@ export class BlindRelayServer {
   private setupListeners(): void {
     this.wss.on('connection', (socket: WebSocket, req: IncomingMessage) => {
       const ip = req.socket.remoteAddress || 'unknown';
+      const now = Date.now();
       const client: ClientConnection = {
         socket,
         rooms: new Set(),
-        lastHeartbeat: Date.now(),
+        lastHeartbeat: now,
         ip,
-        connectedAt: Date.now()
+        connectedAt: now,
+        messageCountWindow: 0,
+        windowStart: now
       };
 
       this.clients.set(socket, client);
@@ -80,6 +94,25 @@ export class BlindRelayServer {
       socket.on('message', (data: ArrayBuffer | Buffer | Buffer[], isBinary: boolean) => {
         if (!isBinary) {
           // Strictly drop non-binary / plaintext frames to prevent payload inspection or injection
+          return;
+        }
+
+        // 🛡️ Sliding window Rate Limiter (Anti-DoS / Anti-Flooding)
+        const currentTime = Date.now();
+        if (currentTime - client.windowStart > 1000) {
+          client.windowStart = currentTime;
+          client.messageCountWindow = 0;
+        }
+        client.messageCountWindow++;
+
+        if (client.messageCountWindow > this.maxFramesPerSecond) {
+          console.warn(`[BlindRelayServer] ⚠️ Rate limit exceeded by ${ip} (${client.messageCountWindow} frames/s). Terminating socket.`);
+          try {
+            socket.close(1008, 'Rate limit exceeded');
+          } catch {
+            socket.terminate();
+          }
+          this.cleanupClient(socket, client);
           return;
         }
 
@@ -135,6 +168,12 @@ export class BlindRelayServer {
 
     switch (messageType) {
       case MessageType.ROOM_JOIN: {
+        // 🛡️ Strict Room Join Cap (Anti-Memory Exhaustion)
+        if (client.rooms.size >= this.maxRoomsPerClient && !client.rooms.has(roomId)) {
+          console.warn(`[BlindRelayServer] Client ${client.ip} reached max rooms limit (${this.maxRoomsPerClient}). Dropping join for ${roomId}`);
+          return;
+        }
+
         client.rooms.add(roomId);
         if (!this.rooms.has(roomId)) {
           this.rooms.set(roomId, new Set());
