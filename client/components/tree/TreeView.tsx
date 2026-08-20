@@ -26,6 +26,7 @@ export interface TreeViewProps {
   searchQuery?: string | undefined;
   viewFilter?: ('all' | 'favorites' | 'trash') | undefined;
   className?: string | undefined;
+  unreadDocIds?: string[] | undefined;
 }
 
 const STORAGE_KEY = 'vaultsync_expanded_folders';
@@ -56,7 +57,8 @@ export const TreeView: React.FC<TreeViewProps> = ({
   onShareFolder,
   searchQuery = '',
   viewFilter = 'all',
-  className = ''
+  className = '',
+  unreadDocIds
 }) => {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => {
     try {
@@ -497,6 +499,8 @@ export const TreeView: React.FC<TreeViewProps> = ({
               onRenameSubmit={handleRenameSubmit}
               onRenameCancel={handleRenameCancel}
               onStartRename={handleStartRename}
+              hasUnread={unreadDocIds?.includes(node.id)}
+              unreadDocIds={unreadDocIds}
             />
           ))}
 

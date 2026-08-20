@@ -41,15 +41,15 @@ export const Modal: React.FC<ModalProps> = ({
   }[maxWidth];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
         onClick={onClose} 
       />
 
-      {/* Dialog Body */}
-      <div className={`relative w-full ${maxWidthClasses} max-h-[92vh] max-h-[92dvh] bg-theme-bg-subtle border border-theme-border rounded-xl shadow-2xl overflow-hidden z-10 flex flex-col my-auto`}>
+      {/* Dialog / Mobile Bottom Sheet Body */}
+      <div className={`relative w-full ${maxWidthClasses} max-h-[92vh] max-h-[92dvh] bg-theme-bg-subtle border-t sm:border border-theme-border rounded-t-2xl sm:rounded-xl shadow-2xl overflow-hidden z-10 flex flex-col sm:my-auto animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200`}>
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 sm:py-4 border-b border-theme-border shrink-0">
           <div className="min-w-0 pr-2">

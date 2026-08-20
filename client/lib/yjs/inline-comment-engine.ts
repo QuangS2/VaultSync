@@ -14,13 +14,14 @@ import {
 } from './types';
 
 export interface CreateThreadOptions {
-  yType: Y.AbstractType<any>;
+  yType?: Y.AbstractType<any> | undefined;
   from: number;
   to: number;
   quotedText: string;
   authorId: string;
   authorName: string;
   authorAvatar?: string | undefined;
+  authorColor?: string | undefined;
   content: string;
   documentId?: string | undefined;
 }
@@ -29,6 +30,7 @@ export interface AddReplyOptions {
   authorId: string;
   authorName: string;
   authorAvatar?: string | undefined;
+  authorColor?: string | undefined;
   content: string;
 }
 
@@ -52,7 +54,6 @@ export class InlineCommentAnchorEngine {
    */
   public createThread(options: CreateThreadOptions): InlineCommentThread {
     const {
-      yType,
       from,
       to,
       quotedText,
@@ -63,6 +64,7 @@ export class InlineCommentAnchorEngine {
       documentId = 'default-document'
     } = options;
 
+    const yType = options.yType || this.yDoc.getXmlFragment('default');
     const threadId = `thread_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const relativeRange = RelativePositionManager.createRelativeRange(yType, from, to);
     const serializedRange = RelativePositionManager.serializeRange(relativeRange);

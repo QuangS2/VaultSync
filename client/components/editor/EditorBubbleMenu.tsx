@@ -19,7 +19,7 @@ import {
 
 export interface EditorBubbleMenuProps {
   editor: Editor | null;
-  onAddComment?: (() => void) | undefined;
+  onAddComment?: ((draft: { from: number; to: number; quotedText: string }) => void) | undefined;
 }
 
 // Curated Anti-AI Text & Highlight Palettes
@@ -291,8 +291,10 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
           <button
             type="button"
             onClick={() => {
-              if (onAddComment) {
-                onAddComment();
+              if (onAddComment && editor) {
+                const { from, to } = editor.state.selection;
+                const quotedText = editor.state.doc.textBetween(from, to, ' ').trim();
+                onAddComment({ from, to, quotedText });
               }
             }}
             title="Thêm bình luận cho đoạn văn bản này"

@@ -43,6 +43,7 @@ export interface HeaderBarProps {
   providerStatus?: ProviderConnectionStatus | undefined;
   awarenessUsers?: AwarenessUser[] | undefined;
   currentUser?: AwarenessUser | undefined;
+  hasUnreadDiscussion?: boolean | undefined;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
@@ -60,7 +61,8 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   activeCollaboratorCount,
   providerStatus,
   awarenessUsers = [],
-  currentUser
+  currentUser,
+  hasUnreadDiscussion
 }) => {
   const [isCollaboratorsOpen, setIsCollaboratorsOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -68,6 +70,17 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   const isConnected = providerStatus?.connected ?? false;
   const isConnecting = providerStatus?.connecting ?? false;
   
+  // Handle Escape key to close mobile menu
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isMobileMenuOpen) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMobileMenuOpen]);
+
   const uniqueUsers = React.useMemo(() => {
     const map = new Map<string, AwarenessUser>();
     for (const u of awarenessUsers) {
@@ -267,10 +280,12 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           size="icon"
           onClick={onToggleRightSidebar}
           title={isRightSidebarOpen ? 'Đóng Thảo luận (Ctrl+Shift+D)' : 'Mở Thảo luận (Ctrl+Shift+D)'}
-          className="relative h-8 w-8 shrink-0"
+          className="relative h-8 w-8 shrink-0 cursor-pointer"
         >
           <MessageSquare className="w-3.5 h-3.5" />
-          <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-rose-500 rounded-full" />
+          {hasUnreadDiscussion && !isRightSidebarOpen && (
+            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-theme-bg animate-pulse shadow-sm" />
+          )}
         </Button>
       </div>
 

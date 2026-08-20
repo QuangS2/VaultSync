@@ -25,11 +25,15 @@ export interface EditorCanvasProps {
   awarenessUsers?: AwarenessUser[] | undefined;
   saveStatus?: 'saved' | 'saving' | 'error' | undefined;
   lastSavedTime?: number | undefined;
-  onAddInlineComment?: (() => void) | undefined;
+  onAddInlineComment?: ((draft: { from: number; to: number; quotedText: string }) => void) | undefined;
   onTitleChange?: ((newTitle: string) => void) | undefined;
   onCommentClick?: ((threadId: string) => void) | undefined;
   activeCommentThreadId?: string | null | undefined;
   isDocHydrated?: boolean | undefined;
+  onOpenShareModal?: (() => void) | undefined;
+  onOpenDiscussionSidebar?: (() => void) | undefined;
+  onOpenCommandPalette?: (() => void) | undefined;
+  onCreateNewNote?: (() => void) | undefined;
 }
 
 export const EditorCanvas: React.FC<EditorCanvasProps> = ({
@@ -47,7 +51,11 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   onAddInlineComment,
   onTitleChange,
   onCommentClick,
-  activeCommentThreadId
+  activeCommentThreadId,
+  onOpenShareModal,
+  onOpenDiscussionSidebar,
+  onOpenCommandPalette,
+  onCreateNewNote
 }) => {
   const [currentTitle, setCurrentTitle] = useState(documentTitle);
   const [content, setContent] = useState<string>(() => {
@@ -172,6 +180,10 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
           user={user}
           onCommentClick={onCommentClick}
           activeCommentThreadId={activeCommentThreadId}
+          onOpenShareModal={onOpenShareModal}
+          onOpenDiscussionSidebar={onOpenDiscussionSidebar}
+          onOpenCommandPalette={onOpenCommandPalette}
+          onCreateNewNote={onCreateNewNote}
         />
       ) : (
         <div className="flex-1 flex items-center justify-center text-xs text-theme-text-muted">

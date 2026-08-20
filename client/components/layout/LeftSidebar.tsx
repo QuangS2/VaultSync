@@ -23,6 +23,7 @@ export interface LeftSidebarProps {
   treeManager?: TreeStateManager | undefined;
   onOpenCommandPalette?: (() => void) | undefined;
   onOpenJoinRoomModal?: (() => void) | undefined;
+  unreadDocIds?: string[] | undefined;
 }
 
 export const LeftSidebar: React.FC<LeftSidebarProps> = ({
@@ -34,7 +35,8 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onShareFolder,
   treeManager: externalTreeManager,
   onOpenCommandPalette,
-  onOpenJoinRoomModal
+  onOpenJoinRoomModal,
+  unreadDocIds
 }) => {
   const [treeManager] = useState(() => externalTreeManager || new TreeStateManager());
   const [searchQuery, setSearchQuery] = useState('');
@@ -177,6 +179,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
           onShareFolder={onShareFolder}
           searchQuery={searchQuery}
           viewFilter={viewFilter}
+          unreadDocIds={unreadDocIds}
         />
       </div>
 

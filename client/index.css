@@ -436,13 +436,32 @@
   border-bottom-color: #f59e0b;
 }
 
-[data-theme="night"] .vaultsync-comment-highlight {
-  background-color: rgba(245, 158, 11, 0.22);
-  border-bottom-color: #fbbf24;
-}
-
 [data-theme="night"] .vaultsync-comment-highlight:hover {
   background-color: rgba(245, 158, 11, 0.35);
 }
+
+/* Mobile-First Touch & Layout Optimization */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@media (max-width: 640px) {
+  /* Prevent auto zoom on input focus for mobile browsers */
+  input[type="text"],
+  input[type="password"],
+  textarea {
+    font-size: 16px;
+  }
+  
+  /* Touch target ergonomics */
+  button, a {
+    touch-action: manipulation;
+  }
+}
+
 
 
