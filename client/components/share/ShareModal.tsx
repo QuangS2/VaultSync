@@ -33,6 +33,7 @@ export interface ShareModalProps {
   documentKey?: CryptoKey | null | undefined;
   awarenessUsers?: AwarenessUser[] | undefined;
   currentUser?: AwarenessUser | undefined;
+  onUpdateLivePermissions?: ((targetId: string, perms: DocumentPermissions) => void) | undefined;
 }
 
 export const ShareModal: React.FC<ShareModalProps> = ({
@@ -44,7 +45,8 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   folderManifest,
   documentKey,
   awarenessUsers = [],
-  currentUser
+  currentUser,
+  onUpdateLivePermissions
 }) => {
   const [activeTab, setActiveTab] = useState<'link' | 'qr' | 'peers' | 'code'>('link');
 
@@ -328,6 +330,24 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                     <span>Cho phép xóa</span>
                   </label>
                 </div>
+
+                {onUpdateLivePermissions && (
+                  <div className="pt-2 border-t border-theme-border flex items-center justify-between">
+                    <span className="text-[10px] text-theme-text-muted">
+                      Áp dụng thay đổi quyền hạn tức thì tới tất cả thành viên đang trực tuyến:
+                    </span>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => onUpdateLivePermissions(documentId, permissions)}
+                      className="text-xs h-7 gap-1 text-theme-accent border-theme-accent/30 hover:bg-theme-accent/10"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Cập Nhật Quyền Trực Tiếp</span>
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {/* Tab Selector */}
