@@ -22,6 +22,7 @@ import { EncryptedIndexedDBStorage } from '../../lib/storage/encrypted-indexeddb
 import { BinaryUtils } from '../../lib/crypto/binary-utils';
 import { MobileBottomNavBar } from './MobileBottomNavBar';
 import { DiscussionReadTracker } from '../../lib/yjs/discussion-read-tracker';
+import { PermissionsEngine, DocumentPermissions, DEFAULT_OWNER_PERMISSIONS } from '../../lib/auth/permissions';
 
 function getRelayWsUrl(): string {
   if (typeof window === 'undefined') return 'ws://localhost:1234';
@@ -69,9 +70,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       const savedDocId = localStorage.getItem('vaultsync_active_doc');
       if (savedDocId) return savedDocId;
     }
-    return 'doc-quicknotes';
+    return 'doc-default';
   });
-  const [exportDocTitle, setExportDocTitle] = useState('Ghi Chú Nhanh & Việc Cần Làm');
+  const [exportDocTitle, setExportDocTitle] = useState('Ghi chú mới');
   const [, setTreeVersion] = useState(0);
 
   // Zero-Knowledge Offline-First Persistent Storage
@@ -99,6 +100,17 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   // Document encryption key registry
   const documentKeysRef = React.useRef<Map<string, CryptoKey>>(new Map());
   const [documentKey, setDocumentKey] = useState<CryptoKey | null>(session ? session.vaultRootKey : null);
+
+  // Granular Access Control & Permissions Engine
+  const permissionsMapRef = React.useRef<Map<string, DocumentPermissions>>(new Map());
+  const [currentPermissions, setCurrentPermissions] = useState<DocumentPermissions>(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const permsParam = urlParams.get('perms');
+      if (permsParam) return PermissionsEngine.decodePermissions(permsParam);
+    }
+    return DEFAULT_OWNER_PERMISSIONS;
+  });
 
   // Real-time WebSocket Relay Provider & Peer Awareness State
   const [provider, setProvider] = useState<EncryptedYjsProvider | null>(null);
@@ -638,6 +650,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     }
 
     const handleMetaChange = (event: Y.YMapEvent<any>) => {
+      // 1. Synchronize Document Title
       if (event.keysChanged.has('title')) {
         const syncedTitle = metaMap.get('title') as string | undefined;
         if (syncedTitle && syncedTitle.trim()) {
@@ -645,6 +658,21 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           if (item && item.type === 'document' && item.name !== syncedTitle) {
             treeManager.renameItem(targetDocId, syncedTitle);
             setTreeVersion(v => v + 1);
+          }
+        }
+      }
+
+      // 2. Synchronize Real-Time Folder Renames across peers
+      for (const key of event.keysChanged) {
+        if (key.startsWith('folder_name_')) {
+          const folderId = key.replace('folder_name_', '');
+          const newFolderName = metaMap.get(key) as string | undefined;
+          if (newFolderName && newFolderName.trim()) {
+            const folderItem = treeManager.getItem(folderId);
+            if (folderItem && folderItem.type === 'folder' && folderItem.name !== newFolderName) {
+              treeManager.renameItem(folderId, newFolderName);
+              setTreeVersion(v => v + 1);
+            }
           }
         }
       }
@@ -658,6 +686,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     const item = treeManager.getItem(id);
     if (item && item.type === 'document') {
       setActiveDocId(id);
+      setCurrentPermissions(permissionsMapRef.current.get(id) || DEFAULT_OWNER_PERMISSIONS);
       readTracker.markAsRead(id, 'all');
       setUnreadDocIds(prev => prev.filter(docId => docId !== id));
       // Auto-close left navigation drawer on mobile screens
@@ -782,10 +811,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     title?: string,
     key?: CryptoKey,
     isFolder?: boolean,
-    manifestData?: any
+    manifestData?: any,
+    permissions?: DocumentPermissions
   ) => {
+    const activePerms = permissions || DEFAULT_OWNER_PERMISSIONS;
+    permissionsMapRef.current.set(roomId, activePerms);
+
     if (isFolder) {
-      const folderTitle = title || 'Thư Mục Cộng Tác';
+      const folderTitle = title || manifestData?.folder?.name || 'Thư Mục Cộng Tác';
       treeManager.ensureItem(roomId, folderTitle, 'folder', null, 'Folder');
       if (key) {
         documentKeysRef.current.set(roomId, key);
@@ -796,6 +829,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       if (manifestData && Array.isArray(manifestData.items)) {
         for (const item of manifestData.items) {
           treeManager.ensureItem(item.id, item.name, item.type, item.parentId || roomId, item.icon);
+          permissionsMapRef.current.set(item.id, activePerms);
           if (key) {
             documentKeysRef.current.set(item.id, key);
             await saveSharedDocKey(item.id, key);
@@ -1070,6 +1104,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           user={currentUserOptions}
           providerStatus={providerStatus}
           awarenessUsers={awarenessUsers}
+          permissions={currentPermissions}
           saveStatus={saveStatus}
           lastSavedTime={lastSavedTime}
           isDocHydrated={isDocHydrated}
@@ -1154,6 +1189,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         documentId={activeDocId}
         folderName={folderName}
         treeManager={treeManager}
+        permissions={currentPermissions}
       />
 
       {/* Spotlight Command Palette (Cmd+K / Ctrl+K) */}

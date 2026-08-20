@@ -17,7 +17,8 @@ import {
   Upload, 
   ShieldCheck, 
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  Lock
 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -25,6 +26,8 @@ import { Badge } from '../ui/Badge';
 import { ExportPipeline, DocumentExportMetadata } from '../../lib/export/export-pipeline';
 import { VaultArchiveManager, VaultArchivePayload, VaultDocumentState } from '../../lib/export/vault-archive-manager';
 import { TreeStateManager } from '../../lib/tree/tree-state-manager';
+
+import { DocumentPermissions } from '../../lib/auth/permissions';
 
 export interface ExportModalProps {
   isOpen: boolean;
@@ -35,6 +38,7 @@ export interface ExportModalProps {
   rawContent?: string;
   htmlContent?: string;
   treeManager?: TreeStateManager | undefined;
+  permissions?: DocumentPermissions | undefined;
 }
 
 export const ExportModal: React.FC<ExportModalProps> = ({
@@ -43,9 +47,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   documentTitle,
   documentId,
   folderName = 'Kho Tài Liệu Cá Nhân',
-  rawContent = '# Chào mừng đến VaultSync\n\nĐây là tài liệu mẫu mã hóa đầu cuối.',
-  htmlContent = '<h1>Chào mừng đến VaultSync</h1><p>Đây là tài liệu mẫu mã hóa đầu cuối.</p>',
-  treeManager
+  rawContent = '# Chào mừng đến VaultSync\n\nĐây là nội dung tài liệu của bạn.',
+  htmlContent = '<h1>Chào mừng đến VaultSync</h1><p>Đây là nội dung tài liệu của bạn.</p>',
+  treeManager,
+  permissions
 }) => {
   const [activeTab, setActiveTab] = useState<'md' | 'html' | 'vault'>('md');
   const [htmlTheme, setHtmlTheme] = useState<'sun' | 'cloud' | 'night'>('night');
@@ -198,6 +203,13 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             HMAC-SHA256 Signed
           </Badge>
         </div>
+
+        {permissions && !permissions.canExport && (
+          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs flex items-center gap-2">
+            <Lock className="w-4 h-4 shrink-0" />
+            <span>Chủ sở hữu đã khóa quyền xuất và tải tài liệu này về thiết bị.</span>
+          </div>
+        )}
 
         {/* Tab 1: Markdown Preview & Export */}
         {activeTab === 'md' && (

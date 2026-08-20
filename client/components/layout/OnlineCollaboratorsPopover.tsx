@@ -173,7 +173,7 @@ export const OnlineCollaboratorsPopover: React.FC<OnlineCollaboratorsPopoverProp
         <div className="pt-2 border-t border-theme-border flex items-start gap-2 text-[10px] text-theme-text-muted leading-relaxed">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
           <span>
-            Tất cả thao tác gõ và con trỏ chuột được mã hóa đầu-cuối qua WebSocket Relay.
+            Đang kết nối cộng tác trực tiếp theo thời gian thực.
           </span>
         </div>
       </div>

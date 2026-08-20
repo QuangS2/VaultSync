@@ -172,7 +172,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
       </div>
 
       {/* Main Drag & Drop Tree View */}
-      <div className="flex-1 overflow-y-auto p-1 flex flex-col">
+      <div className="flex-1 overflow-y-auto p-1 pb-16 sm:pb-2 flex flex-col">
         <TreeView
           treeManager={treeManager}
           activeDocId={activeDocId}
@@ -183,15 +183,6 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
           viewFilter={viewFilter}
           unreadDocIds={unreadDocIds}
         />
-      </div>
-
-      {/* Footer Storage Stats */}
-      <div className="p-3 border-t border-theme-border bg-theme-card/60 flex items-center justify-between text-[11px] text-theme-text-muted">
-        <div className="flex items-center gap-1.5">
-          <HardDrive className="w-3.5 h-3.5 text-theme-accent" />
-          <span>Mã hóa IndexedDB</span>
-        </div>
-        <span className="font-mono text-emerald-600 dark:text-emerald-400">100% E2EE</span>
       </div>
     </aside>
   );

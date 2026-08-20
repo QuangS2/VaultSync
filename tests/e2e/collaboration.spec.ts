@@ -27,7 +27,7 @@ test.describe('VaultSync Enterprise Production E2E Test Suite (11/10 Precision)'
     // Verify Workspace Canvas is loaded
     const editor = page.locator('.tiptap.ProseMirror');
     await expect(editor).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('text=Ghi Chú Nhanh & Việc Cần Làm').first()).toBeVisible();
+    await expect(page.locator('text=Ghi chú mới').first()).toBeVisible();
   });
 
   test('2. Hierarchical File Tree, Interactive Typing & Auto-Save to IndexedDB', async ({ page }) => {
@@ -60,10 +60,12 @@ test.describe('VaultSync Enterprise Production E2E Test Suite (11/10 Precision)'
     const saveIndicator = page.locator('text=Đã lưu');
     await expect(saveIndicator).toBeVisible({ timeout: 5000 });
 
-    // Switch document in file tree
-    await page.click('text=Hướng Dẫn Mời Bạn Bè & Cộng Tác');
-    await page.waitForTimeout(400);
-    await expect(page.locator('text=Hướng Dẫn Mời Bạn Bè & Cộng Tác').first()).toBeVisible();
+    // Create new document & switch document in file tree
+    await page.locator('button[title*="Tạo tài liệu"]').first().click();
+    await page.waitForTimeout(200);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(300);
+    await expect(page.locator('text=Tài liệu mới').first()).toBeVisible();
   });
 
   test('3. Commercial HeaderBar Spotlight Search & Command Palette (Ctrl+K)', async ({ page }) => {
@@ -132,7 +134,7 @@ test.describe('VaultSync Enterprise Production E2E Test Suite (11/10 Precision)'
 
     // Switch to Storage Tab
     await page.click('text=Bộ Nhớ & Sao Lưu');
-    await expect(page.locator('text=Bộ Nhớ Đệm Mã Hóa (IndexedDB)')).toBeVisible();
+    await expect(page.locator('text=Bộ Nhớ Lưu Trữ Cục Bộ')).toBeVisible();
 
     // Switch to Appearance Tab & test theme switches
     await page.click('text=Giao Diện & Phím Tắt');

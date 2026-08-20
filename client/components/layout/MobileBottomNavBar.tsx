@@ -31,7 +31,7 @@ export const MobileBottomNavBar: React.FC<MobileBottomNavBarProps> = ({
   if (isRightSidebarOpen) return null;
 
   return (
-    <nav className="sm:hidden fixed bottom-0 inset-x-0 h-13 bg-theme-bg/95 backdrop-blur-xl border-t border-theme-border flex items-center justify-around z-40 select-none px-2 shadow-lg">
+    <nav className="sm:hidden fixed bottom-0 inset-x-0 h-13 bg-theme-bg/95 backdrop-blur-xl border-t border-theme-border flex items-center justify-around z-30 select-none px-2 shadow-lg">
       {/* 1. Files / Tree Drawer Trigger */}
       <button
         onClick={onToggleLeftSidebar}

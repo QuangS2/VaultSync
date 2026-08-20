@@ -160,7 +160,7 @@ test.describe('Fix-16 Verification Suite: Room Presence Popover, Mobile Chat Usa
     await setupAndOnboard(page);
 
     // 1. Right-click on a tree document item to open ContextMenu
-    const docItem = page.locator('.group:has-text("Ghi Chú Nhanh")').first();
+    const docItem = page.locator('.group:has-text("Ghi chú mới")').first();
     await expect(docItem).toBeVisible();
     await docItem.click({ button: 'right' });
     await page.waitForTimeout(300);

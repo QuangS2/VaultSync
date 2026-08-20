@@ -3,11 +3,19 @@ import { LogIn, Key, AlertTriangle, Hash, Sparkles, X } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { BinaryUtils } from '../../lib/crypto/binary-utils';
+import { PermissionsEngine, DocumentPermissions } from '../../lib/auth/permissions';
 
 export interface JoinRoomModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onJoinRoom: (roomId: string, title?: string, key?: CryptoKey, isFolder?: boolean, manifestData?: any) => void;
+  onJoinRoom: (
+    roomId: string,
+    title?: string,
+    key?: CryptoKey,
+    isFolder?: boolean,
+    manifestData?: any,
+    permissions?: DocumentPermissions
+  ) => void;
 }
 
 export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
@@ -15,17 +23,18 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
   onClose,
   onJoinRoom
 }) => {
-  const [inputCode, setInputCode] = useState('');
+  const [inputVal, setInputVal] = useState('');
   const [keyInput, setKeyInput] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleJoin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const rawInput = inputCode.trim();
+    const rawInput = inputVal.trim();
+
     if (!rawInput) {
       setError('Vui lòng nhập mã phòng rút gọn hoặc liên kết chia sẻ.');
       return;
@@ -39,6 +48,7 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
       let isUrl = false;
       let isFolder = false;
       let manifestData: any = null;
+      let permsStr: string | null = null;
 
       // Check if user pasted a full URL (doc or folder)
       if (rawInput.includes('?room=') || rawInput.includes('?folder=') || rawInput.startsWith('http://') || rawInput.startsWith('https://')) {
@@ -49,11 +59,13 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
           const titleParam = url.searchParams.get('title');
           const keyParam = url.searchParams.get('key');
           const manifestParam = url.searchParams.get('manifest');
+          permsStr = url.searchParams.get('perms');
 
           if (folderParam) {
             roomId = folderParam;
             isUrl = true;
             isFolder = true;
+            roomTitle = 'Thư Mục Cộng Tác';
           } else if (roomParam) {
             roomId = roomParam;
             isUrl = true;
@@ -65,6 +77,7 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
             try {
               const decoded = new TextDecoder().decode(BinaryUtils.base64UrlToBytes(manifestParam));
               manifestData = JSON.parse(decoded);
+              if (manifestData?.folder?.name) roomTitle = manifestData.folder.name;
             } catch {
               // ignore
             }
@@ -74,23 +87,44 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
         }
       }
 
-      // Check if user entered a unified self-contained passcode: VS-KEY:... or VS-DIR:... or contains #
+      // Check if user entered a unified self-contained passcode
       if (!isUrl && (rawInput.startsWith('VS-KEY:') || rawInput.startsWith('VS-DIR:') || rawInput.includes('#'))) {
         const isDir = rawInput.startsWith('VS-DIR:');
         const payload = rawInput.replace(/^VS-(KEY|DIR|PASS):/, '');
         const parts = payload.split('#');
         if (parts[0]) roomId = parts[0];
         if (parts[1] && !rawKeyStr) rawKeyStr = parts[1];
-        if (parts[2]) {
-          try {
-            const decoded = new TextDecoder().decode(BinaryUtils.base64UrlToBytes(parts[2]));
-            manifestData = JSON.parse(decoded);
-            isFolder = true;
-          } catch {
-            // ignore
+
+        if (isDir) {
+          isFolder = true;
+          roomTitle = 'Thư Mục Cộng Tác';
+          if (parts[2]) {
+            try {
+              roomTitle = decodeURIComponent(parts[2]);
+            } catch {
+              roomTitle = parts[2];
+            }
           }
+          if (parts[3]) {
+            try {
+              const decoded = new TextDecoder().decode(BinaryUtils.base64UrlToBytes(parts[3]));
+              manifestData = JSON.parse(decoded);
+              if (manifestData?.folder?.name) roomTitle = manifestData.folder.name;
+            } catch {
+              // ignore
+            }
+          }
+          if (parts[4]) permsStr = parts[4];
+        } else {
+          if (parts[2]) {
+            try {
+              roomTitle = decodeURIComponent(parts[2]);
+            } catch {
+              roomTitle = parts[2];
+            }
+          }
+          if (parts[3]) permsStr = parts[3];
         }
-        if (isDir) isFolder = true;
         isUrl = true;
       }
 
@@ -100,6 +134,7 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
         if (roomId.toUpperCase().startsWith('VS-DIR-')) {
           roomId = roomId.slice(7).toLowerCase();
           isFolder = true;
+          roomTitle = 'Thư Mục Cộng Tác';
         } else if (roomId.toUpperCase().startsWith('VS-')) {
           roomId = roomId.slice(3).toLowerCase();
         }
@@ -120,11 +155,12 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
             ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
           );
         } catch {
-          console.warn('Không thể giải mã khóa từ chuỗi cung cấp, sẽ sử dụng khóa vault hiện tại.');
+          console.warn('Không thể giải mã khóa từ chuỗi cung cấp.');
         }
       }
 
-      onJoinRoom(roomId, roomTitle, importedKey, isFolder, manifestData);
+      const decodedPermissions = PermissionsEngine.decodePermissions(permsStr);
+      onJoinRoom(roomId, roomTitle, importedKey, isFolder, manifestData, decodedPermissions);
       onClose();
     } catch (err) {
       setError('Không thể tham gia phòng. Vui lòng kiểm tra lại mã phòng hoặc liên kết.');
@@ -169,7 +205,7 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
         </div>
 
         {/* Modal Form */}
-        <form onSubmit={handleJoin} className="p-4 sm:p-6 flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-theme-text flex items-center gap-1.5">
               <Hash className="w-3.5 h-3.5 text-theme-accent" />
@@ -177,8 +213,8 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
             </label>
             <Input
               placeholder="VD: Dán URL, dán mã VS-KEY:..., hoặc VS-DOC-..."
-              value={inputCode}
-              onChange={e => setInputCode(e.target.value)}
+              value={inputVal}
+              onChange={e => setInputVal(e.target.value)}
               autoFocus
               className="text-xs font-mono"
             />
@@ -211,7 +247,7 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
           <div className="p-3 rounded-xl bg-theme-card border border-theme-border/80 flex items-start gap-2.5">
             <Sparkles className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
             <p className="text-[11px] text-theme-text-muted leading-relaxed">
-              Dữ liệu soạn thảo và thao tác con trỏ chuột được bảo vệ tuyệt đối bằng mã hóa đầu-cuối qua Blind WebSocket Relay Server.
+              Tham gia cùng đồng nghiệp để cùng soạn thảo và trao đổi trực tiếp theo thời gian thực.
             </p>
           </div>
 
@@ -220,7 +256,7 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
             <Button variant="ghost" size="sm" type="button" onClick={onClose}>
               Hủy Bỏ
             </Button>
-            <Button variant="primary" size="sm" type="submit" disabled={!inputCode.trim() || isProcessing}>
+            <Button variant="primary" size="sm" type="submit" disabled={!inputVal.trim() || isProcessing}>
               <LogIn className="w-3.5 h-3.5" />
               <span>{isProcessing ? 'Đang tham gia...' : 'Vào Soạn Thảo Ngay'}</span>
             </Button>

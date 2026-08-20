@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { Button } from './Button';
 
@@ -40,7 +41,7 @@ export const Modal: React.FC<ModalProps> = ({
     xl: 'max-w-xl'
   }[maxWidth];
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
       {/* Backdrop */}
       <div 
@@ -70,11 +71,12 @@ export const Modal: React.FC<ModalProps> = ({
 
         {/* Footer */}
         {footer && (
-          <div className="px-4 sm:px-5 py-3 bg-theme-card border-t border-theme-border flex items-center justify-end gap-2 shrink-0 flex-wrap sm:flex-nowrap">
+          <div className="px-4 sm:px-5 py-3.5 pb-6 sm:pb-3 bg-theme-card border-t border-theme-border flex items-center justify-end gap-2 shrink-0 flex-wrap sm:flex-nowrap">
             {footer}
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

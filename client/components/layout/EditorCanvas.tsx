@@ -11,6 +11,7 @@ import { TiptapEditor } from '../editor/TiptapEditor';
 import { SAMPLE_DOCUMENTS } from '../editor/editor-sample-content';
 import { ProviderConnectionStatus, AwarenessUser, CollaborationUserOptions } from '../../lib/yjs/types';
 import { OnlineCollaboratorsPopover } from './OnlineCollaboratorsPopover';
+import { DocumentPermissions } from '../../lib/auth/permissions';
 
 export interface EditorCanvasProps {
   documentId?: string | undefined;
@@ -21,6 +22,7 @@ export interface EditorCanvasProps {
   user?: CollaborationUserOptions | undefined;
   providerStatus?: ProviderConnectionStatus | undefined;
   awarenessUsers?: AwarenessUser[] | undefined;
+  permissions?: DocumentPermissions | undefined;
   saveStatus?: 'saved' | 'saving' | 'error' | undefined;
   lastSavedTime?: number | undefined;
   onAddInlineComment?: ((draft: { from: number; to: number; quotedText: string }) => void) | undefined;
@@ -42,6 +44,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   provider,
   user,
   awarenessUsers = [],
+  permissions,
   saveStatus = 'saved',
   lastSavedTime,
   isDocHydrated = true,
@@ -144,6 +147,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
           yDoc={yDoc}
           provider={provider}
           user={user}
+          readOnly={permissions ? !permissions.canEdit : false}
           onCommentClick={onCommentClick}
           activeCommentThreadId={activeCommentThreadId}
           onOpenShareModal={onOpenShareModal}

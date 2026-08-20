@@ -21,6 +21,7 @@ import { VaultAuthEngine } from '../../lib/auth/vault-auth-engine';
 
 import { BinaryUtils } from '../../lib/crypto/binary-utils';
 import { SimpleQRCode } from '../../lib/share/qr-code-generator';
+import { PermissionsEngine, DocumentPermissions, DEFAULT_EDITOR_PERMISSIONS, DEFAULT_VIEWER_PERMISSIONS } from '../../lib/auth/permissions';
 
 export interface ShareModalProps {
   isOpen: boolean;
@@ -47,6 +48,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'link' | 'qr' | 'peers' | 'code'>('link');
 
+  // Owner Granular Permissions State
+  const [permissions, setPermissions] = useState<DocumentPermissions>({ ...DEFAULT_EDITOR_PERMISSIONS });
+
   // Password Authorization State
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
@@ -69,15 +73,16 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     : '';
 
   const originUrl = typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:5173';
+  const permsB64 = PermissionsEngine.encodePermissions(permissions);
   const shareLink = isFolder
-    ? `${originUrl}/?folder=${encodeURIComponent(documentId)}&title=${encodeURIComponent(documentTitle)}${exportedKeyB64 ? `&key=${exportedKeyB64}` : ''}${manifestB64 ? `&manifest=${manifestB64}` : ''}`
-    : `${originUrl}/?room=${encodeURIComponent(documentId)}&title=${encodeURIComponent(documentTitle)}${exportedKeyB64 ? `&key=${exportedKeyB64}` : ''}`;
+    ? `${originUrl}/?folder=${encodeURIComponent(documentId)}&title=${encodeURIComponent(documentTitle)}${exportedKeyB64 ? `&key=${exportedKeyB64}` : ''}${manifestB64 ? `&manifest=${manifestB64}` : ''}&perms=${permsB64}`
+    : `${originUrl}/?room=${encodeURIComponent(documentId)}&title=${encodeURIComponent(documentTitle)}${exportedKeyB64 ? `&key=${exportedKeyB64}` : ''}&perms=${permsB64}`;
   const roomCode = isFolder
     ? `VS-DIR-${documentId.replace(/[^a-zA-Z0-9]/g, '').slice(-6).toUpperCase() || 'DIR999'}`
     : `VS-${documentId.replace(/[^a-zA-Z0-9]/g, '').slice(-6).toUpperCase() || '789214'}`;
   const securePasscode = isFolder
-    ? `VS-DIR:${documentId}#${exportedKeyB64}${manifestB64 ? `#${manifestB64}` : ''}`
-    : `VS-KEY:${documentId}#${exportedKeyB64}`;
+    ? `VS-DIR:${documentId}#${exportedKeyB64}#${encodeURIComponent(documentTitle)}#${manifestB64 || ''}#${permsB64}`
+    : `VS-KEY:${documentId}#${exportedKeyB64}#${encodeURIComponent(documentTitle)}#${permsB64}`;
 
   // Export document key when modal opens
   useEffect(() => {
@@ -176,10 +181,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             </div>
             <div className="flex flex-col">
               <h3 className="font-semibold text-sm sm:text-base text-theme-text flex items-center gap-2">
-                <span>{isFolder ? 'Chia Sẻ Thư Mục & Đa Phòng' : 'Chia Sẻ Quyền Cộng Tác'}</span>
-                <span className="text-[10px] font-normal px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  {isFolder ? 'E2EE Multi-Room' : 'Mã Hóa Đầu-Cuối'}
-                </span>
+                <span>{isFolder ? 'Chia Sẻ Thư Mục' : 'Chia Sẻ Quyền Cộng Tác'}</span>
               </h3>
               <span className="text-xs text-theme-text-muted truncate max-w-xs sm:max-w-sm">
                 {isFolder ? 'Thư mục: ' : 'Tài liệu: '}<strong className="text-theme-text">{documentTitle}</strong>
@@ -247,6 +249,87 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           ) : (
             /* Authorized Share Options */
             <div className="flex flex-col gap-4">
+              {/* Permissions & Access Control Panel */}
+              <div className="p-3.5 rounded-xl bg-theme-bg-subtle border border-theme-border flex flex-col gap-2.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-theme-text flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-theme-accent shrink-0" />
+                    Thiết Lập Quyền Cho Người Nhận
+                  </span>
+                  <div className="flex items-center gap-1 bg-theme-card p-0.5 rounded-lg border border-theme-border text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setPermissions({ ...DEFAULT_EDITOR_PERMISSIONS })}
+                      className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer text-xs ${
+                        permissions.role === 'editor'
+                          ? 'bg-theme-accent text-white shadow-xs'
+                          : 'text-theme-text-muted hover:text-theme-text'
+                      }`}
+                    >
+                      Chỉnh Sửa (Editor)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPermissions({ ...DEFAULT_VIEWER_PERMISSIONS })}
+                      className={`px-2.5 py-1 rounded-md font-medium transition-colors cursor-pointer text-xs ${
+                        permissions.role === 'viewer'
+                          ? 'bg-theme-accent text-white shadow-xs'
+                          : 'text-theme-text-muted hover:text-theme-text'
+                      }`}
+                    >
+                      Chỉ Xem (Viewer)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Granular switches */}
+                <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-theme-border/60">
+                  <label className="flex items-center gap-2 cursor-pointer text-theme-text">
+                    <input
+                      type="checkbox"
+                      checked={permissions.canEdit}
+                      onChange={(e) => setPermissions(prev => ({
+                        ...prev,
+                        canEdit: e.target.checked,
+                        role: e.target.checked ? 'editor' : 'viewer'
+                      }))}
+                      className="rounded border-theme-border text-theme-accent cursor-pointer"
+                    />
+                    <span>Cho phép chỉnh sửa</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer text-theme-text">
+                    <input
+                      type="checkbox"
+                      checked={permissions.canExport}
+                      onChange={(e) => setPermissions(prev => ({ ...prev, canExport: e.target.checked }))}
+                      className="rounded border-theme-border text-theme-accent cursor-pointer"
+                    />
+                    <span>Cho phép xuất / tải về</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer text-theme-text">
+                    <input
+                      type="checkbox"
+                      checked={permissions.canComment}
+                      onChange={(e) => setPermissions(prev => ({ ...prev, canComment: e.target.checked }))}
+                      className="rounded border-theme-border text-theme-accent cursor-pointer"
+                    />
+                    <span>Cho phép bình luận & chat</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer text-theme-text">
+                    <input
+                      type="checkbox"
+                      checked={permissions.canDelete}
+                      onChange={(e) => setPermissions(prev => ({ ...prev, canDelete: e.target.checked }))}
+                      className="rounded border-theme-border text-theme-accent cursor-pointer"
+                    />
+                    <span>Cho phép xóa</span>
+                  </label>
+                </div>
+              </div>
+
               {/* Tab Selector */}
               <div className="flex items-center p-1 bg-theme-card rounded-lg border border-theme-border text-xs gap-1">
                 <button
@@ -361,7 +444,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-semibold text-theme-text flex items-center gap-1.5">
                         <Key className="w-3.5 h-3.5 text-emerald-500" />
-                        <span>Mã Ghép Nối Toàn Diện (Kèm Khóa E2EE):</span>
+                        <span>Mã Ghép Nối Nhanh:</span>
                       </span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 font-mono">
                         Khuyên dùng
