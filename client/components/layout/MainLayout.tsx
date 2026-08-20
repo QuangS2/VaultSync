@@ -217,13 +217,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     };
   }, [documentKey, activeDocId, currentUserOptions, yDoc]);
 
-  // Restore encrypted persistent data from IndexedDB on vault unlock
+  // 1. Restore tree snapshot on vault unlock / mount
   useEffect(() => {
     if (!documentKey) return;
     const currentKey = documentKey;
     let isMounted = true;
 
-    async function restoreOfflineVaultData() {
+    async function restoreTreeData() {
       try {
         const treeSnapshot = await storage.loadTreeSnapshot(currentKey);
         if (treeSnapshot && treeSnapshot.length > 0 && isMounted) {
@@ -237,26 +237,48 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           setActiveDocId(pendingShare.room);
           setTreeVersion(v => v + 1);
         } else {
-          // Validate active document exists and is not deleted in trash
+          // Validate active document exists, is not trash, and is a document
           const currentItem = treeManager.getItem(activeDocId);
-          if (!currentItem || currentItem.isTrash) {
+          if (!currentItem || currentItem.isTrash || currentItem.type !== 'document') {
             const validDocs = treeManager.getAllItems().filter(i => i.type === 'document' && !i.isTrash);
             if (validDocs.length > 0 && validDocs[0] && isMounted) {
               setActiveDocId(validDocs[0].id);
-              return;
             }
           }
         }
+      } catch (err) {
+        console.error('Lỗi khôi phục cây thư mục từ IndexedDB:', err);
+      }
+    }
 
-        const docState = await storage.loadDocumentState(activeDocId, currentKey);
-        if (docState.snapshot && docState.snapshot.length > 0 && isMounted) {
-          Y.applyUpdate(yDoc, docState.snapshot);
-        }
-        for (const update of docState.updates) {
-          if (isMounted) Y.applyUpdate(yDoc, update);
+    restoreTreeData();
+    return () => {
+      isMounted = false;
+    };
+  }, [documentKey, storage, treeManager, getPendingShareInfo]);
+
+  // 2. Restore active document state from IndexedDB whenever activeDocId or yDoc changes
+  useEffect(() => {
+    if (!documentKey || !activeDocId) return;
+    const currentKey = documentKey;
+    const targetDocId = activeDocId;
+    const targetYDoc = yDoc;
+    let isMounted = true;
+
+    async function restoreActiveDocument() {
+      setIsDocHydrated(false);
+      try {
+        const docState = await storage.loadDocumentState(targetDocId, currentKey);
+        if (isMounted) {
+          if (docState.snapshot && docState.snapshot.length > 0) {
+            Y.applyUpdate(targetYDoc, docState.snapshot);
+          }
+          for (const update of docState.updates) {
+            Y.applyUpdate(targetYDoc, update);
+          }
         }
       } catch (err) {
-        console.error('Lỗi khôi phục dữ liệu mã hóa cục bộ:', err);
+        console.error('Lỗi nạp dữ liệu tài liệu từ IndexedDB:', err);
       } finally {
         if (isMounted) {
           setIsDocHydrated(true);
@@ -264,23 +286,25 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       }
     }
 
-    restoreOfflineVaultData();
+    restoreActiveDocument();
     return () => {
       isMounted = false;
     };
-  }, [documentKey, activeDocId, storage, treeManager, yDoc]);
+  }, [activeDocId, yDoc, documentKey, storage]);
 
   // Auto-save Document Snapshot to Encrypted IndexedDB on change (Debounced 300ms)
   useEffect(() => {
-    if (!documentKey || !isDocHydrated) return;
+    if (!documentKey || !isDocHydrated || !activeDocId) return;
     const currentKey = documentKey;
+    const targetDocId = activeDocId;
+    const targetYDoc = yDoc;
 
     let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
     const performSave = async () => {
       try {
-        const stateBytes = Y.encodeStateAsUpdate(yDoc);
-        await storage.saveDocumentSnapshot(activeDocId, stateBytes, currentKey);
+        const stateBytes = Y.encodeStateAsUpdate(targetYDoc);
+        await storage.saveDocumentSnapshot(targetDocId, stateBytes, currentKey);
         setSaveStatus('saved');
         setLastSavedTime(Date.now());
       } catch (err) {
@@ -301,12 +325,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
-    yDoc.on('update', handleYDocUpdate);
+    targetYDoc.on('update', handleYDocUpdate);
 
     return () => {
       if (saveTimer) clearTimeout(saveTimer);
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      yDoc.off('update', handleYDocUpdate);
+      targetYDoc.off('update', handleYDocUpdate);
       void performSave();
     };
   }, [yDoc, activeDocId, documentKey, storage, isDocHydrated]);
@@ -364,28 +388,42 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   // Listen for real-time document title changes from Y.Doc metadata (E2EE Collaborative Title Sync)
   useEffect(() => {
+    if (!activeDocId) return;
+    const currentItem = treeManager.getItem(activeDocId);
+    if (!currentItem || currentItem.type !== 'document') return;
+
+    const targetDocId = activeDocId;
     const metaMap = yDoc.getMap('metadata');
-    const handleMetaChange = () => {
-      const syncedTitle = metaMap.get('title') as string | undefined;
-      if (syncedTitle && syncedTitle.trim() && activeDocId) {
-        const currentItem = treeManager.getItem(activeDocId);
-        if (currentItem && currentItem.name !== syncedTitle) {
-          treeManager.renameItem(activeDocId, syncedTitle);
-          setTreeVersion(v => v + 1);
+
+    // Populate metadata title if empty
+    const existingTitle = metaMap.get('title') as string | undefined;
+    if (!existingTitle && currentItem.name) {
+      metaMap.set('title', currentItem.name);
+    }
+
+    const handleMetaChange = (event: Y.YMapEvent<any>) => {
+      if (event.keysChanged.has('title')) {
+        const syncedTitle = metaMap.get('title') as string | undefined;
+        if (syncedTitle && syncedTitle.trim()) {
+          const item = treeManager.getItem(targetDocId);
+          if (item && item.type === 'document' && item.name !== syncedTitle) {
+            treeManager.renameItem(targetDocId, syncedTitle);
+            setTreeVersion(v => v + 1);
+          }
         }
       }
     };
+
     metaMap.observe(handleMetaChange);
-    const initialTitle = metaMap.get('title') as string | undefined;
-    if (initialTitle && initialTitle.trim() && activeDocId) {
-      const currentItem = treeManager.getItem(activeDocId);
-      if (currentItem && currentItem.name !== initialTitle) {
-        treeManager.renameItem(activeDocId, initialTitle);
-        setTreeVersion(v => v + 1);
-      }
-    }
     return () => metaMap.unobserve(handleMetaChange);
   }, [yDoc, activeDocId, treeManager]);
+
+  const handleSelectDoc = (id: string) => {
+    const item = treeManager.getItem(id);
+    if (item && item.type === 'document') {
+      setActiveDocId(id);
+    }
+  };
 
   const activeItem = treeManager.getItem(activeDocId);
   const activeDocTitle = activeItem?.name || 'Chào mừng đến với VaultSync';
@@ -404,7 +442,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   }));
 
   const handleExportDoc = (docId: string, docTitle: string) => {
-    setActiveDocId(docId);
+    handleSelectDoc(docId);
     setExportDocTitle(docTitle);
     setIsExportModalOpen(true);
   };
@@ -415,18 +453,21 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     }
     const cleanTitle = title || 'Tài Liệu Cộng Tác';
     treeManager.ensureItem(roomId, cleanTitle, 'document', null, 'Share2');
-    setActiveDocId(roomId);
+    handleSelectDoc(roomId);
     setTreeVersion(v => v + 1);
   };
 
   const handleTitleChange = (newTitle: string) => {
     if (activeDocId) {
-      treeManager.renameItem(activeDocId, newTitle);
-      const metaMap = yDoc.getMap('metadata');
-      if (metaMap.get('title') !== newTitle) {
-        metaMap.set('title', newTitle);
+      const currentItem = treeManager.getItem(activeDocId);
+      if (currentItem && currentItem.type === 'document') {
+        treeManager.renameItem(activeDocId, newTitle);
+        const metaMap = yDoc.getMap('metadata');
+        if (metaMap.get('title') !== newTitle) {
+          metaMap.set('title', newTitle);
+        }
+        setTreeVersion(v => v + 1);
       }
-      setTreeVersion(v => v + 1);
     }
   };
 
@@ -627,7 +668,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         <LeftSidebar
           isOpen={isLeftSidebarOpen}
           activeDocId={activeDocId}
-          onSelectDoc={(id) => setActiveDocId(id)}
+          onSelectDoc={handleSelectDoc}
           onExportDoc={handleExportDoc}
           treeManager={treeManager}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
