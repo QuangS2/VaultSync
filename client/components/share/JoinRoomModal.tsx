@@ -74,7 +74,27 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
         }
       }
 
-      // Format room ID if raw code was entered
+      // Check if user entered a unified self-contained passcode: VS-KEY:... or VS-DIR:... or contains #
+      if (!isUrl && (rawInput.startsWith('VS-KEY:') || rawInput.startsWith('VS-DIR:') || rawInput.includes('#'))) {
+        const isDir = rawInput.startsWith('VS-DIR:');
+        const payload = rawInput.replace(/^VS-(KEY|DIR|PASS):/, '');
+        const parts = payload.split('#');
+        if (parts[0]) roomId = parts[0];
+        if (parts[1] && !rawKeyStr) rawKeyStr = parts[1];
+        if (parts[2]) {
+          try {
+            const decoded = new TextDecoder().decode(BinaryUtils.base64UrlToBytes(parts[2]));
+            manifestData = JSON.parse(decoded);
+            isFolder = true;
+          } catch {
+            // ignore
+          }
+        }
+        if (isDir) isFolder = true;
+        isUrl = true;
+      }
+
+      // Format room ID if raw short code was entered
       if (!isUrl) {
         roomId = roomId.trim();
         if (roomId.toUpperCase().startsWith('VS-DIR-')) {
@@ -153,17 +173,17 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-theme-text flex items-center gap-1.5">
               <Hash className="w-3.5 h-3.5 text-theme-accent" />
-              <span>Mã Phòng Rút Gọn hoặc Liên Kết Chia Sẻ</span>
+              <span>Mã Phòng, Mã Ghép Nối Hoặc Liên Kết Chia Sẻ</span>
             </label>
             <Input
-              placeholder="VD: DOC-QUICKNOTES hoặc dán URL..."
+              placeholder="VD: Dán URL, dán mã VS-KEY:..., hoặc VS-DOC-..."
               value={inputCode}
               onChange={e => setInputCode(e.target.value)}
               autoFocus
               className="text-xs font-mono"
             />
             <span className="text-[11px] text-theme-text-muted">
-              Nhập mã định danh phòng do chủ phòng cung cấp (VD: <strong className="font-mono text-theme-text">doc-quicknotes</strong>).
+              💡 Hỗ trợ: Dán toàn bộ đường dẫn URL, mã ghép nối <code className="text-theme-accent font-mono">VS-KEY:...</code> hoặc mã phòng rút gọn.
             </span>
           </div>
 
