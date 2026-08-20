@@ -141,12 +141,15 @@ test.describe('Fix-16 Verification Suite: Room Presence Popover, Mobile Chat Usa
     const sidebarHeader = page.locator('aside').first();
     await expect(sidebarHeader).toBeVisible();
 
-    // Verify "Engineering Vault" and "CRDT" are gone, replaced with friendly name and "Bảo Mật"
+    // Verify "Engineering Vault" and "CRDT" are gone, clean workspace title is visible
     const crdtBadge = sidebarHeader.locator('text=CRDT');
     await expect(crdtBadge).toBeHidden();
 
-    const secureBadge = sidebarHeader.locator('text=Bảo Mật');
-    await expect(secureBadge).toBeVisible();
+    const engineeringVaultText = sidebarHeader.locator('text=Engineering Vault');
+    await expect(engineeringVaultText).toBeHidden();
+
+    const vaultTitle = sidebarHeader.locator('span.font-semibold.text-xs').first();
+    await expect(vaultTitle).toBeVisible();
 
     const shot1 = path.join(evidenceDirs.fix16_4, '01_clean_workspace_header_no_jargon.png');
     await page.screenshot({ path: shot1 });

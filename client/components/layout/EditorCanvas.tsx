@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Lock, 
   Folder, 
-  ChevronRight,
-  RefreshCw,
-  CheckCircle2,
-  Users
+  ChevronRight, 
+  RefreshCw, 
+  CheckCircle2, 
+  Users 
 } from 'lucide-react';
 import * as Y from 'yjs';
-import { Badge } from '../ui/Badge';
 import { TiptapEditor } from '../editor/TiptapEditor';
 import { SAMPLE_DOCUMENTS } from '../editor/editor-sample-content';
 import { ProviderConnectionStatus, AwarenessUser, CollaborationUserOptions } from '../../lib/yjs/types';
@@ -127,14 +125,10 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
             ) : (
               <span className="flex items-center gap-1 text-theme-text-muted">
                 <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
-                <span className="hidden md:inline">Đã lưu an toàn</span>
+                <span className="hidden md:inline">Đã lưu</span>
               </span>
             )}
           </div>
-
-          <Badge variant="success" size="sm" className="hidden lg:inline-flex">
-            <Lock className="w-3 h-3" /> Mã Hóa Bảo Mật
-          </Badge>
         </div>
       </div>
 
@@ -161,7 +155,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         <div className="flex-1 flex items-center justify-center text-xs text-theme-text-muted">
           <div className="flex items-center gap-2">
             <RefreshCw className="w-4 h-4 animate-spin text-theme-accent" />
-            <span>Đang nạp dữ liệu tài liệu bảo mật...</span>
+            <span>Đang tải tài liệu...</span>
           </div>
         </div>
       )}

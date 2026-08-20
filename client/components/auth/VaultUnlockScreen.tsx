@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
-import { Badge } from '../ui/Badge';
 import { VaultSyncBrandLogo } from '../ui/VaultSyncBrandLogo';
 import { AppTheme } from '../../App';
 import { EncryptedVaultRecord, UnlockedVaultSession } from '../../lib/auth/types';
@@ -108,7 +107,6 @@ export const VaultUnlockScreen: React.FC<VaultUnlockScreenProps> = ({
         <div className="flex items-center gap-2.5">
           <VaultSyncBrandLogo size="sm" animated />
           <span className="font-bold text-sm tracking-tight text-theme-text font-sans">VaultSync</span>
-          <Badge variant="accent" size="sm">Zero-Knowledge Workspace</Badge>
         </div>
 
         {/* 3-Tier Theme Switcher */}
@@ -328,7 +326,7 @@ export const VaultUnlockScreen: React.FC<VaultUnlockScreenProps> = ({
 
       {/* Bottom Footer */}
       <footer className="h-10 px-6 flex items-center justify-between text-[11px] text-theme-text-muted border-t border-theme-border bg-theme-card/50 z-10">
-        <span>VaultSync v1.0.0 • Không gian ghi chú bảo mật riêng tư</span>
+        <span>VaultSync v1.0.0 • Không gian ghi chép và làm việc nhóm</span>
         <span>Phím tắt: Nhấn Enter để mở khóa</span>
       </footer>
     </div>

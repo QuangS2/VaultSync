@@ -8,7 +8,6 @@ import {
   X
 } from 'lucide-react';
 import { Input } from '../ui/Input';
-import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { TreeView } from '../tree/TreeView';
 import { TreeStateManager } from '../../lib/tree/tree-state-manager';
@@ -79,9 +78,6 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
           </span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <Badge variant="success" size="sm" className="text-[10px] py-0 px-1.5 font-mono">
-            Bảo Mật
-          </Badge>
           {onClose && (
             <Button
               variant="ghost"

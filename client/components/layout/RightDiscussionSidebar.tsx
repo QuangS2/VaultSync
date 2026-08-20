@@ -6,7 +6,6 @@ import {
   Check, 
   X, 
   CornerDownRight, 
-  Lock, 
   Hash, 
   AlertTriangle,
   RotateCcw,
@@ -546,12 +545,6 @@ export const RightDiscussionSidebar: React.FC<RightDiscussionSidebarProps> = ({
             ========================================================================= */}
         {activeTab === 'chat' && (
           <div className="flex flex-col h-full">
-            {/* E2EE Info Pill */}
-            <div className="p-2.5 mx-3 mt-3 rounded-md bg-theme-bg border border-theme-border/80 flex items-center gap-2 text-[10px] text-theme-text-muted">
-              <Lock className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-              <span>Phòng chat mã hóa đầu-cuối bằng DocumentKey (AES-256-GCM).</span>
-            </div>
-
             {/* Chat Messages List */}
             <div ref={chatScrollRef} className="flex-1 p-3 space-y-3 overflow-y-auto">
               {chatMessages.length === 0 && (

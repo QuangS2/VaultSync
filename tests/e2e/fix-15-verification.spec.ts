@@ -51,7 +51,7 @@ test.describe('Fix-15 Verification Suite: Precise Quickstart Persistence, Inline
     await setupAndOnboard(page);
 
     // 1. Quickstart banner is initially visible
-    const guideHeading = page.locator('text=Chào mừng đến với VaultSync');
+    const guideHeading = page.locator('text=Hướng Dẫn Bắt Đầu Nhanh');
     await expect(guideHeading).toBeVisible({ timeout: 5000 });
 
     const shot1 = path.join(evidenceDirs.fix15_1, '01_initial_quickstart_guide.png');

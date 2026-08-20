@@ -57,7 +57,7 @@ test.describe('VaultSync Enterprise Production E2E Test Suite (11/10 Precision)'
 
     // Check auto-save indicator
     await page.waitForTimeout(600);
-    const saveIndicator = page.locator('text=Đã lưu an toàn');
+    const saveIndicator = page.locator('text=Đã lưu');
     await expect(saveIndicator).toBeVisible({ timeout: 5000 });
 
     // Switch document in file tree
