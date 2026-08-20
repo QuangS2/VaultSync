@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Lock,
+  FileText,
   Sun,
   Cloud,
   Moon,
@@ -212,7 +212,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             <div className="flex items-center justify-between pb-2 border-b border-theme-border">
               <div className="flex items-center gap-2">
                 <div className="w-6 h-6 rounded bg-theme-accent text-white flex items-center justify-center text-xs font-bold">
-                  <Lock className="w-3.5 h-3.5" />
+                  <FileText className="w-3.5 h-3.5" />
                 </div>
                 <span className="font-semibold text-sm text-theme-text">Tùy Chọn & Tài Khoản</span>
               </div>

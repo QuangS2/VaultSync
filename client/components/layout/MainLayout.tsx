@@ -4,6 +4,7 @@ import { LeftSidebar } from './LeftSidebar';
 import { EditorCanvas } from './EditorCanvas';
 import { RightDiscussionSidebar } from './RightDiscussionSidebar';
 import { TreeStateManager } from '../../lib/tree/tree-state-manager';
+import { FileSystemItem } from '../../lib/tree/types';
 import { InlineCommentAnchorEngine } from '../../lib/yjs/inline-comment-engine';
 import { RoomChatEngine } from '../../lib/yjs/room-chat-engine';
 import * as Y from 'yjs';
@@ -682,6 +683,55 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     return () => metaMap.unobserve(handleMetaChange);
   }, [yDoc, activeDocId, treeManager]);
 
+  // Listen for real-time shared tree item updates (Creating, Renaming, Moving, Trashing, Restoring, Deleting)
+  useEffect(() => {
+    const sharedItemsMap = yDoc.getMap('shared_items');
+
+    // Initial hydration from sharedItemsMap
+    sharedItemsMap.forEach((rawItem: any) => {
+      if (rawItem && typeof rawItem === 'object') {
+        treeManager.syncItem(rawItem as FileSystemItem);
+      }
+    });
+
+    const handleSharedItemsChange = (event: Y.YMapEvent<any>) => {
+      for (const key of event.keysChanged) {
+        const item = sharedItemsMap.get(key) as FileSystemItem | undefined;
+        if (item) {
+          treeManager.syncItem(item);
+        } else {
+          // Permanently deleted from CRDT map
+          if (treeManager.getItem(key)) {
+            treeManager.permanentDelete(key);
+          }
+        }
+      }
+      setTreeVersion(v => v + 1);
+    };
+
+    sharedItemsMap.observe(handleSharedItemsChange);
+    return () => sharedItemsMap.unobserve(handleSharedItemsChange);
+  }, [yDoc, treeManager]);
+
+  const handleTreeMutation = React.useCallback((
+    action: 'create' | 'rename' | 'move' | 'trash' | 'restore' | 'delete',
+    item: any
+  ) => {
+    const sharedItemsMap = yDoc.getMap('shared_items');
+    if (action === 'delete') {
+      if (item && item.id) {
+        sharedItemsMap.delete(item.id);
+      }
+    } else if (item && item.id) {
+      const currentItem = treeManager.getItem(item.id);
+      if (currentItem) {
+        sharedItemsMap.set(item.id, currentItem);
+      } else {
+        sharedItemsMap.set(item.id, item);
+      }
+    }
+  }, [yDoc, treeManager]);
+
   const handleSelectDoc = (id: string) => {
     const item = treeManager.getItem(id);
     if (item && item.type === 'document') {
@@ -796,6 +846,17 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         documentKeysRef.current.set(folderId, key);
       }
     }
+
+    // Seed shared folder and all child items into shared_items CRDT map
+    const sharedItemsMap = yDoc.getMap('shared_items');
+    const folderItem = treeManager.getItem(folderId);
+    if (folderItem) sharedItemsMap.set(folderId, folderItem);
+    if (manifest && Array.isArray(manifest.items)) {
+      for (const child of manifest.items) {
+        sharedItemsMap.set(child.id, child);
+      }
+    }
+
     setShareModalConfig({
       isOpen: true,
       targetId: folderId,
@@ -816,10 +877,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   ) => {
     const activePerms = permissions || DEFAULT_OWNER_PERMISSIONS;
     permissionsMapRef.current.set(roomId, activePerms);
+    const sharedItemsMap = yDoc.getMap('shared_items');
 
     if (isFolder) {
       const folderTitle = title || manifestData?.folder?.name || 'Thư Mục Cộng Tác';
-      treeManager.ensureItem(roomId, folderTitle, 'folder', null, 'Folder');
+      const createdFolder = treeManager.ensureItem(roomId, folderTitle, 'folder', null, 'Folder');
+      sharedItemsMap.set(roomId, createdFolder);
       if (key) {
         documentKeysRef.current.set(roomId, key);
         await saveSharedDocKey(roomId, key);
@@ -828,7 +891,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       let firstDocId: string | null = null;
       if (manifestData && Array.isArray(manifestData.items)) {
         for (const item of manifestData.items) {
-          treeManager.ensureItem(item.id, item.name, item.type, item.parentId || roomId, item.icon);
+          const childItem = treeManager.ensureItem(item.id, item.name, item.type, item.parentId || roomId, item.icon);
+          sharedItemsMap.set(item.id, childItem);
           permissionsMapRef.current.set(item.id, activePerms);
           if (key) {
             documentKeysRef.current.set(item.id, key);
@@ -858,7 +922,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       setDocumentKey(key);
     }
     const cleanTitle = title || 'Tài Liệu Cộng Tác';
-    treeManager.ensureItem(roomId, cleanTitle, 'document', null, 'Share2');
+    const createdDoc = treeManager.ensureItem(roomId, cleanTitle, 'document', null, 'Share2');
+    sharedItemsMap.set(roomId, createdDoc);
     handleSelectDoc(roomId);
     setTreeVersion(v => v + 1);
   };
@@ -1087,6 +1152,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           onSelectDoc={handleSelectDoc}
           onExportDoc={handleExportDoc}
           onShareFolder={handleShareFolder}
+          onTreeMutation={handleTreeMutation}
+          permissions={currentPermissions}
           treeManager={treeManager}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           onOpenJoinRoomModal={() => setIsJoinRoomModalOpen(true)}
