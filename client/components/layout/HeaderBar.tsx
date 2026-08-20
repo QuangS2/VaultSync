@@ -91,7 +91,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           <div className="w-6.5 h-6.5 rounded-md bg-theme-accent text-white flex items-center justify-center shadow-xs shrink-0">
             <Lock className="w-3.5 h-3.5" />
           </div>
-          <span className="font-semibold text-sm tracking-tight text-theme-text hidden xs:inline sm:inline">VaultSync</span>
+          <span className="font-semibold text-sm tracking-tight text-theme-text hidden sm:inline">VaultSync</span>
           <Badge variant="accent" size="sm" className="hidden lg:inline-flex text-[10px] py-0 px-1.5">
             Bảo Mật Riêng Tư
           </Badge>
@@ -134,21 +134,20 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
               <Wifi className="w-3 h-3 text-emerald-500 shrink-0" />
               <span className="hidden sm:inline">Đã đồng bộ •</span>
-              <span className="font-mono">{onlineCount}</span>
-              <span className="hidden xs:inline">online</span>
+              <span>{onlineCount} online</span>
               <Users className="w-3 h-3 ml-0.5 text-theme-accent shrink-0 hidden sm:inline" />
             </>
           ) : isConnecting ? (
             <>
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping shrink-0" />
               <RefreshCw className="w-3 h-3 text-amber-500 animate-spin shrink-0" />
-              <span className="hidden xs:inline">Kết nối lại...</span>
+              <span>Đang kết nối lại...</span>
             </>
           ) : (
             <>
               <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
               <WifiOff className="w-3 h-3 text-slate-400 shrink-0" />
-              <span className="hidden xs:inline">Ngoại tuyến</span>
+              <span>Ngoại tuyến</span>
             </>
           )}
         </button>

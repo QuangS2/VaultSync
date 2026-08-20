@@ -314,9 +314,9 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({
             </Button>
           ) : (
             <div className="flex items-center gap-1.5 sm:gap-3 text-[10px] sm:text-[11px] text-theme-text-muted font-mono whitespace-nowrap">
-              <span>{stats.words} <span className="hidden xs:inline">từ</span></span>
+              <span>{stats.words} từ</span>
               <span>•</span>
-              <span>{stats.characters} <span className="hidden xs:inline">ký tự</span></span>
+              <span>{stats.characters} ký tự</span>
             </div>
           )}
         </div>

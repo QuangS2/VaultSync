@@ -50,7 +50,7 @@ export const OnlineCollaboratorsPopover: React.FC<OnlineCollaboratorsPopoverProp
   return (
     <div
       ref={popoverRef}
-      className="absolute top-12 right-16 sm:right-48 w-72 bg-theme-card border border-theme-border rounded-xl shadow-xl z-50 p-3.5 flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-150 select-none backdrop-blur-md"
+      className="absolute top-12 left-1/2 -translate-x-1/2 w-72 sm:w-80 bg-theme-card border border-theme-border rounded-xl shadow-2xl z-50 p-3.5 flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-150 select-none backdrop-blur-md"
     >
       {/* Popover Header */}
       <div className="flex items-center justify-between pb-2 border-b border-theme-border text-xs">

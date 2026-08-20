@@ -82,8 +82,8 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         {/* Breadcrumb Path */}
         <div className="flex items-center gap-1.5 text-xs text-theme-text-muted min-w-0">
           <Folder className="w-3.5 h-3.5 text-theme-accent shrink-0" />
-          <span className="truncate max-w-[80px] sm:max-w-[140px] hidden xs:inline">{folderName}</span>
-          <ChevronRight className="w-3 h-3 shrink-0 hidden xs:inline" />
+          <span className="truncate max-w-[80px] sm:max-w-[140px] hidden sm:inline">{folderName}</span>
+          <ChevronRight className="w-3 h-3 shrink-0 hidden sm:inline" />
           <span className="text-theme-text font-medium truncate max-w-[140px] sm:max-w-[240px] md:max-w-[360px]">{currentTitle}</span>
         </div>
 
