@@ -193,110 +193,119 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   // Automatically register shared room document / folder from URL if present (runs once and cleans URL/sessionStorage)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const shareInfo = getPendingShareInfo();
-      if (shareInfo) {
-        if (shareInfo.isFolder && shareInfo.folderId) {
-          // Folder Sharing Provisioning
-          const folderId = shareInfo.folderId;
-          const folderTitle = shareInfo.title || 'Thư Mục Chia Sẻ';
+    if (typeof window === 'undefined') return;
+    const shareInfo = getPendingShareInfo();
+    async function processIncomingShare(info: {
+      isFolder?: boolean;
+      room?: string | null;
+      folderId?: string | null;
+      title: string;
+      key: string | null;
+      manifest?: string | null;
+    }) {
+      if (info.isFolder && info.folderId) {
+        // Folder Sharing Provisioning
+        const folderId = info.folderId;
+        const folderTitle = info.title || 'Thư Mục Chia Sẻ';
 
-          // 1. Ensure folder item in tree
-          treeManager.ensureItem(folderId, folderTitle, 'folder', null, 'Folder');
+        // 1. Ensure folder item in tree
+        treeManager.ensureItem(folderId, folderTitle, 'folder', null, 'Folder');
 
-          // 2. Decode manifest if provided
-          let firstDocId: string | null = null;
-          if (shareInfo.manifest) {
-            try {
-              const manifestJson = new TextDecoder().decode(BinaryUtils.base64UrlToBytes(shareInfo.manifest));
-              const manifest = JSON.parse(manifestJson);
-              if (manifest.items && Array.isArray(manifest.items)) {
-                for (const item of manifest.items) {
-                  treeManager.ensureItem(item.id, item.name, item.type, item.parentId || folderId, item.icon);
-                  if (item.type === 'document' && !firstDocId) {
-                    firstDocId = item.id;
-                  }
+        // 2. Decode manifest if provided
+        let firstDocId: string | null = null;
+        const manifestItems: any[] = [];
+        if (info.manifest) {
+          try {
+            const manifestJson = new TextDecoder().decode(BinaryUtils.base64UrlToBytes(info.manifest));
+            const manifest = JSON.parse(manifestJson);
+            if (manifest.items && Array.isArray(manifest.items)) {
+              for (const item of manifest.items) {
+                treeManager.ensureItem(item.id, item.name, item.type, item.parentId || folderId, item.icon);
+                manifestItems.push(item);
+                if (item.type === 'document' && !firstDocId) {
+                  firstDocId = item.id;
                 }
               }
-            } catch (err) {
-              console.error('Lỗi giải mã manifest thư mục chia sẻ:', err);
             }
+          } catch (err) {
+            console.error('Lỗi giải mã manifest thư mục chia sẻ:', err);
           }
-
-          // 3. Import & Save Key for folder and child docs
-          if (shareInfo.key) {
-            try {
-              const rawKeyBytes = BinaryUtils.base64UrlToBytes(shareInfo.key);
-              crypto.subtle.importKey(
-                'raw',
-                rawKeyBytes as BufferSource,
-                { name: 'AES-GCM', length: 256 },
-                true,
-                ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
-              ).then(async importedKey => {
-                documentKeysRef.current.set(folderId, importedKey);
-                await saveSharedDocKey(folderId, importedKey);
-
-                // Also map key to all child items in folder
-                const descendants = treeManager.getAllDescendantIds(folderId);
-                for (const descId of descendants) {
-                  documentKeysRef.current.set(descId, importedKey);
-                  await saveSharedDocKey(descId, importedKey);
-                }
-
-                if (firstDocId) {
-                  setDocumentKey(importedKey);
-                }
-              }).catch(err => {
-                console.error('Lỗi nhập khóa thư mục chia sẻ:', err);
-              });
-            } catch (err) {
-              console.error('Lỗi giải mã chuỗi khóa thư mục:', err);
-            }
-          }
-
-          if (firstDocId) {
-            setActiveDocId(firstDocId);
-          }
-          setTreeVersion(v => v + 1);
-        } else if (shareInfo.room) {
-          // Single Document Sharing
-          if (shareInfo.key) {
-            try {
-              const rawKeyBytes = BinaryUtils.base64UrlToBytes(shareInfo.key);
-              crypto.subtle.importKey(
-                'raw',
-                rawKeyBytes as BufferSource,
-                { name: 'AES-GCM', length: 256 },
-                true,
-                ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
-              ).then(async importedKey => {
-                documentKeysRef.current.set(shareInfo.room!, importedKey);
-                await saveSharedDocKey(shareInfo.room!, importedKey);
-                setDocumentKey(importedKey);
-              }).catch(err => {
-                console.error('Lỗi nhập khóa mã hóa tài liệu từ URL:', err);
-              });
-            } catch (err) {
-              console.error('Lỗi giải mã khóa chia sẻ từ URL:', err);
-            }
-          }
-
-          treeManager.ensureItem(shareInfo.room, shareInfo.title, 'document', null, 'Share2');
-          setActiveDocId(shareInfo.room);
-          setTreeVersion(v => v + 1);
         }
 
-        // Clean URL query parameters and clear pending share to prevent trapping user
-        if (window.location.search) {
-          window.history.replaceState({}, document.title, window.location.pathname);
+        // 3. Import & Save Key for folder and ALL child docs
+        if (info.key) {
+          try {
+            const rawKeyBytes = BinaryUtils.base64UrlToBytes(info.key);
+            const importedKey = await crypto.subtle.importKey(
+              'raw',
+              rawKeyBytes as BufferSource,
+              { name: 'AES-GCM', length: 256 },
+              true,
+              ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
+            );
+
+            documentKeysRef.current.set(folderId, importedKey);
+            await saveSharedDocKey(folderId, importedKey);
+
+            for (const item of manifestItems) {
+              documentKeysRef.current.set(item.id, importedKey);
+              await saveSharedDocKey(item.id, importedKey);
+            }
+
+            if (firstDocId) {
+              documentKeysRef.current.set(firstDocId, importedKey);
+              await saveSharedDocKey(firstDocId, importedKey);
+              setDocumentKey(importedKey);
+            }
+          } catch (err) {
+            console.error('Lỗi nhập khóa thư mục chia sẻ:', err);
+          }
         }
-        sessionStorage.removeItem('vaultsync_pending_share');
+
+        if (firstDocId) {
+          setActiveDocId(firstDocId);
+        }
+        setTreeVersion(v => v + 1);
+      } else if (info.room) {
+        // Single Document Sharing
+        const roomId = info.room;
+        if (info.key) {
+          try {
+            const rawKeyBytes = BinaryUtils.base64UrlToBytes(info.key);
+            const importedKey = await crypto.subtle.importKey(
+              'raw',
+              rawKeyBytes as BufferSource,
+              { name: 'AES-GCM', length: 256 },
+              true,
+              ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
+            );
+
+            documentKeysRef.current.set(roomId, importedKey);
+            await saveSharedDocKey(roomId, importedKey);
+            setDocumentKey(importedKey);
+          } catch (err) {
+            console.error('Lỗi nhập khóa mã hóa tài liệu từ URL:', err);
+          }
+        }
+
+        treeManager.ensureItem(roomId, info.title, 'document', null, 'Share2');
+        setActiveDocId(roomId);
+        setTreeVersion(v => v + 1);
       }
+
+      // Clean URL query parameters and clear pending share to prevent trapping user
+      if (window.location.search) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+      sessionStorage.removeItem('vaultsync_pending_share');
+    }
+
+    if (shareInfo) {
+      void processIncomingShare(shareInfo);
     }
   }, [treeManager, getPendingShareInfo, saveSharedDocKey]);
 
-  // Update active document key when activeDocId changes, checking memory, sessionStorage, or fallback to vaultRootKey
+  // Update active document key when activeDocId changes, checking memory, sessionStorage, parent folder, or fallback to vaultRootKey
   useEffect(() => {
     let isMounted = true;
     async function updateDocumentKey() {
@@ -314,6 +323,27 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         return;
       }
 
+      // Check if document belongs to a shared parent folder
+      const currentItem = treeManager.getItem(activeDocId);
+      if (currentItem?.parentId) {
+        const parentKey = documentKeysRef.current.get(currentItem.parentId);
+        if (parentKey && isMounted) {
+          documentKeysRef.current.set(activeDocId, parentKey);
+          await saveSharedDocKey(activeDocId, parentKey);
+          setDocumentKey(parentKey);
+          return;
+        }
+
+        const storedParentKey = await loadSharedDocKey(currentItem.parentId);
+        if (storedParentKey && isMounted) {
+          documentKeysRef.current.set(activeDocId, storedParentKey);
+          documentKeysRef.current.set(currentItem.parentId, storedParentKey);
+          await saveSharedDocKey(activeDocId, storedParentKey);
+          setDocumentKey(storedParentKey);
+          return;
+        }
+      }
+
       // Fallback to user's vault root key for personal documents
       if (session?.vaultRootKey && isMounted) {
         setDocumentKey(session.vaultRootKey);
@@ -324,7 +354,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [activeDocId, session, loadSharedDocKey]);
+  }, [activeDocId, session, loadSharedDocKey, saveSharedDocKey, treeManager]);
 
   // Isolate and switch Y.Doc per active document to prevent cross-document text bleeding
   useEffect(() => {
@@ -723,6 +753,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       }
 
       if (firstDocId) {
+        if (key) {
+          documentKeysRef.current.set(firstDocId, key);
+          await saveSharedDocKey(firstDocId, key);
+          setDocumentKey(key);
+        }
         handleSelectDoc(firstDocId);
       }
       setTreeVersion(v => v + 1);
