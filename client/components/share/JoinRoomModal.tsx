@@ -36,6 +36,7 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
       let roomId = rawInput;
       let roomTitle = 'Tài Liệu Cộng Tác';
       let rawKeyStr = keyInput.trim();
+      let isUrl = false;
 
       // Check if user pasted a full URL
       if (rawInput.includes('?room=') || rawInput.startsWith('http://') || rawInput.startsWith('https://')) {
@@ -45,7 +46,10 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
           const titleParam = url.searchParams.get('title');
           const keyParam = url.searchParams.get('key');
 
-          if (roomParam) roomId = roomParam;
+          if (roomParam) {
+            roomId = roomParam;
+            isUrl = true;
+          }
           if (titleParam) roomTitle = decodeURIComponent(titleParam);
           if (keyParam) rawKeyStr = keyParam;
         } catch {
@@ -53,10 +57,15 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
         }
       }
 
-      // Format room ID
-      roomId = roomId.toLowerCase().trim();
-      if (!roomId.startsWith('doc-')) {
-        roomId = `doc-${roomId}`;
+      // Format room ID if raw code was entered
+      if (!isUrl) {
+        roomId = roomId.trim();
+        if (roomId.toUpperCase().startsWith('VS-')) {
+          roomId = roomId.slice(3).toLowerCase();
+        }
+        if (!roomId.startsWith('doc-') && !roomId.startsWith('item-')) {
+          roomId = `doc-${roomId.toLowerCase()}`;
+        }
       }
 
       let importedKey: CryptoKey | undefined;

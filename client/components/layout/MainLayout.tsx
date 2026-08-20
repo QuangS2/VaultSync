@@ -96,6 +96,37 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [awarenessUsers, setAwarenessUsers] = useState<AwarenessUser[]>([]);
   const [isJoinRoomModalOpen, setIsJoinRoomModalOpen] = useState(false);
 
+  // Helper to save shared doc key into sessionStorage
+  const saveSharedDocKey = React.useCallback(async (docId: string, key: CryptoKey) => {
+    try {
+      if (typeof window === 'undefined' || !window.sessionStorage) return;
+      const raw = await crypto.subtle.exportKey('raw', key);
+      const b64 = BinaryUtils.bufferToBase64Url(new Uint8Array(raw));
+      sessionStorage.setItem(`vaultsync_shared_key_${docId}`, b64);
+    } catch (err) {
+      console.error('Lỗi lưu khóa chia sẻ vào sessionStorage:', err);
+    }
+  }, []);
+
+  // Helper to load shared doc key from sessionStorage
+  const loadSharedDocKey = React.useCallback(async (docId: string): Promise<CryptoKey | null> => {
+    try {
+      if (typeof window === 'undefined' || !window.sessionStorage) return null;
+      const b64 = sessionStorage.getItem(`vaultsync_shared_key_${docId}`);
+      if (!b64) return null;
+      const rawBytes = BinaryUtils.base64UrlToBytes(b64);
+      return await crypto.subtle.importKey(
+        'raw',
+        rawBytes as BufferSource,
+        { name: 'AES-GCM', length: 256 },
+        true,
+        ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
+      );
+    } catch {
+      return null;
+    }
+  }, []);
+
   // Helper to extract or restore pending share information
   const getPendingShareInfo = React.useCallback(() => {
     if (typeof window === 'undefined') return null;
@@ -125,7 +156,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     return null;
   }, []);
 
-  // Automatically register shared room document from URL if present
+  // Automatically register shared room document from URL if present (runs once and cleans URL/sessionStorage)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const shareInfo = getPendingShareInfo();
@@ -139,8 +170,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               { name: 'AES-GCM', length: 256 },
               true,
               ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
-            ).then(importedKey => {
+            ).then(async importedKey => {
               documentKeysRef.current.set(shareInfo.room, importedKey);
+              await saveSharedDocKey(shareInfo.room, importedKey);
               setDocumentKey(importedKey);
             }).catch(err => {
               console.error('Lỗi nhập khóa mã hóa tài liệu từ URL:', err);
@@ -153,23 +185,50 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         treeManager.ensureItem(shareInfo.room, shareInfo.title, 'document', null, 'Share2');
         setActiveDocId(shareInfo.room);
         setTreeVersion(v => v + 1);
+
+        // Clean URL query parameters and clear pending share to prevent trapping user
+        if (window.location.search) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        sessionStorage.removeItem('vaultsync_pending_share');
       }
     }
-  }, [treeManager, getPendingShareInfo]);
+  }, [treeManager, getPendingShareInfo, saveSharedDocKey]);
 
-  // Update active document key when activeDocId changes
+  // Update active document key when activeDocId changes, checking memory, sessionStorage, or fallback to vaultRootKey
   useEffect(() => {
-    const customKey = documentKeysRef.current.get(activeDocId);
-    if (customKey) {
-      setDocumentKey(customKey);
-    } else if (session?.vaultRootKey) {
-      setDocumentKey(session.vaultRootKey);
+    let isMounted = true;
+    async function updateDocumentKey() {
+      const customKey = documentKeysRef.current.get(activeDocId);
+      if (customKey) {
+        if (isMounted) setDocumentKey(customKey);
+        return;
+      }
+
+      // Try restoring shared key from sessionStorage (preserves decryption after F5)
+      const storedKey = await loadSharedDocKey(activeDocId);
+      if (storedKey && isMounted) {
+        documentKeysRef.current.set(activeDocId, storedKey);
+        setDocumentKey(storedKey);
+        return;
+      }
+
+      // Fallback to user's vault root key for personal documents
+      if (session?.vaultRootKey && isMounted) {
+        setDocumentKey(session.vaultRootKey);
+      }
     }
-  }, [activeDocId, session]);
+
+    void updateDocumentKey();
+    return () => {
+      isMounted = false;
+    };
+  }, [activeDocId, session, loadSharedDocKey]);
 
   // Isolate and switch Y.Doc per active document to prevent cross-document text bleeding
   useEffect(() => {
     setIsDocHydrated(false);
+    setActiveCommentThreadId(null);
     if (typeof window !== 'undefined') {
       localStorage.setItem('vaultsync_active_doc', activeDocId);
     }
@@ -229,15 +288,19 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     };
   }, [documentKey, activeDocId, currentUserOptions, yDoc]);
 
-  // 1. Restore tree snapshot on vault unlock / mount
+  // 1. Restore tree snapshot on vault unlock / mount (strictly using session.vaultRootKey)
+  const hasRestoredTreeRef = React.useRef(false);
   useEffect(() => {
-    if (!documentKey) return;
-    const currentKey = documentKey;
+    if (!session?.vaultRootKey) return;
+    if (hasRestoredTreeRef.current) return;
+    hasRestoredTreeRef.current = true;
+
+    const rootKey = session.vaultRootKey;
     let isMounted = true;
 
     async function restoreTreeData() {
       try {
-        const treeSnapshot = await storage.loadTreeSnapshot(currentKey);
+        const treeSnapshot = await storage.loadTreeSnapshot(rootKey);
         if (treeSnapshot && treeSnapshot.length > 0 && isMounted) {
           treeManager.applyStateUpdate(treeSnapshot);
         }
@@ -248,6 +311,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           treeManager.ensureItem(pendingShare.room, pendingShare.title, 'document', null, 'Share2');
           setActiveDocId(pendingShare.room);
           setTreeVersion(v => v + 1);
+
+          if (typeof window !== 'undefined') {
+            if (window.location.search) {
+              window.history.replaceState({}, document.title, window.location.pathname);
+            }
+            sessionStorage.removeItem('vaultsync_pending_share');
+          }
         } else {
           // Validate active document exists, is not trash, and is a document
           const currentItem = treeManager.getItem(activeDocId);
@@ -267,7 +337,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [documentKey, storage, treeManager, getPendingShareInfo]);
+  }, [session?.vaultRootKey, storage, treeManager, getPendingShareInfo, activeDocId]);
 
   // 2. Restore active document state from IndexedDB whenever activeDocId or yDoc changes
   useEffect(() => {
@@ -347,10 +417,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     };
   }, [yDoc, activeDocId, documentKey, storage, isDocHydrated]);
 
-  // Auto-save File Tree Snapshot to Encrypted IndexedDB on change (Debounced 500ms)
+  // Auto-save File Tree Snapshot to Encrypted IndexedDB on change (Debounced 500ms, strictly using vaultRootKey)
   useEffect(() => {
-    if (!documentKey) return;
-    const currentKey = documentKey;
+    if (!session?.vaultRootKey) return;
+    const rootKey = session.vaultRootKey;
 
     let saveTreeTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -359,7 +429,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       saveTreeTimer = setTimeout(async () => {
         try {
           const treeBytes = treeManager.encodeState();
-          await storage.saveTreeSnapshot(treeBytes, currentKey);
+          await storage.saveTreeSnapshot(treeBytes, rootKey);
         } catch (err) {
           console.error('Tự động lưu cây thư mục thất bại:', err);
         }
@@ -371,7 +441,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       if (saveTreeTimer) clearTimeout(saveTreeTimer);
       unobserve();
     };
-  }, [treeManager, documentKey, storage]);
+  }, [treeManager, session?.vaultRootKey, storage]);
 
   // Initialize cryptographic document key on mount if session is not already provided
   useEffect(() => {
@@ -464,9 +534,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     setIsExportModalOpen(true);
   };
 
-  const handleJoinRoom = (roomId: string, title?: string, key?: CryptoKey) => {
+  const handleJoinRoom = async (roomId: string, title?: string, key?: CryptoKey) => {
     if (key) {
       documentKeysRef.current.set(roomId, key);
+      await saveSharedDocKey(roomId, key);
       setDocumentKey(key);
     }
     const cleanTitle = title || 'Tài Liệu Cộng Tác';
