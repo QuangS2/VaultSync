@@ -18,11 +18,14 @@ import { Input } from '../ui/Input';
 import { AwarenessUser } from '../../lib/yjs/types';
 import { VaultAuthEngine } from '../../lib/auth/vault-auth-engine';
 
+import { BinaryUtils } from '../../lib/crypto/binary-utils';
+
 export interface ShareModalProps {
   isOpen: boolean;
   onClose: () => void;
   documentId: string;
   documentTitle: string;
+  documentKey?: CryptoKey | null | undefined;
   awarenessUsers?: AwarenessUser[] | undefined;
   currentUser?: AwarenessUser | undefined;
 }
@@ -32,6 +35,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   onClose,
   documentId,
   documentTitle,
+  documentKey,
   awarenessUsers = [],
   currentUser
 }) => {
@@ -48,13 +52,25 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const [copiedCode, setCopiedCode] = useState(false);
   const [invitedUsers, setInvitedUsers] = useState<Record<string, boolean>>({});
 
-  // Key Masking State
+  // Exported Key State
+  const [exportedKeyB64, setExportedKeyB64] = useState<string>('');
   const [showRawKey, setShowRawKey] = useState(false);
-  const [maskedKey] = useState('••••••••••••••••••••••••••••••••••••••••');
 
   const originUrl = typeof window !== 'undefined' ? window.location.origin : 'http://127.0.0.1:5173';
-  const shareLink = `${originUrl}/?room=${encodeURIComponent(documentId)}&title=${encodeURIComponent(documentTitle)}`;
+  const shareLink = `${originUrl}/?room=${encodeURIComponent(documentId)}&title=${encodeURIComponent(documentTitle)}${exportedKeyB64 ? `&key=${exportedKeyB64}` : ''}`;
   const roomCode = `VS-${documentId.replace(/[^a-zA-Z0-9]/g, '').slice(-6).toUpperCase() || '789214'}`;
+
+  // Export document key when modal opens
+  useEffect(() => {
+    if (documentKey) {
+      crypto.subtle.exportKey('raw', documentKey)
+        .then(raw => {
+          const b64 = BinaryUtils.bufferToBase64Url(new Uint8Array(raw));
+          setExportedKeyB64(b64);
+        })
+        .catch(err => console.error('Lỗi xuất khóa chia sẻ:', err));
+    }
+  }, [documentKey, isOpen]);
 
   // Reset states when opened
   useEffect(() => {
@@ -355,14 +371,14 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               <div className="pt-2 border-t border-theme-border flex items-center justify-between text-[11px] text-theme-text-muted">
                 <span className="flex items-center gap-1.5">
                   <Lock className="w-3.5 h-3.5 text-theme-accent" />
-                  <span>Khóa phiên tài liệu: <code className="font-mono">{showRawKey ? 'ECDH-P256-AES256GCM' : maskedKey}</code></span>
+                  <span>Khóa phiên tài liệu: <code className="font-mono">{showRawKey ? (exportedKeyB64 ? `${exportedKeyB64.slice(0, 24)}...` : 'AES256-GCM') : '••••••••••••••••••••••••••••••••••••••••'}</code></span>
                 </span>
                 <button
                   type="button"
                   onClick={() => setShowRawKey(!showRawKey)}
                   className="text-theme-text hover:text-theme-accent transition-colors cursor-pointer text-[10px] underline ml-2"
                 >
-                  {showRawKey ? 'Ẩn' : 'Xem'}
+                  {showRawKey ? 'Ẩn chuỗi khóa' : 'Hiện chuỗi khóa'}
                 </button>
               </div>
             </div>

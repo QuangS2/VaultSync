@@ -64,9 +64,16 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({
     activeCommentThreadId
   }), [yDoc, provider, user, onCommentClick, activeCommentThreadId]);
 
+  const initialContent = useMemo(() => {
+    if (yDoc && yDoc.getXmlFragment('default').length > 0) {
+      return undefined;
+    }
+    return content;
+  }, [yDoc, content]);
+
   const editor = useEditor({
     extensions,
-    content,
+    ...(initialContent !== undefined ? { content: initialContent } : {}),
     editable: !readOnly,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();

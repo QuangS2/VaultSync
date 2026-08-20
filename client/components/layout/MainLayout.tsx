@@ -18,6 +18,7 @@ import { UnlockedVaultSession } from '../../lib/auth/types';
 import { EncryptedYjsProvider } from '../../lib/yjs/encrypted-yjs-provider';
 import { ProviderConnectionStatus, AwarenessUser, CollaborationUserOptions } from '../../lib/yjs/types';
 import { EncryptedIndexedDBStorage } from '../../lib/storage/encrypted-indexeddb-storage';
+import { BinaryUtils } from '../../lib/crypto/binary-utils';
 
 function getRelayWsUrl(): string {
   if (typeof window === 'undefined') return 'ws://localhost:1234';
@@ -52,6 +53,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       const urlParams = new URLSearchParams(window.location.search);
       const roomParam = urlParams.get('room');
       if (roomParam) return roomParam;
+      const savedDocId = localStorage.getItem('vaultsync_active_doc');
+      if (savedDocId) return savedDocId;
     }
     return 'doc-quicknotes';
   });
@@ -96,6 +99,27 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       const urlParams = new URLSearchParams(window.location.search);
       const roomParam = urlParams.get('room');
       const titleParam = urlParams.get('title');
+      const keyParam = urlParams.get('key');
+
+      if (keyParam) {
+        try {
+          const rawKeyBytes = BinaryUtils.base64UrlToBytes(keyParam);
+          crypto.subtle.importKey(
+            'raw',
+            rawKeyBytes as BufferSource,
+            { name: 'AES-GCM', length: 256 },
+            true,
+            ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
+          ).then(importedKey => {
+            setDocumentKey(importedKey);
+          }).catch(err => {
+            console.error('Lỗi nhập khóa mã hóa tài liệu từ URL:', err);
+          });
+        } catch (err) {
+          console.error('Lỗi giải mã khóa chia sẻ từ URL:', err);
+        }
+      }
+
       if (roomParam) {
         const decodedTitle = titleParam ? decodeURIComponent(titleParam) : 'Tài Liệu Được Chia Sẻ';
         treeManager.ensureItem(roomParam, decodedTitle, 'document', null, 'Share2');
@@ -108,6 +132,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   // Isolate and switch Y.Doc per active document to prevent cross-document text bleeding
   useEffect(() => {
     setIsDocHydrated(false);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('vaultsync_active_doc', activeDocId);
+    }
     let currentYDoc = yDocsRef.current.get(activeDocId);
     if (!currentYDoc) {
       currentYDoc = new Y.Doc();
@@ -175,6 +202,16 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         const treeSnapshot = await storage.loadTreeSnapshot(currentKey);
         if (treeSnapshot && treeSnapshot.length > 0 && isMounted) {
           treeManager.applyStateUpdate(treeSnapshot);
+        }
+
+        // Validate active document exists and is not deleted in trash
+        const currentItem = treeManager.getItem(activeDocId);
+        if (!currentItem || currentItem.isTrash) {
+          const validDocs = treeManager.getAllItems().filter(i => i.type === 'document' && !i.isTrash);
+          if (validDocs.length > 0 && validDocs[0] && isMounted) {
+            setActiveDocId(validDocs[0].id);
+            return;
+          }
         }
 
         const docState = await storage.loadDocumentState(activeDocId, currentKey);
@@ -550,6 +587,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         onClose={() => setIsShareModalOpen(false)}
         documentId={activeDocId}
         documentTitle={activeDocTitle}
+        documentKey={documentKey}
         awarenessUsers={awarenessUsers}
         currentUser={currentUserOptions}
       />

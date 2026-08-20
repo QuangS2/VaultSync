@@ -237,12 +237,19 @@ export const TreeView: React.FC<TreeViewProps> = ({
   };
 
   const performDelete = (id: string) => {
+    const isDeletingActive = activeDocId === id || treeManager.isDescendantOf(activeDocId, id);
     treeManager.moveToTrash(id);
-    // If active document is deleted, switch active doc
-    if (activeDocId === id) {
-      const remaining = treeManager.getAllItems().filter(i => i.type === 'document' && !i.isTrash && i.id !== id);
+
+    // If active document is deleted, switch active doc immediately
+    if (isDeletingActive) {
+      const remaining = treeManager.getAllItems().filter(
+        i => i.type === 'document' && !i.isTrash && i.id !== id && !treeManager.isDescendantOf(i.id, id)
+      );
       if (remaining.length > 0 && remaining[0]) {
         onSelectDoc(remaining[0].id);
+      } else {
+        const newDoc = treeManager.createItem('Tài liệu mới', 'document', null);
+        onSelectDoc(newDoc.id);
       }
     }
     setDeleteModal({ isOpen: false, item: null, descendantCount: 0 });
