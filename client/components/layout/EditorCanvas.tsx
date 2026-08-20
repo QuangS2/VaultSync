@@ -78,17 +78,17 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   return (
     <div className="flex-1 bg-theme-bg flex flex-col h-full overflow-hidden select-text">
       {/* Top Breadcrumb & Document Metadata Toolbar */}
-      <div className="h-11 px-6 border-b border-theme-border flex items-center justify-between shrink-0 bg-theme-bg-subtle/50 select-none">
+      <div className="h-11 px-3 sm:px-6 border-b border-theme-border flex items-center justify-between shrink-0 bg-theme-bg-subtle/50 select-none gap-2">
         {/* Breadcrumb Path */}
-        <div className="flex items-center gap-1.5 text-xs text-theme-text-muted">
-          <Folder className="w-3.5 h-3.5 text-theme-accent" />
-          <span>{folderName}</span>
-          <ChevronRight className="w-3 h-3" />
-          <span className="text-theme-text font-medium truncate max-w-[240px]">{currentTitle}</span>
+        <div className="flex items-center gap-1.5 text-xs text-theme-text-muted min-w-0">
+          <Folder className="w-3.5 h-3.5 text-theme-accent shrink-0" />
+          <span className="truncate max-w-[80px] sm:max-w-[140px] hidden sm:inline">{folderName}</span>
+          <ChevronRight className="w-3 h-3 shrink-0 hidden sm:inline" />
+          <span className="text-theme-text font-medium truncate max-w-[140px] sm:max-w-[240px] md:max-w-[360px]">{currentTitle}</span>
         </div>
 
         {/* Live Collaborators Presence & Security Indicators */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           {/* Active Collaborators Presence Stack */}
           {awarenessUsers.length > 0 ? (
             <div className="flex items-center -space-x-1.5 overflow-hidden">
@@ -118,18 +118,18 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
           <div className="flex items-center gap-1 text-[11px] text-theme-text-muted font-mono">
             {isConnected ? (
               <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                <Wifi className="w-3 h-3" />
-                <span>Đã kết nối</span>
+                <Wifi className="w-3 h-3 shrink-0" />
+                <span className="hidden sm:inline">Đã kết nối</span>
               </span>
             ) : isConnecting ? (
               <span className="flex items-center gap-1 text-amber-500 animate-pulse">
-                <RefreshCw className="w-3 h-3 animate-spin" />
-                <span>Đang kết nối...</span>
+                <RefreshCw className="w-3 h-3 animate-spin shrink-0" />
+                <span className="hidden sm:inline">Đang kết nối...</span>
               </span>
             ) : (
               <span className="flex items-center gap-1 text-theme-text-muted">
-                <WifiOff className="w-3 h-3" />
-                <span>Ngoại tuyến</span>
+                <WifiOff className="w-3 h-3 shrink-0" />
+                <span className="hidden sm:inline">Ngoại tuyến</span>
               </span>
             )}
           </div>
@@ -141,18 +141,18 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
           >
             {saveStatus === 'saving' ? (
               <span className="flex items-center gap-1 text-amber-500 animate-pulse">
-                <RefreshCw className="w-3 h-3 animate-spin" />
-                <span>Đang lưu...</span>
+                <RefreshCw className="w-3 h-3 animate-spin shrink-0" />
+                <span className="hidden md:inline">Đang lưu...</span>
               </span>
             ) : (
               <span className="flex items-center gap-1 text-theme-text-muted">
-                <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                <span>Đã lưu an toàn</span>
+                <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
+                <span className="hidden md:inline">Đã lưu an toàn</span>
               </span>
             )}
           </div>
 
-          <Badge variant="success" size="sm" className="hidden sm:inline-flex">
+          <Badge variant="success" size="sm" className="hidden lg:inline-flex">
             <Lock className="w-3 h-3" /> Mã Hóa Bảo Mật
           </Badge>
         </div>

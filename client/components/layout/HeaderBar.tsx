@@ -74,21 +74,21 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   const onlineCount = uniqueUsers.length > 0 ? uniqueUsers.length : (activeCollaboratorCount ?? 1);
 
   return (
-    <header className="h-12 border-b border-theme-border bg-theme-bg/80 backdrop-blur-md px-3 sm:px-4 flex items-center justify-between z-10 select-none relative">
+    <header className="h-12 border-b border-theme-border bg-theme-bg/80 backdrop-blur-md px-2 sm:px-4 flex items-center justify-between z-20 select-none relative flex-nowrap gap-1 sm:gap-2">
       {/* 1. Left Section: Sidebar Toggle & Brand Identity */}
-      <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
         <Button
           variant="ghost"
           size="icon"
           onClick={onToggleLeftSidebar}
           title={isLeftSidebarOpen ? 'Thu gọn thanh bên (Ctrl+B)' : 'Mở thanh bên (Ctrl+B)'}
-          className="text-theme-text-secondary h-8 w-8"
+          className="text-theme-text-secondary h-8 w-8 shrink-0"
         >
           <PanelLeft className="w-4 h-4" />
         </Button>
 
-        <div className="flex items-center gap-2">
-          <div className="w-6.5 h-6.5 rounded-md bg-theme-accent text-white flex items-center justify-center shadow-xs">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="w-6.5 h-6.5 rounded-md bg-theme-accent text-white flex items-center justify-center shadow-xs shrink-0">
             <Lock className="w-3.5 h-3.5" />
           </div>
           <span className="font-semibold text-sm tracking-tight text-theme-text hidden sm:inline">VaultSync</span>
@@ -99,13 +99,13 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       </div>
 
       {/* 2. Center Section: Quick Search Command Bar & Status Badge */}
-      <div className="flex items-center gap-2 sm:gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
         {/* Spotlight Command Search Trigger */}
         {onOpenCommandPalette && (
           <button
             onClick={onOpenCommandPalette}
             title="Tìm kiếm nhanh hoặc thực hiện lệnh (Ctrl+K)"
-            className="hidden md:flex items-center gap-2 px-3 py-1 rounded-lg bg-theme-card hover:bg-theme-card-hover border border-theme-border text-xs text-theme-text-muted hover:text-theme-text transition-all shadow-xs cursor-pointer w-48 lg:w-64 justify-between"
+            className="hidden md:flex items-center gap-2 px-3 py-1 rounded-lg bg-theme-card hover:bg-theme-card-hover border border-theme-border text-xs text-theme-text-muted hover:text-theme-text transition-all shadow-xs cursor-pointer w-36 lg:w-56 justify-between shrink-0"
           >
             <span className="flex items-center gap-1.5 truncate">
               <Search className="w-3.5 h-3.5 text-theme-text-muted shrink-0" />
@@ -118,35 +118,35 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         )}
 
         {/* Security Pill Badge */}
-        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+        <div className="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-600 dark:text-emerald-400 font-medium shrink-0">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-          <span className="hidden lg:inline">Bảo Vệ Đầu-Cuối</span>
+          <span>Bảo Vệ Đầu-Cuối</span>
         </div>
 
         {/* Live WebSocket Online Collaborators Trigger */}
         <button
           onClick={() => setIsCollaboratorsOpen(!isCollaboratorsOpen)}
           title="Xem danh sách thành viên trực tuyến"
-          className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-theme-card hover:bg-theme-card-hover border border-theme-border text-[11px] text-theme-text-muted transition-colors cursor-pointer"
+          className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-1 rounded-md bg-theme-card hover:bg-theme-card-hover border border-theme-border text-[11px] text-theme-text-muted transition-colors cursor-pointer shrink-0"
         >
           {isConnected ? (
             <>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <Wifi className="w-3 h-3 text-emerald-500" />
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <Wifi className="w-3 h-3 text-emerald-500 shrink-0" />
               <span className="hidden sm:inline">Đã đồng bộ •</span>
               <span>{onlineCount} online</span>
-              <Users className="w-3 h-3 ml-0.5 text-theme-accent" />
+              <Users className="w-3 h-3 ml-0.5 text-theme-accent shrink-0 hidden sm:inline" />
             </>
           ) : isConnecting ? (
             <>
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping" />
-              <RefreshCw className="w-3 h-3 text-amber-500 animate-spin" />
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping shrink-0" />
+              <RefreshCw className="w-3 h-3 text-amber-500 animate-spin shrink-0" />
               <span>Đang kết nối lại...</span>
             </>
           ) : (
             <>
-              <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-              <WifiOff className="w-3 h-3 text-slate-400" />
+              <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+              <WifiOff className="w-3 h-3 text-slate-400 shrink-0" />
               <span>Ngoại tuyến</span>
             </>
           )}
@@ -154,17 +154,17 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
       </div>
 
       {/* 3. Right Section: Action Controls & User Menu */}
-      <div className="flex items-center gap-1.5 sm:gap-2">
+      <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
         {/* Share Button */}
         <Button
           variant="secondary"
           size="sm"
           onClick={onOpenShareModal}
-          className="text-theme-text-secondary border-theme-border hover:text-theme-text h-8 px-2.5"
+          className="text-theme-text-secondary border-theme-border hover:text-theme-text h-8 px-2 sm:px-2.5 shrink-0"
           title="Chia sẻ quyền truy cập tài liệu"
         >
           <Share2 className="w-3.5 h-3.5" />
-          <span className="hidden md:inline">Chia Sẻ</span>
+          <span className="hidden md:inline ml-1">Chia Sẻ</span>
         </Button>
 
         {/* Export Button */}
@@ -172,11 +172,11 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           variant="secondary"
           size="sm"
           onClick={onOpenExportModal}
-          className="text-theme-text-secondary border-theme-border hover:text-theme-text h-8 px-2.5"
+          className="text-theme-text-secondary border-theme-border hover:text-theme-text h-8 px-2 sm:px-2.5 shrink-0"
           title="Xuất file tài liệu hoặc sao lưu kho"
         >
           <Download className="w-3.5 h-3.5" />
-          <span className="hidden md:inline">Xuất File</span>
+          <span className="hidden md:inline ml-1">Xuất File</span>
         </Button>
 
         {/* Settings Button */}
@@ -185,17 +185,17 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             variant="secondary"
             size="icon"
             onClick={onOpenSettingsModal}
-            className="text-theme-text-secondary border-theme-border hover:text-theme-text h-8 w-8"
+            className="text-theme-text-secondary border-theme-border hover:text-theme-text h-8 w-8 shrink-0"
             title="Cài đặt kho lưu trữ (Settings)"
           >
             <Settings className="w-3.5 h-3.5" />
           </Button>
         )}
 
-        <div className="h-4 w-px bg-theme-border mx-0.5 sm:mx-1 hidden sm:block" />
+        <div className="h-4 w-px bg-theme-border mx-0.5 hidden sm:block shrink-0" />
 
         {/* 3-Tier Theme Switcher */}
-        <div className="flex items-center bg-theme-card p-0.5 rounded-lg border border-theme-border shadow-xs">
+        <div className="flex items-center bg-theme-card p-0.5 rounded-lg border border-theme-border shadow-xs shrink-0">
           <button
             onClick={() => onThemeChange('sun')}
             title="Chế độ Kem Sữa (Sun Mode - Alt+1)"
@@ -225,7 +225,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           </button>
         </div>
 
-        <div className="h-4 w-px bg-theme-border mx-0.5 sm:mx-1" />
+        <div className="h-4 w-px bg-theme-border mx-0.5 hidden sm:block shrink-0" />
 
         {/* Quick Lock Vault Button */}
         {onLockVault && (
@@ -234,7 +234,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             size="icon"
             onClick={onLockVault}
             title="Khóa kho lưu trữ tức thì (Ctrl+Shift+L)"
-            className="text-theme-text-muted hover:text-red-500 h-8 w-8"
+            className="text-theme-text-muted hover:text-red-500 h-8 w-8 shrink-0 hidden sm:inline-flex"
           >
             <LogOut className="w-3.5 h-3.5" />
           </Button>
@@ -246,7 +246,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           size="icon"
           onClick={onToggleRightSidebar}
           title={isRightSidebarOpen ? 'Đóng Thảo luận (Ctrl+Shift+D)' : 'Mở Thảo luận (Ctrl+Shift+D)'}
-          className="relative h-8 w-8"
+          className="relative h-8 w-8 shrink-0"
         >
           <MessageSquare className="w-3.5 h-3.5" />
           <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-rose-500 rounded-full" />

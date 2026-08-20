@@ -158,19 +158,19 @@ export const RightDiscussionSidebar: React.FC<RightDiscussionSidebarProps> = ({
   if (!isOpen) return null;
 
   return (
-    <aside className="w-80 border-l border-theme-border bg-theme-bg-subtle/40 flex flex-col h-full shrink-0 z-10 transition-all select-none">
+    <aside className="w-full sm:w-84 max-w-[90vw] max-md:fixed max-md:inset-y-0 max-md:right-0 max-md:z-40 max-md:shadow-2xl md:w-80 md:relative border-l border-theme-border bg-theme-bg-subtle flex flex-col h-full shrink-0 z-10 transition-all select-none">
       {/* 1. Sidebar Header */}
       <div className="h-11 px-3.5 border-b border-theme-border flex items-center justify-between shrink-0 bg-theme-bg-subtle/80">
-        <div className="flex items-center gap-1.5 text-xs font-semibold text-theme-text min-w-0" title={`Tài liệu: ${activeDocumentTitle}`}>
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-theme-text min-w-0 pr-2" title={`Tài liệu: ${activeDocumentTitle}`}>
           <MessageSquare className="w-4 h-4 text-theme-accent shrink-0" />
           <span className="truncate">Thảo Luận & Chat</span>
         </div>
         <button
           onClick={onClose}
-          className="p-1 text-theme-text-muted hover:text-theme-text hover:bg-theme-bg-subtle rounded transition-colors shrink-0"
+          className="p-1.5 text-theme-text-muted hover:text-theme-text hover:bg-theme-bg-subtle rounded-md transition-colors shrink-0 h-7 w-7 flex items-center justify-center cursor-pointer"
           title="Đóng sidebar"
         >
-          <X className="w-3.5 h-3.5" />
+          <X className="w-4 h-4" />
         </button>
       </div>
 

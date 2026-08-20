@@ -47,8 +47,18 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   onLockVault
 }) => {
   const [treeManager] = useState(() => new TreeStateManager());
-  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
-  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
+  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 768;
+    }
+    return true;
+  });
+  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 1024;
+    }
+    return false;
+  });
   const [activeDocId, setActiveDocId] = useState(() => {
     if (typeof window !== 'undefined') {
       const urlParams = new URLSearchParams(window.location.search);
@@ -611,6 +621,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     const item = treeManager.getItem(id);
     if (item && item.type === 'document') {
       setActiveDocId(id);
+      // Auto-close left navigation drawer on mobile screens
+      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        setIsLeftSidebarOpen(false);
+      }
     }
   };
 
@@ -922,9 +936,18 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
       {/* 2. Main 3-Pane Body */}
       <div className="flex-1 flex overflow-hidden relative">
+        {/* Mobile Backdrop Overlay for Left Drawer */}
+        {isLeftSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs z-30 md:hidden transition-opacity"
+            onClick={() => setIsLeftSidebarOpen(false)}
+          />
+        )}
+
         {/* Left Navigation Sidebar */}
         <LeftSidebar
           isOpen={isLeftSidebarOpen}
+          onClose={() => setIsLeftSidebarOpen(false)}
           activeDocId={activeDocId}
           onSelectDoc={handleSelectDoc}
           onExportDoc={handleExportDoc}
@@ -952,6 +975,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           onCommentClick={handleCommentClickFromEditor}
           activeCommentThreadId={activeCommentThreadId}
         />
+
+        {/* Mobile Backdrop Overlay for Right Drawer */}
+        {isRightSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs z-30 md:hidden transition-opacity"
+            onClick={() => setIsRightSidebarOpen(false)}
+          />
+        )}
 
         {/* Right Discussion & Chat Sidebar */}
         <RightDiscussionSidebar
