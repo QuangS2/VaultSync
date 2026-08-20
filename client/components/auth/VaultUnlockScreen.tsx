@@ -45,6 +45,7 @@ export const VaultUnlockScreen: React.FC<VaultUnlockScreenProps> = ({
   const [recoveryPhraseInput, setRecoveryPhraseInput] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showRecoveryPassword, setShowRecoveryPassword] = useState(false);
 
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -256,11 +257,20 @@ export const VaultUnlockScreen: React.FC<VaultUnlockScreenProps> = ({
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-medium text-theme-text">Mật khẩu mới (Tùy chọn):</label>
                 <Input
-                  type="password"
+                  type={showRecoveryPassword ? 'text' : 'password'}
                   placeholder="Đặt mật khẩu mới nếu muốn thay đổi..."
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   prefixIcon={<Lock className="w-3.5 h-3.5" />}
+                  suffixIcon={
+                    <button
+                      type="button"
+                      onClick={() => setShowRecoveryPassword(!showRecoveryPassword)}
+                      className="text-theme-text-muted hover:text-theme-text cursor-pointer"
+                    >
+                      {showRecoveryPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  }
                 />
               </div>
 
@@ -268,7 +278,7 @@ export const VaultUnlockScreen: React.FC<VaultUnlockScreenProps> = ({
                 <div className="flex flex-col gap-1.5">
                   <label className="text-xs font-medium text-theme-text">Xác nhận mật khẩu mới:</label>
                   <Input
-                    type="password"
+                    type={showRecoveryPassword ? 'text' : 'password'}
                     placeholder="Nhập lại mật khẩu mới..."
                     value={confirmNewPassword}
                     onChange={(e) => setConfirmNewPassword(e.target.value)}

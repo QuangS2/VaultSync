@@ -33,6 +33,7 @@ export interface EncryptedVaultRecord {
   // Encrypted Secrets under Master Key (Password)
   encryptedVaultRootKey: string; // Base64 combined ciphertext (encrypted by Master Key)
   encryptedUserPrivateKey: string; // Base64 combined ciphertext of Private Key JWK (encrypted by Master Key)
+  encryptedRecoveryPhrase?: string | undefined; // Base64 combined ciphertext of 12-word mnemonic (encrypted by Master Key)
   
   // Dual-Envelope Encrypted Secrets under Recovery Key (BIP-39 Mnemonic)
   recoveryVaultRootKey?: string | undefined; // Base64 combined ciphertext (encrypted by Recovery Key)

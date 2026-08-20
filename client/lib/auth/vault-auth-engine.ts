@@ -9,7 +9,7 @@ import { BinaryUtils } from '../crypto/binary-utils';
 import { KeyDerivation } from '../crypto/key-derivation';
 import { IdentityKeys } from '../crypto/identity-keys';
 import { WebCryptoEngine } from '../crypto/web-crypto-engine';
-import { generateMnemonic12, validateMnemonic12 } from './bip39-wordlist';
+import { generateMnemonic12, validateMnemonic12, mnemonicToSeed } from './bip39-wordlist';
 import {
   UserProfile,
   EncryptedVaultRecord,
@@ -108,13 +108,16 @@ export class VaultAuthEngine {
       recoveryPhrase = await generateMnemonic12();
     }
 
-    // 2. Generate Random Salts
+    // 2. Derive 512-bit Master Seed from BIP-39 Mnemonic
+    const seed512 = await mnemonicToSeed(recoveryPhrase);
+
+    // 3. Generate Salts (masterSalt for device password, recoverySalt derived from seed)
     const masterSalt = KeyDerivation.generateSalt(16);
-    const recoverySalt = KeyDerivation.generateSalt(16);
+    const recoverySalt = seed512.slice(32, 48);
     const masterSaltHex = BinaryUtils.bufferToHex(masterSalt);
     const recoverySaltHex = BinaryUtils.bufferToHex(recoverySalt);
 
-    // 3. Derive Master Key & Recovery Key via PBKDF2
+    // 4. Derive Master Key & Recovery Key via PBKDF2
     const masterKey = await KeyDerivation.deriveMasterKeyPBKDF2(masterPassword, masterSalt, {
       iterations: kdfIterations
     });
@@ -123,36 +126,44 @@ export class VaultAuthEngine {
       iterations: kdfIterations
     });
 
-    // 4. Generate Vault Root Key (AES-256-GCM symmetric key for note data)
-    const vaultRootKey = await crypto.subtle.generateKey(
+    // 5. Derive Deterministic Vault Root Key (256-bit AES-GCM symmetric key for note data)
+    const rootKeyBytes = seed512.slice(0, 32);
+    const vaultRootKey = await crypto.subtle.importKey(
+      'raw',
+      rootKeyBytes as BufferSource,
       { name: 'AES-GCM', length: 256 },
       true,
       ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
     );
 
-    // 5. Generate User ECDH P-256 KeyPair
+    // 6. Generate User ECDH P-256 KeyPair
     const userECDHKeyPair = await IdentityKeys.generateECDHKeyPair(true);
     const userPublicKeySPKI = await IdentityKeys.exportPublicKeySPKI(userECDHKeyPair.publicKey);
     const privateKeyJWK = await IdentityKeys.exportJWK(userECDHKeyPair.privateKey);
 
-    // 6. Encrypt Verifiers for Password & Recovery checks
+    // 7. Encrypt Verifiers for Password & Recovery checks
     const verifierBytes = BinaryUtils.stringToBytes(VaultAuthEngine.VERIFIER_MAGIC);
     const encPassVerifier = await WebCryptoEngine.encryptAESGCM(masterKey, verifierBytes);
     const encRecVerifier = await WebCryptoEngine.encryptAESGCM(recoveryKey, verifierBytes);
 
-    // 7. Encrypt Vault Root Key with Master Key AND Recovery Key (Dual Envelope)
+    // 8. Encrypt Vault Root Key with Master Key AND Recovery Key (Dual Envelope)
     const rawRootKey = await crypto.subtle.exportKey('raw', vaultRootKey);
     const encRootKey = await WebCryptoEngine.encryptAESGCM(masterKey, new Uint8Array(rawRootKey));
     const recRootKey = await WebCryptoEngine.encryptAESGCM(recoveryKey, new Uint8Array(rawRootKey));
 
-    // 8. Encrypt User Private Key JWK with Master Key AND Recovery Key (Dual Envelope)
+    // 9. Encrypt User Private Key JWK with Master Key AND Recovery Key (Dual Envelope)
     const privateKeyJWKBytes = BinaryUtils.stringToBytes(JSON.stringify(privateKeyJWK));
     const encUserPrivKey = await WebCryptoEngine.encryptAESGCM(masterKey, privateKeyJWKBytes);
     const recUserPrivKey = await WebCryptoEngine.encryptAESGCM(recoveryKey, privateKeyJWKBytes);
 
-    // 9. Construct Encrypted Vault Record
-    const vaultId = `vault_${BinaryUtils.bufferToHex(KeyDerivation.generateSalt(8))}`;
-    const userId = `user_${BinaryUtils.bufferToHex(KeyDerivation.generateSalt(6))}`;
+    // 10. Encrypt Recovery Phrase with Master Key for in-app reveal
+    const recPhraseBytes = BinaryUtils.stringToBytes(recoveryPhrase);
+    const encRecPhrase = await WebCryptoEngine.encryptAESGCM(masterKey, recPhraseBytes);
+    const encryptedRecoveryPhrase = BinaryUtils.bufferToBase64Url(encRecPhrase.combinedBinary);
+
+    // 11. Construct Encrypted Vault Record with Deterministic Identifiers
+    const vaultId = `vault_${BinaryUtils.bufferToHex(seed512.slice(48, 56))}`;
+    const userId = `user_${BinaryUtils.bufferToHex(seed512.slice(56, 62))}`;
     const now = Date.now();
 
     const randomTag = `#${Math.floor(1000 + Math.random() * 9000)}`;
@@ -179,6 +190,7 @@ export class VaultAuthEngine {
       recoveryVaultRootKey: BinaryUtils.bufferToBase64Url(recRootKey.combinedBinary),
       encryptedUserPrivateKey: BinaryUtils.bufferToBase64Url(encUserPrivKey.combinedBinary),
       recoveryUserPrivateKey: BinaryUtils.bufferToBase64Url(recUserPrivKey.combinedBinary),
+      encryptedRecoveryPhrase,
       userPublicKeySPKI,
       userProfile
     };
@@ -447,6 +459,11 @@ export class VaultAuthEngine {
       const privateKeyJWK = await IdentityKeys.exportJWK(userPrivateKey);
       const privateKeyJWKBytes = BinaryUtils.stringToBytes(JSON.stringify(privateKeyJWK));
       const encUserPrivKey = await WebCryptoEngine.encryptAESGCM(newMasterKey, privateKeyJWKBytes);
+      
+      // Re-encrypt recovery phrase with new master key
+      const recPhraseBytes = BinaryUtils.stringToBytes(cleanPhrase);
+      const encRecPhrase = await WebCryptoEngine.encryptAESGCM(newMasterKey, recPhraseBytes);
+      const encryptedRecoveryPhrase = BinaryUtils.bufferToBase64Url(encRecPhrase.combinedBinary);
 
       const updatedRecord: EncryptedVaultRecord = {
         ...record,
@@ -454,6 +471,7 @@ export class VaultAuthEngine {
         passwordVerifier: BinaryUtils.bufferToBase64Url(encPassVerifier.combinedBinary),
         encryptedVaultRootKey: BinaryUtils.bufferToBase64Url(encRootKey.combinedBinary),
         encryptedUserPrivateKey: BinaryUtils.bufferToBase64Url(encUserPrivKey.combinedBinary),
+        encryptedRecoveryPhrase,
         lastUnlockedAt: now
       };
 
@@ -498,6 +516,42 @@ export class VaultAuthEngine {
   }
 
   /**
+   * Decrypts and reveals the true 12-word recovery mnemonic using the Master Password.
+   */
+  public static async revealRecoveryPhrase(
+    record: EncryptedVaultRecord,
+    masterPassword: string
+  ): Promise<string> {
+    if (!masterPassword) {
+      throw new Error('Vui lòng nhập mật khẩu chủ để xem 12 từ khóa khôi phục.');
+    }
+    const masterSalt = BinaryUtils.hexToBytes(record.masterSaltHex);
+    const masterKey = await KeyDerivation.deriveMasterKeyPBKDF2(masterPassword, masterSalt, {
+      iterations: record.kdfIterations
+    });
+
+    // Verify master password
+    const verifierBytes = BinaryUtils.base64UrlToBytes(record.passwordVerifier);
+    try {
+      const decryptedVerifier = await WebCryptoEngine.decryptCombined(masterKey, verifierBytes);
+      const magicStr = BinaryUtils.bytesToString(decryptedVerifier);
+      if (magicStr !== VaultAuthEngine.VERIFIER_MAGIC) {
+        throw new Error('Mật khẩu chủ không chính xác.');
+      }
+    } catch {
+      throw new Error('Mật khẩu chủ không chính xác.');
+    }
+
+    if (record.encryptedRecoveryPhrase) {
+      const encPhraseBytes = BinaryUtils.base64UrlToBytes(record.encryptedRecoveryPhrase);
+      const phraseBytes = await WebCryptoEngine.decryptCombined(masterKey, encPhraseBytes);
+      return BinaryUtils.bytesToString(phraseBytes);
+    }
+
+    throw new Error('Không tìm thấy 12 từ khóa khôi phục được mã hóa trong kho này.');
+  }
+
+  /**
    * Changes the Master Password for an active unlocked vault session.
    */
   public static async changeMasterPassword(
@@ -506,7 +560,7 @@ export class VaultAuthEngine {
     newPassword: string
   ): Promise<EncryptedVaultRecord> {
     if (!newPassword || newPassword.length < 6) {
-      throw new Error('Mật khẩu mới phải có ít nhất 6 ký tự.');
+      throw new Error('Mật khẩu mới phải có tối thiểu 6 ký tự.');
     }
 
     const newMasterSalt = KeyDerivation.generateSalt(16);
@@ -516,18 +570,33 @@ export class VaultAuthEngine {
       iterations: currentRecord.kdfIterations
     });
 
-    // 1. New Password Verifier
-    const verifierBytes = BinaryUtils.stringToBytes(VaultAuthEngine.VERIFIER_MAGIC);
-    const encPassVerifier = await WebCryptoEngine.encryptAESGCM(newMasterKey, verifierBytes);
+    // 1. Encrypt new password verifier
+    const verifierMagicBytes = BinaryUtils.stringToBytes(VaultAuthEngine.VERIFIER_MAGIC);
+    const encPassVerifier = await WebCryptoEngine.encryptAESGCM(newMasterKey, verifierMagicBytes);
 
-    // 2. Re-encrypt Vault Root Key with New Master Key
+    // 2. Re-encrypt the existing Vault Root Key with New Master Key
     const rawRootKey = await crypto.subtle.exportKey('raw', session.vaultRootKey);
     const encRootKey = await WebCryptoEngine.encryptAESGCM(newMasterKey, new Uint8Array(rawRootKey));
 
-    // 3. Re-encrypt User Private Key JWK with New Master Key
+    // 3. Re-encrypt the existing User Private Key JWK with New Master Key
     const privateKeyJWK = await IdentityKeys.exportJWK(session.userECDHKeyPair.privateKey);
     const privateKeyJWKBytes = BinaryUtils.stringToBytes(JSON.stringify(privateKeyJWK));
     const encUserPrivKey = await WebCryptoEngine.encryptAESGCM(newMasterKey, privateKeyJWKBytes);
+
+    // 4. Re-encrypt recovery phrase if present
+    let encryptedRecoveryPhrase = currentRecord.encryptedRecoveryPhrase;
+    if (currentRecord.encryptedRecoveryPhrase) {
+      try {
+        const oldPhraseBytes = await WebCryptoEngine.decryptCombined(
+          session.masterKey,
+          BinaryUtils.base64UrlToBytes(currentRecord.encryptedRecoveryPhrase)
+        );
+        const newEnc = await WebCryptoEngine.encryptAESGCM(newMasterKey, oldPhraseBytes);
+        encryptedRecoveryPhrase = BinaryUtils.bufferToBase64Url(newEnc.combinedBinary);
+      } catch {
+        // ignore
+      }
+    }
 
     const updatedRecord: EncryptedVaultRecord = {
       ...currentRecord,
@@ -535,6 +604,7 @@ export class VaultAuthEngine {
       passwordVerifier: BinaryUtils.bufferToBase64Url(encPassVerifier.combinedBinary),
       encryptedVaultRootKey: BinaryUtils.bufferToBase64Url(encRootKey.combinedBinary),
       encryptedUserPrivateKey: BinaryUtils.bufferToBase64Url(encUserPrivKey.combinedBinary),
+      encryptedRecoveryPhrase,
       lastUnlockedAt: Date.now()
     };
 

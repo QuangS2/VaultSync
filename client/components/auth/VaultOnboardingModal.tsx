@@ -83,11 +83,11 @@ export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
   const [importDisplayName, setImportDisplayName] = useState('');
   const [importPassword, setImportPassword] = useState('');
   const [importConfirmPassword, setImportConfirmPassword] = useState('');
-
-  // Login via .vault Backup File State
-  const [backupFileContent, setBackupFileContent] = useState<string | null>(null);
   const [backupFileName, setBackupFileName] = useState<string | null>(null);
+  const [backupFileContent, setBackupFileContent] = useState<string | null>(null);
   const [backupPassword, setBackupPassword] = useState('');
+  const [showImportPassword, setShowImportPassword] = useState(false);
+  const [showBackupPassword, setShowBackupPassword] = useState(false);
 
   // Submission state
   const [isLoading, setIsLoading] = useState(false);
@@ -719,17 +719,26 @@ export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-medium text-theme-text">Đặt Mật Khẩu Chủ Mới:</label>
                       <Input
-                        type="password"
+                        type={showImportPassword ? 'text' : 'password'}
                         placeholder="Mật khẩu chủ..."
                         value={importPassword}
                         onChange={(e) => setImportPassword(e.target.value)}
                         prefixIcon={<Lock className="w-3.5 h-3.5" />}
+                        suffixIcon={
+                          <button
+                            type="button"
+                            onClick={() => setShowImportPassword(!showImportPassword)}
+                            className="text-theme-text-muted hover:text-theme-text cursor-pointer"
+                          >
+                            {showImportPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          </button>
+                        }
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-xs font-medium text-theme-text">Xác Nhận Mật Khẩu:</label>
                       <Input
-                        type="password"
+                        type={showImportPassword ? 'text' : 'password'}
                         placeholder="Xác nhận mật khẩu..."
                         value={importConfirmPassword}
                         onChange={(e) => setImportConfirmPassword(e.target.value)}
@@ -769,11 +778,20 @@ export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-medium text-theme-text">Mật Khẩu Chủ Của Tệp Sao Lưu:</label>
                     <Input
-                      type="password"
+                      type={showBackupPassword ? 'text' : 'password'}
                       placeholder="Nhập mật khẩu chủ đã dùng khi sao lưu..."
                       value={backupPassword}
                       onChange={(e) => setBackupPassword(e.target.value)}
                       prefixIcon={<Lock className="w-3.5 h-3.5" />}
+                      suffixIcon={
+                        <button
+                          type="button"
+                          onClick={() => setShowBackupPassword(!showBackupPassword)}
+                          className="text-theme-text-muted hover:text-theme-text cursor-pointer"
+                        >
+                          {showBackupPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                        </button>
+                      }
                     />
                   </div>
 
