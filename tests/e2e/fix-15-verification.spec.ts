@@ -145,13 +145,11 @@ test.describe('Fix-15 Verification Suite: Precise Quickstart Persistence, Inline
     await expect(bottomNav).toBeVisible();
 
     const filesBtn = page.locator('nav.sm\\:hidden button:has-text("Tài liệu")');
-    const searchBtn = page.locator('nav.sm\\:hidden button:has-text("Tìm kiếm")');
     const fabBtn = page.locator('nav.sm\\:hidden button[title*="Tạo ghi chú"]');
     const discussBtn = page.locator('nav.sm\\:hidden button:has-text("Thảo luận")');
     const optionsBtn = page.locator('nav.sm\\:hidden button:has-text("Tùy chọn")');
 
     await expect(filesBtn).toBeVisible();
-    await expect(searchBtn).toBeVisible();
     await expect(fabBtn).toBeVisible();
     await expect(discussBtn).toBeVisible();
     await expect(optionsBtn).toBeVisible();

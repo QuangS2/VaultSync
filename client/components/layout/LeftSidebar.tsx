@@ -24,6 +24,7 @@ export interface LeftSidebarProps {
   onOpenCommandPalette?: (() => void) | undefined;
   onOpenJoinRoomModal?: (() => void) | undefined;
   unreadDocIds?: string[] | undefined;
+  vaultName?: string | undefined;
 }
 
 export const LeftSidebar: React.FC<LeftSidebarProps> = ({
@@ -36,7 +37,8 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   treeManager: externalTreeManager,
   onOpenCommandPalette,
   onOpenJoinRoomModal,
-  unreadDocIds
+  unreadDocIds,
+  vaultName
 }) => {
   const [treeManager] = useState(() => externalTreeManager || new TreeStateManager());
   const [searchQuery, setSearchQuery] = useState('');
@@ -69,13 +71,17 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
       {/* Workspace Header & Switcher */}
       <div className="p-3 border-b border-theme-border flex items-center justify-between">
         <div className="flex items-center gap-2 overflow-hidden min-w-0">
-          <div className="w-6 h-6 rounded bg-theme-accent-subtle text-theme-accent flex items-center justify-center text-xs font-bold font-mono shrink-0">
-            V
+          <div className="w-6 h-6 rounded bg-theme-accent-subtle text-theme-accent flex items-center justify-center text-xs font-bold shrink-0">
+            <HardDrive className="w-3.5 h-3.5" />
           </div>
-          <span className="font-semibold text-xs text-theme-text truncate">Engineering Vault</span>
+          <span className="font-semibold text-xs text-theme-text truncate">
+            {vaultName || 'Kho Lưu Trữ Chính'}
+          </span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <Badge variant="outline" size="sm">CRDT</Badge>
+          <Badge variant="success" size="sm" className="text-[10px] py-0 px-1.5 font-mono">
+            Bảo Mật
+          </Badge>
           {onClose && (
             <Button
               variant="ghost"

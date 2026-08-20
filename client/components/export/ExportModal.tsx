@@ -42,7 +42,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   onClose,
   documentTitle,
   documentId,
-  folderName = 'Engineering Vault',
+  folderName = 'Kho Tài Liệu Cá Nhân',
   rawContent = '# Chào mừng đến VaultSync\n\nĐây là tài liệu mẫu mã hóa đầu cuối.',
   htmlContent = '<h1>Chào mừng đến VaultSync</h1><p>Đây là tài liệu mẫu mã hóa đầu cuối.</p>',
   treeManager

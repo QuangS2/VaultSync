@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TreeNodeItem } from './TreeNodeItem';
 import { ContextMenu } from './ContextMenu';
+import { MoveToFolderModal } from './MoveToFolderModal';
 import { TreeStateManager } from '../../lib/tree/tree-state-manager';
 import { TreeNode } from '../../lib/tree/types';
 import { Modal } from '../ui/Modal';
@@ -95,6 +96,12 @@ export const TreeView: React.FC<TreeViewProps> = ({
   // Empty Trash Confirmation Modal state
   const [emptyTrashModal, setEmptyTrashModal] = useState<EmptyTrashModalState>({
     isOpen: false
+  });
+
+  // Move to Folder Modal state (touch-friendly mobile / desktop)
+  const [moveModal, setMoveModal] = useState<{ isOpen: boolean; item: TreeNode | null }>({
+    isOpen: false,
+    item: null
   });
 
   const refreshTree = () => {
@@ -536,6 +543,7 @@ export const TreeView: React.FC<TreeViewProps> = ({
         onShareFolder={(folder) => onShareFolder && onShareFolder(folder.id, folder.name)}
         onRestore={handleRestoreItem}
         onPermanentDelete={handlePermanentDelete}
+        onMove={(item) => setMoveModal({ isOpen: true, item })}
       />
 
       {/* Delete Folder & Sub-items Confirmation Modal */}
@@ -609,6 +617,15 @@ export const TreeView: React.FC<TreeViewProps> = ({
           </div>
         </div>
       </Modal>
+
+      {/* Touch-Friendly Move to Folder Modal */}
+      <MoveToFolderModal
+        isOpen={moveModal.isOpen}
+        onClose={() => setMoveModal({ isOpen: false, item: null })}
+        item={moveModal.item}
+        treeManager={treeManager}
+        onMoveSuccess={refreshTree}
+      />
     </div>
   );
 };

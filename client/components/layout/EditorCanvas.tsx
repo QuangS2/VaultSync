@@ -4,13 +4,15 @@ import {
   Folder, 
   ChevronRight,
   RefreshCw,
-  CheckCircle2
+  CheckCircle2,
+  Users
 } from 'lucide-react';
 import * as Y from 'yjs';
 import { Badge } from '../ui/Badge';
 import { TiptapEditor } from '../editor/TiptapEditor';
 import { SAMPLE_DOCUMENTS } from '../editor/editor-sample-content';
 import { ProviderConnectionStatus, AwarenessUser, CollaborationUserOptions } from '../../lib/yjs/types';
+import { OnlineCollaboratorsPopover } from './OnlineCollaboratorsPopover';
 
 export interface EditorCanvasProps {
   documentId?: string | undefined;
@@ -41,7 +43,6 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   yDoc,
   provider,
   user,
-  providerStatus,
   awarenessUsers = [],
   saveStatus = 'saved',
   lastSavedTime,
@@ -56,6 +57,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   onCreateNewNote
 }) => {
   const [currentTitle, setCurrentTitle] = useState(documentTitle);
+  const [isCollaboratorsOpen, setIsCollaboratorsOpen] = useState(false);
   const [content, setContent] = useState<string>(() => {
     return SAMPLE_DOCUMENTS[documentId] || `<h1>${documentTitle}</h1><p>Bắt đầu nhập nội dung tài liệu...</p>`;
   });
@@ -78,9 +80,6 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
     }
   };
 
-  const isConnected = providerStatus?.connected ?? false;
-  const isConnecting = providerStatus?.connecting ?? false;
-
   return (
     <div className="flex-1 bg-theme-bg flex flex-col h-full overflow-hidden select-text pb-14 sm:pb-0">
       {/* Top Breadcrumb & Document Metadata Toolbar */}
@@ -95,49 +94,24 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
 
         {/* Live Collaborators Presence & Room Security Indicators */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-          {/* Active Collaborators Presence Stack */}
-          {awarenessUsers.length > 0 ? (
-            <div className="flex items-center -space-x-1.5 overflow-hidden">
-              {awarenessUsers.map((u, i) => (
-                <div 
-                  key={i}
-                  title={`${u.name} (Đang trực tuyến trong phòng này)`}
-                  className="w-5.5 h-5.5 rounded-full text-white flex items-center justify-center text-[9px] font-bold ring-1.5 ring-theme-bg select-none shadow-xs"
-                  style={{ backgroundColor: u.color || '#2563eb' }}
-                >
-                  {u.avatar || u.name.charAt(0).toUpperCase()}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-center -space-x-1.5 overflow-hidden">
-              <div 
-                title="Bạn (Cục bộ)"
-                className="w-5.5 h-5.5 rounded-full bg-theme-accent text-white flex items-center justify-center text-[9px] font-bold ring-1.5 ring-theme-bg select-none"
-              >
-                {user?.name?.charAt(0).toUpperCase() || 'B'}
-              </div>
-            </div>
-          )}
+          {/* Room Online Collaborators Presence Button & Popover */}
+          <div className="relative">
+            <button
+              onClick={() => setIsCollaboratorsOpen(prev => !prev)}
+              title="Xem danh sách thành viên trực tuyến trong phòng"
+              className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-theme-card hover:bg-theme-card-hover border border-theme-border text-xs text-theme-text transition-colors cursor-pointer"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <Users className="w-3.5 h-3.5 text-theme-accent shrink-0" />
+              <span className="font-mono text-[11px]">{awarenessUsers.length > 0 ? awarenessUsers.length : 1} online</span>
+            </button>
 
-          {/* Room Online Presence Status Badge */}
-          <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-theme-card border border-theme-border text-[11px] text-theme-text-muted font-mono">
-            {isConnected ? (
-              <>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
-                <span>{awarenessUsers.length > 0 ? awarenessUsers.length : 1} online</span>
-              </>
-            ) : isConnecting ? (
-              <>
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping shrink-0" />
-                <span>kết nối...</span>
-              </>
-            ) : (
-              <>
-                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
-                <span>offline</span>
-              </>
-            )}
+            <OnlineCollaboratorsPopover
+              isOpen={isCollaboratorsOpen}
+              onClose={() => setIsCollaboratorsOpen(false)}
+              users={awarenessUsers}
+              currentUser={user ? { name: user.name, color: user.color, avatar: user.avatar, isLocal: true } : undefined}
+            />
           </div>
 
           {/* Real-Time Auto-Save Indicator */}

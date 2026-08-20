@@ -177,7 +177,7 @@ export class VaultAuthEngine {
 
     const record: EncryptedVaultRecord = {
       vaultId,
-      vaultName: vaultName.trim() || 'Engineering Vault',
+      vaultName: vaultName.trim() || 'Kho Tài Liệu Cá Nhân',
       version: VaultAuthEngine.CURRENT_VERSION,
       createdAt: now,
       lastUnlockedAt: now,

@@ -51,7 +51,7 @@ export class ExportPipeline {
       '---',
       `title: "${meta.title.replace(/"/g, '\\"')}"`,
       `documentId: "${meta.documentId}"`,
-      `folder: "${meta.folderName || 'Engineering Vault'}"`,
+      `folder: "${meta.folderName || 'Kho Tài Liệu Cá Nhân'}"`,
       `author: "${author}"`,
       `createdAt: "${new Date(meta.createdAt).toISOString()}"`,
       `updatedAt: "${new Date(meta.updatedAt).toISOString()}"`,
@@ -74,7 +74,7 @@ export class ExportPipeline {
   ): string {
     const safeTitle = ExportPipeline.escapeHTML(meta.title);
     const safeAuthor = ExportPipeline.escapeHTML(meta.author || 'VaultSync User');
-    const safeFolderName = ExportPipeline.escapeHTML(meta.folderName || 'Engineering Vault');
+    const safeFolderName = ExportPipeline.escapeHTML(meta.folderName || 'Kho Tài Liệu Cá Nhân');
     const safeDocId = ExportPipeline.escapeHTML(meta.documentId);
     const sanitizedBody = ExportPipeline.sanitizeHTML(htmlBody);
 

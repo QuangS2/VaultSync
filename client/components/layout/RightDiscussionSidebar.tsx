@@ -218,7 +218,7 @@ export const RightDiscussionSidebar: React.FC<RightDiscussionSidebarProps> = ({
   if (!isOpen) return null;
 
   return (
-    <aside className="w-full sm:w-84 max-w-[90vw] max-md:fixed max-md:inset-y-0 max-md:right-0 max-md:z-40 max-md:shadow-2xl md:w-80 md:relative border-l border-theme-border bg-theme-bg-subtle flex flex-col h-full shrink-0 z-10 transition-all select-none">
+    <aside className="w-full sm:w-84 max-w-[100vw] sm:max-w-[90vw] max-md:fixed max-md:inset-0 max-md:z-50 max-md:shadow-2xl md:w-80 md:relative border-l border-theme-border bg-theme-bg-subtle flex flex-col h-full shrink-0 select-none">
       {/* 1. Sidebar Header */}
       <div className="h-11 px-3.5 border-b border-theme-border flex items-center justify-between shrink-0 bg-theme-bg-subtle/80">
         <div className="flex items-center gap-1.5 text-xs font-semibold text-theme-text min-w-0 pr-2" title={`Tài liệu: ${activeDocumentTitle}`}>
@@ -613,13 +613,13 @@ export const RightDiscussionSidebar: React.FC<RightDiscussionSidebarProps> = ({
             {/* Chat Input Bar */}
             <form 
               onSubmit={handleSendChatMessage}
-              className="p-3 border-t border-theme-border bg-theme-bg/80 shrink-0 flex items-center gap-1.5"
+              className="p-3 pb-5 sm:pb-3 border-t border-theme-border bg-theme-bg/95 backdrop-blur-md shrink-0 flex items-center gap-1.5 sticky bottom-0 z-20"
             >
               <Input
                 placeholder="Nhập tin nhắn..."
                 value={chatInput}
                 onChange={e => setChatInput(e.target.value)}
-                className="text-xs flex-1 h-8"
+                className="text-xs flex-1 h-9 sm:h-8"
               />
               <Button
                 type="submit"
