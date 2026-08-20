@@ -226,7 +226,7 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
           </div>
 
           {/* Folder Actions (Quick Create & Item Count & More Menu) */}
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -235,7 +235,7 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
               title="Tạo tài liệu con"
               className="p-0.5 rounded hover:bg-theme-bg text-theme-text-muted hover:text-theme-text cursor-pointer"
             >
-              <FilePlus className="w-3 h-3" />
+              <FilePlus className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
             </button>
             <button
               onClick={(e) => {
@@ -245,14 +245,14 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
               title="Tạo thư mục con"
               className="p-0.5 rounded hover:bg-theme-bg text-theme-text-muted hover:text-theme-text cursor-pointer"
             >
-              <FolderPlus className="w-3 h-3" />
+              <FolderPlus className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
             </button>
             <button
               onClick={handleMoreButtonClick}
               title="Thao tác khác"
               className="p-0.5 rounded hover:bg-theme-bg text-theme-text-muted hover:text-theme-text cursor-pointer"
             >
-              <MoreVertical className="w-3 h-3" />
+              <MoreVertical className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
             </button>
             <span className="text-[10px] font-mono text-theme-text-muted px-0.5">
               {node.children?.length ?? 0}
@@ -333,13 +333,13 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
         )}
       </div>
 
-      <div className="opacity-0 group-hover:opacity-100 transition-opacity text-theme-text-muted flex items-center">
+      <div className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity text-theme-text-muted flex items-center">
         <button
           onClick={handleMoreButtonClick}
           title="Tùy chọn thao tác"
           className="p-0.5 rounded hover:bg-theme-bg text-theme-text-muted hover:text-theme-text cursor-pointer"
         >
-          <MoreVertical className="w-3 h-3" />
+          <MoreVertical className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
         </button>
       </div>
     </div>

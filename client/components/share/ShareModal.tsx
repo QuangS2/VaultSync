@@ -11,7 +11,8 @@ import {
   Send,
   AlertTriangle,
   CheckCircle2,
-  QrCode
+  QrCode,
+  Key
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -19,6 +20,7 @@ import { AwarenessUser } from '../../lib/yjs/types';
 import { VaultAuthEngine } from '../../lib/auth/vault-auth-engine';
 
 import { BinaryUtils } from '../../lib/crypto/binary-utils';
+import { SimpleQRCode } from '../../lib/share/qr-code-generator';
 
 export interface ShareModalProps {
   isOpen: boolean;
@@ -43,7 +45,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   awarenessUsers = [],
   currentUser
 }) => {
-  const [activeTab, setActiveTab] = useState<'link' | 'peers' | 'code'>('link');
+  const [activeTab, setActiveTab] = useState<'link' | 'qr' | 'peers' | 'code'>('link');
 
   // Password Authorization State
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -54,6 +56,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   // Link & Share State
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedPasscode, setCopiedPasscode] = useState(false);
   const [invitedUsers, setInvitedUsers] = useState<Record<string, boolean>>({});
 
   // Exported Key State
@@ -72,6 +75,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   const roomCode = isFolder
     ? `VS-DIR-${documentId.replace(/[^a-zA-Z0-9]/g, '').slice(-6).toUpperCase() || 'DIR999'}`
     : `VS-${documentId.replace(/[^a-zA-Z0-9]/g, '').slice(-6).toUpperCase() || '789214'}`;
+  const securePasscode = isFolder
+    ? `VS-DIR:${documentId}#${exportedKeyB64}${manifestB64 ? `#${manifestB64}` : ''}`
+    : `VS-KEY:${documentId}#${exportedKeyB64}`;
 
   // Export document key when modal opens
   useEffect(() => {
@@ -242,41 +248,53 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             /* Authorized Share Options */
             <div className="flex flex-col gap-4">
               {/* Tab Selector */}
-              <div className="flex items-center p-1 bg-theme-card rounded-lg border border-theme-border text-xs">
+              <div className="flex items-center p-1 bg-theme-card rounded-lg border border-theme-border text-xs gap-1">
                 <button
                   onClick={() => setActiveTab('link')}
-                  className={`flex-1 py-1.5 rounded-md font-medium transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
+                  className={`flex-1 py-1.5 rounded-md font-medium transition-colors cursor-pointer flex items-center justify-center gap-1 ${
                     activeTab === 'link'
                       ? 'bg-theme-bg text-theme-accent shadow-xs border border-theme-border'
                       : 'text-theme-text-muted hover:text-theme-text'
                   }`}
                 >
                   <Link className="w-3.5 h-3.5" />
-                  <span>Liên Kết 1 Chạm</span>
+                  <span>Link 1 Chạm</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('qr')}
+                  className={`flex-1 py-1.5 rounded-md font-medium transition-colors cursor-pointer flex items-center justify-center gap-1 ${
+                    activeTab === 'qr'
+                      ? 'bg-theme-bg text-theme-accent shadow-xs border border-theme-border'
+                      : 'text-theme-text-muted hover:text-theme-text'
+                  }`}
+                >
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>Mã QR</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('code')}
+                  className={`flex-1 py-1.5 rounded-md font-medium transition-colors cursor-pointer flex items-center justify-center gap-1 ${
+                    activeTab === 'code'
+                      ? 'bg-theme-bg text-theme-accent shadow-xs border border-theme-border'
+                      : 'text-theme-text-muted hover:text-theme-text'
+                  }`}
+                >
+                  <Key className="w-3.5 h-3.5" />
+                  <span>Mã Ghép Nối</span>
                 </button>
 
                 <button
                   onClick={() => setActiveTab('peers')}
-                  className={`flex-1 py-1.5 rounded-md font-medium transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
+                  className={`flex-1 py-1.5 rounded-md font-medium transition-colors cursor-pointer flex items-center justify-center gap-1 ${
                     activeTab === 'peers'
                       ? 'bg-theme-bg text-theme-accent shadow-xs border border-theme-border'
                       : 'text-theme-text-muted hover:text-theme-text'
                   }`}
                 >
                   <Users className="w-3.5 h-3.5" />
-                  <span>Người Dùng Trực Tuyến ({otherPeers.length})</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('code')}
-                  className={`flex-1 py-1.5 rounded-md font-medium transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
-                    activeTab === 'code'
-                      ? 'bg-theme-bg text-theme-accent shadow-xs border border-theme-border'
-                      : 'text-theme-text-muted hover:text-theme-text'
-                  }`}
-                >
-                  <QrCode className="w-3.5 h-3.5" />
-                  <span>Mã Phòng Rút Gọn</span>
+                  <span>Trực Tuyến ({otherPeers.length})</span>
                 </button>
               </div>
 
@@ -284,7 +302,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
               {activeTab === 'link' && (
                 <div className="flex flex-col gap-3">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-theme-text">Liên Kết Mời Cộng Tác Tự Động:</label>
+                    <label className="text-xs font-medium text-theme-text">Liên Kết Mời Cộng Tác Tự Động (Tự Nạp Khóa):</label>
                     <div className="flex items-center gap-2">
                       <Input
                         value={shareLink}
@@ -297,7 +315,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                       </Button>
                     </div>
                     <span className="text-[11px] text-theme-text-muted leading-relaxed">
-                      💡 Người nhận chỉ cần mở liên kết này trên trình duyệt để tự động tham gia soạn thảo chung thời gian thực mà không cần copy khóa thủ công.
+                      💡 Người nhận chỉ cần mở liên kết này trên trình duyệt điện thoại/PC để tự động tham gia soạn thảo chung thời gian thực mà không cần copy khóa thủ công.
                     </span>
                   </div>
 
@@ -308,7 +326,87 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 </div>
               )}
 
-              {/* Tab 2: Active Online Peers */}
+              {/* Tab 2: Visual QR Code */}
+              {activeTab === 'qr' && (
+                <div className="flex flex-col items-center gap-3 p-3 rounded-xl bg-theme-card border border-theme-border text-center">
+                  <span className="text-xs font-semibold text-theme-text">
+                    Quét Mã Bằng Camera Điện Thoại Để Tham Gia Ngay
+                  </span>
+                  
+                  {/* Render QR SVG */}
+                  <div
+                    className="p-3 bg-white rounded-2xl shadow-md border border-theme-border"
+                    dangerouslySetInnerHTML={{
+                      __html: SimpleQRCode.toSVG(shareLink, 200, '#0f172a', '#ffffff')
+                    }}
+                  />
+
+                  <div className="flex items-center gap-2 mt-1">
+                    <Button variant="primary" size="sm" onClick={copyShareLink} className="gap-1.5 text-xs">
+                      {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedLink ? 'Đã sao chép Link' : 'Sao chép Link QR'}</span>
+                    </Button>
+                  </div>
+                  <span className="text-[11px] text-theme-text-muted leading-relaxed max-w-sm">
+                    📱 Mở ứng dụng Camera hoặc Zalo trên điện thoại quét mã này để mở phiên làm việc chung tức thì.
+                  </span>
+                </div>
+              )}
+
+              {/* Tab 3: Passcode & Room Code */}
+              {activeTab === 'code' && (
+                <div className="flex flex-col gap-3">
+                  {/* Complete Self-Contained Passcode with Key */}
+                  <div className="p-3.5 rounded-xl bg-theme-card border border-theme-border flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-theme-text flex items-center gap-1.5">
+                        <Key className="w-3.5 h-3.5 text-emerald-500" />
+                        <span>Mã Ghép Nối Toàn Diện (Kèm Khóa E2EE):</span>
+                      </span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 font-mono">
+                        Khuyên dùng
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={securePasscode}
+                        readOnly
+                        className="text-[11px] font-mono text-theme-text select-all"
+                      />
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => {
+                          navigator.clipboard.writeText(securePasscode);
+                          setCopiedPasscode(true);
+                          setTimeout(() => setCopiedPasscode(false), 2500);
+                        }}
+                        className="gap-1.5 shrink-0"
+                      >
+                        {copiedPasscode ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedPasscode ? 'Đã chép' : 'Chép Mã'}</span>
+                      </Button>
+                    </div>
+                    <span className="text-[10px] text-theme-text-muted">
+                      💡 Mã ghép nối này đã tích hợp sẵn ID phòng và Khóa giải mã, bên nhận chỉ cần dán vào ô "Tham gia phòng".
+                    </span>
+                  </div>
+
+                  {/* Short Room Code */}
+                  <div className="p-3 rounded-xl bg-theme-card border border-theme-border flex flex-col items-center gap-1.5 text-center">
+                    <span className="text-[11px] text-theme-text-muted">Mã phòng rút gọn:</span>
+                    <span className="font-mono text-xl font-bold tracking-widest text-theme-accent bg-theme-bg px-3 py-1 rounded-lg border border-theme-border">
+                      {roomCode}
+                    </span>
+                    <Button variant="secondary" size="sm" onClick={copyRoomCode} className="gap-1.5 mt-1 text-xs">
+                      {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedCode ? 'Đã sao chép' : 'Sao chép mã ngắn'}</span>
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Tab 4: Active Online Peers */}
               {activeTab === 'peers' && (
                 <div className="flex flex-col gap-3">
                   <label className="text-xs font-medium text-theme-text">Thành Viên Đang Trực Tuyến Trong Hệ Thống:</label>
@@ -316,7 +414,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                     <div className="p-6 rounded-xl bg-theme-card border border-theme-border text-center text-xs text-theme-text-muted flex flex-col items-center gap-2">
                       <Users className="w-6 h-6 text-theme-text-muted/60" />
                       <span>Hiện chưa có cộng tác viên nào khác trực tuyến cùng phòng.</span>
-                      <span className="text-[10px]">Hãy gửi Liên Kết 1 Chạm ở tab bên cạnh cho bạn bè của bạn!</span>
+                      <span className="text-[10px]">Hãy gửi Liên Kết 1 Chạm hoặc Mã QR ở tab bên cạnh cho bạn bè của bạn!</span>
                     </div>
                   ) : (
                     <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
@@ -363,25 +461,6 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                       })}
                     </div>
                   )}
-                </div>
-              )}
-
-              {/* Tab 3: Short Room Code */}
-              {activeTab === 'code' && (
-                <div className="flex flex-col gap-3">
-                  <div className="p-4 rounded-xl bg-theme-card border border-theme-border flex flex-col items-center gap-2.5 text-center">
-                    <span className="text-xs text-theme-text-muted">Mã phòng cộng tác nhanh:</span>
-                    <span className="font-mono text-2xl font-bold tracking-widest text-theme-accent bg-theme-bg px-4 py-1.5 rounded-lg border border-theme-border shadow-xs">
-                      {roomCode}
-                    </span>
-                    <Button variant="secondary" size="sm" onClick={copyRoomCode} className="gap-1.5 mt-1 text-xs">
-                      {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copiedCode ? 'Đã sao chép mã' : 'Sao chép mã phòng'}</span>
-                    </Button>
-                    <span className="text-[11px] text-theme-text-muted leading-relaxed">
-                      Bạn bè của bạn có thể chọn <strong>"Tham gia phòng"</strong> trên thanh menu và dán mã này vào để mở tài liệu ngay lập tức.
-                    </span>
-                  </div>
                 </div>
               )}
 
