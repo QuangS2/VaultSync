@@ -27,6 +27,7 @@ import {
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Badge } from '../ui/Badge';
+import { VaultSyncBrandLogo } from '../ui/VaultSyncBrandLogo';
 import { VaultAuthEngine } from '../../lib/auth/vault-auth-engine';
 import { validateMnemonic12 } from '../../lib/auth/bip39-wordlist';
 import { UnlockedVaultSession } from '../../lib/auth/types';
@@ -290,9 +291,7 @@ export const VaultOnboardingModal: React.FC<VaultOnboardingModalProps> = ({
         {/* Top Header with Brand & Theme Switcher */}
         <div className="p-5 sm:p-6 border-b border-theme-border flex items-center justify-between bg-theme-card">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-theme-accent text-white flex items-center justify-center shadow-md">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
+            <VaultSyncBrandLogo size="lg" animated />
             <div className="flex flex-col">
               <h1 className="text-base sm:text-lg font-bold text-theme-text flex items-center gap-2">
                 <span>VaultSync</span>

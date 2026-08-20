@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
+import { VaultSyncBrandLogo } from '../ui/VaultSyncBrandLogo';
 import { AppTheme } from '../../App';
 import { ProviderConnectionStatus, AwarenessUser, CollaborationUserOptions } from '../../lib/yjs/types';
 
@@ -91,11 +92,9 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
         </Button>
 
         <div className="flex items-center gap-2">
-          <div className="w-6.5 h-6.5 rounded-lg bg-theme-accent text-white flex items-center justify-center shadow-xs shrink-0">
-            <Lock className="w-3.5 h-3.5" />
-          </div>
-          <span className="font-semibold text-sm tracking-tight text-theme-text">VaultSync</span>
-          <Badge variant="accent" size="sm" className="hidden lg:inline-flex text-[10px] py-0 px-1.5">
+          <VaultSyncBrandLogo size="sm" animated />
+          <span className="font-semibold text-sm tracking-tight text-theme-text font-sans">VaultSync</span>
+          <Badge variant="accent" size="sm" className="hidden lg:inline-flex text-[10px] py-0 px-1.5 font-mono">
             Bảo Mật Riêng Tư
           </Badge>
         </div>
