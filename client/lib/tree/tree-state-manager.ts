@@ -128,6 +128,17 @@ export class TreeStateManager {
   ): FileSystemItem {
     const existing = this.yMap.get(id);
     if (existing) {
+      if (existing.isTrash) {
+        // Automatically restore item from trash if opened / re-invited via share link
+        const restored: FileSystemItem = {
+          ...existing,
+          isTrash: false,
+          trashedAt: undefined,
+          updatedAt: Date.now()
+        };
+        this.yMap.set(id, restored);
+        return restored;
+      }
       return existing;
     }
 
@@ -227,6 +238,31 @@ export class TreeStateManager {
     });
 
     return true;
+  }
+
+  /**
+   * Empties all items currently in Trash.
+   */
+  public emptyTrash(): void {
+    const trashItems = this.getTrashItems();
+    this.yDoc.transact(() => {
+      for (const item of trashItems) {
+        this.yMap.delete(item.id);
+      }
+    });
+  }
+
+  /**
+   * Generates a portable manifest of a folder and all its non-trashed descendants for folder sharing.
+   */
+  public getFolderManifest(folderId: string): { folder: FileSystemItem; items: FileSystemItem[] } | null {
+    const folder = this.yMap.get(folderId);
+    if (!folder || folder.type !== 'folder') return null;
+    const descendantIds = this.getAllDescendantIds(folderId);
+    const items = descendantIds
+      .map(id => this.yMap.get(id))
+      .filter((item): item is FileSystemItem => Boolean(item && !item.isTrash));
+    return { folder, items };
   }
 
   /**

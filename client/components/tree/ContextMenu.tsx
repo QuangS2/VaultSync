@@ -13,6 +13,7 @@ import {
   RotateCw
 } from 'lucide-react';
 import { TreeNode } from '../../lib/tree/types';
+import { Share2, RotateCcw } from 'lucide-react';
 
 export interface ContextMenuProps {
   isOpen: boolean;
@@ -32,6 +33,9 @@ export interface ContextMenuProps {
   onCollapseAll?: (() => void) | undefined;
   onRefresh?: (() => void) | undefined;
   onToggleExpandBranch?: ((folderId: string) => void) | undefined;
+  onShareFolder?: ((folder: TreeNode) => void) | undefined;
+  onRestore?: ((item: TreeNode) => void) | undefined;
+  onPermanentDelete?: ((item: TreeNode) => void) | undefined;
 }
 
 export const ContextMenu: React.FC<ContextMenuProps> = ({
@@ -51,7 +55,10 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   onExpandAll,
   onCollapseAll,
   onRefresh,
-  onToggleExpandBranch
+  onToggleExpandBranch,
+  onShareFolder,
+  onRestore,
+  onPermanentDelete
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -177,8 +184,40 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
         </div>
       )}
 
-      {/* 2. Folder Context Menu */}
-      {!isRootContext && targetItem && targetItem.type === 'folder' && (
+      {/* 2. Trashed Item Context Menu (When item is in Trash) */}
+      {!isRootContext && targetItem && targetItem.isTrash && (
+        <div className="flex flex-col">
+          <div className="px-3 py-1 text-[10px] font-semibold text-theme-text-muted truncate max-w-[200px]">
+            🗑️ {targetItem.name} (Thùng rác)
+          </div>
+
+          <button
+            onClick={() => handleAction(() => onRestore?.(targetItem))}
+            className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-emerald-600 dark:text-emerald-400 transition-colors text-left cursor-pointer font-medium"
+          >
+            <div className="flex items-center gap-2">
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Khôi phục {targetItem.type === 'folder' ? 'thư mục' : 'tài liệu'}</span>
+            </div>
+          </button>
+
+          <div className="h-px bg-theme-border my-1" />
+
+          <button
+            onClick={() => handleAction(() => onPermanentDelete?.(targetItem))}
+            className="flex items-center justify-between px-3 py-1.5 hover:bg-rose-500/10 text-rose-500 transition-colors text-left cursor-pointer font-medium"
+          >
+            <div className="flex items-center gap-2">
+              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+              <span>Xóa vĩnh viễn</span>
+            </div>
+            <span className="text-[10px] font-mono text-rose-400">Shift+Del</span>
+          </button>
+        </div>
+      )}
+
+      {/* 3. Folder Context Menu (Active) */}
+      {!isRootContext && targetItem && targetItem.type === 'folder' && !targetItem.isTrash && (
         <div className="flex flex-col">
           <div className="px-3 py-1 text-[10px] font-semibold text-theme-text-muted truncate max-w-[200px]">
             📁 {targetItem.name}
@@ -201,6 +240,16 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             <div className="flex items-center gap-2">
               <FolderPlus className="w-3.5 h-3.5 text-amber-500" />
               <span>Tạo thư mục con</span>
+            </div>
+          </button>
+
+          <button
+            onClick={() => handleAction(() => onShareFolder?.(targetItem))}
+            className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-emerald-600 dark:text-emerald-400 font-medium transition-colors text-left cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <Share2 className="w-3.5 h-3.5" />
+              <span>Chia sẻ thư mục...</span>
             </div>
           </button>
 
@@ -260,15 +309,15 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           >
             <div className="flex items-center gap-2">
               <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-              <span>Xóa thư mục</span>
+              <span>Chuyển vào thùng rác</span>
             </div>
             <span className="text-[10px] font-mono text-rose-400">Del</span>
           </button>
         </div>
       )}
 
-      {/* 3. Document Context Menu */}
-      {!isRootContext && targetItem && targetItem.type === 'document' && (
+      {/* 4. Document Context Menu (Active) */}
+      {!isRootContext && targetItem && targetItem.type === 'document' && !targetItem.isTrash && (
         <div className="flex flex-col">
           <div className="px-3 py-1 text-[10px] font-semibold text-theme-text-muted truncate max-w-[200px]">
             📄 {targetItem.name}
