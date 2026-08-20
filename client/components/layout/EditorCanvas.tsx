@@ -161,7 +161,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       {/* Main Tiptap ProseMirror Editor */}
       {isDocHydrated ? (
         <TiptapEditor
-          key={documentId}
+          key={`${documentId}-${provider ? 'collab' : 'local'}`}
           content={content}
           documentTitle={currentTitle}
           onTitleChange={handleTitleChange}

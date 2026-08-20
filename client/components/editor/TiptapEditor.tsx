@@ -64,16 +64,9 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({
     activeCommentThreadId
   }), [yDoc, provider, user, onCommentClick, activeCommentThreadId]);
 
-  const initialContent = useMemo(() => {
-    if (yDoc && yDoc.getXmlFragment('default').length > 0) {
-      return undefined;
-    }
-    return content;
-  }, [yDoc, content]);
-
   const editor = useEditor({
     extensions,
-    ...(initialContent !== undefined ? { content: initialContent } : {}),
+    ...(!yDoc && content ? { content } : {}),
     editable: !readOnly,
     onUpdate: ({ editor }) => {
       const html = editor.getHTML();
@@ -87,7 +80,7 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({
         onSelectionChange(text);
       }
     }
-  });
+  }, [yDoc, provider]);
 
   // Synchronize external content changes (e.g. switching documents)
   useEffect(() => {

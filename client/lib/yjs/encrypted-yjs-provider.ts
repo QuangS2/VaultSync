@@ -16,6 +16,7 @@ import {
 
 export class EncryptedYjsProvider {
   public readonly yDoc: Y.Doc;
+  public get doc(): Y.Doc { return this.yDoc; }
   public readonly roomId: string;
   public readonly awareness: awarenessProtocol.Awareness;
 
@@ -28,6 +29,7 @@ export class EncryptedYjsProvider {
 
   private ws: WebSocket | null = null;
   private isDestroyed = false;
+  private hasSentStep1Response = false;
   private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
@@ -135,6 +137,7 @@ export class EncryptedYjsProvider {
         }
 
         this.reconnectAttempts = 0;
+        this.hasSentStep1Response = false;
         this.updateStatus({
           connected: true,
           connecting: false,
@@ -252,7 +255,7 @@ export class EncryptedYjsProvider {
 
       try {
         const encryptedUpdate = await this.encryptPayload(update);
-        if (this.status.connected && this.ws && this.ws.readyState === 1) {
+        if (this.ws && this.ws.readyState === 1) {
           const frame = BinaryCodec.encode(MessageType.UPDATE, this.roomId, encryptedUpdate);
           this.sendRaw(frame);
         }
@@ -274,7 +277,7 @@ export class EncryptedYjsProvider {
       try {
         const awarenessUpdate = awarenessProtocol.encodeAwarenessUpdate(this.awareness, changedClients);
         const encryptedAwareness = await this.encryptPayload(awarenessUpdate);
-        if (this.status.connected && this.ws && this.ws.readyState === 1) {
+        if (this.ws && this.ws.readyState === 1) {
           const frame = BinaryCodec.encode(MessageType.AWARENESS, this.roomId, encryptedAwareness);
           this.sendRaw(frame);
         }
@@ -298,6 +301,15 @@ export class EncryptedYjsProvider {
             this.sendRaw(sync2Frame);
           }
 
+          // In Yjs sync protocol, reply with our own SYNC_STEP_1 once so peer sends its missing updates
+          if (!this.hasSentStep1Response) {
+            this.hasSentStep1Response = true;
+            const myStateVector = Y.encodeStateVector(this.yDoc);
+            const encryptedMyStateVector = await this.encryptPayload(myStateVector);
+            const sync1Frame = BinaryCodec.encode(MessageType.SYNC_STEP_1, this.roomId, encryptedMyStateVector);
+            this.sendRaw(sync1Frame);
+          }
+
           // Reply with our local awareness presence so the new peer discovers us
           const localAwareness = awarenessProtocol.encodeAwarenessUpdate(this.awareness, [this.yDoc.clientID]);
           if (localAwareness.length > 0) {
@@ -316,7 +328,6 @@ export class EncryptedYjsProvider {
         // Decrypt incoming update and apply to local Y.Doc
         try {
           const decryptedUpdate = await this.decryptPayload(frame.payload);
-          // Apply update with origin set to `this` to prevent echo loop
           Y.applyUpdate(this.yDoc, decryptedUpdate, this);
           this.updateStatus({ syncStatus: 'synced' });
         } catch (err) {

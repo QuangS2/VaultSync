@@ -79,7 +79,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [chatEngine, setChatEngine] = useState(() => new RoomChatEngine(yDoc));
   const [activeCommentThreadId, setActiveCommentThreadId] = useState<string | null>(null);
 
-  // Document encryption key
+  // Document encryption key registry
+  const documentKeysRef = React.useRef<Map<string, CryptoKey>>(new Map());
   const [documentKey, setDocumentKey] = useState<CryptoKey | null>(session ? session.vaultRootKey : null);
 
   // Real-time WebSocket Relay Provider & Peer Awareness State
@@ -139,6 +140,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               true,
               ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
             ).then(importedKey => {
+              documentKeysRef.current.set(shareInfo.room, importedKey);
               setDocumentKey(importedKey);
             }).catch(err => {
               console.error('Lỗi nhập khóa mã hóa tài liệu từ URL:', err);
@@ -154,6 +156,16 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       }
     }
   }, [treeManager, getPendingShareInfo]);
+
+  // Update active document key when activeDocId changes
+  useEffect(() => {
+    const customKey = documentKeysRef.current.get(activeDocId);
+    if (customKey) {
+      setDocumentKey(customKey);
+    } else if (session?.vaultRootKey) {
+      setDocumentKey(session.vaultRootKey);
+    }
+  }, [activeDocId, session]);
 
   // Isolate and switch Y.Doc per active document to prevent cross-document text bleeding
   useEffect(() => {
@@ -364,7 +376,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   // Initialize cryptographic document key on mount if session is not already provided
   useEffect(() => {
     if (session) {
-      setDocumentKey(session.vaultRootKey);
+      const customKey = documentKeysRef.current.get(activeDocId);
+      if (customKey) {
+        setDocumentKey(customKey);
+      } else {
+        setDocumentKey(session.vaultRootKey);
+      }
       return;
     }
 
@@ -377,7 +394,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       }
     }
     initCrypto();
-  }, [session]);
+  }, [session, activeDocId]);
 
   useEffect(() => {
     const unobserve = treeManager.observe(() => {
@@ -449,6 +466,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   const handleJoinRoom = (roomId: string, title?: string, key?: CryptoKey) => {
     if (key) {
+      documentKeysRef.current.set(roomId, key);
       setDocumentKey(key);
     }
     const cleanTitle = title || 'Tài Liệu Cộng Tác';
