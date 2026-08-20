@@ -4,6 +4,7 @@ import { LeftSidebar } from './LeftSidebar';
 import { EditorCanvas } from './EditorCanvas';
 import { RightDiscussionSidebar } from './RightDiscussionSidebar';
 import { TreeStateManager } from '../../lib/tree/tree-state-manager';
+import { FileSystemItem } from '../../lib/tree/types';
 import { InlineCommentAnchorEngine } from '../../lib/yjs/inline-comment-engine';
 import { RoomChatEngine } from '../../lib/yjs/room-chat-engine';
 import * as Y from 'yjs';
@@ -22,7 +23,7 @@ import { EncryptedIndexedDBStorage } from '../../lib/storage/encrypted-indexeddb
 import { BinaryUtils } from '../../lib/crypto/binary-utils';
 import { MobileBottomNavBar } from './MobileBottomNavBar';
 import { DiscussionReadTracker } from '../../lib/yjs/discussion-read-tracker';
-import { PermissionsEngine, DocumentPermissions, DEFAULT_OWNER_PERMISSIONS } from '../../lib/auth/permissions';
+import { PermissionsEngine, DocumentPermissions, DEFAULT_OWNER_PERMISSIONS, DEFAULT_EDITOR_PERMISSIONS } from '../../lib/auth/permissions';
 
 function getRelayWsUrl(): string {
   if (typeof window === 'undefined') return 'ws://localhost:1234';
@@ -111,6 +112,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     }
     return DEFAULT_OWNER_PERMISSIONS;
   });
+  const [guestRoomPermissions, setGuestRoomPermissions] = useState<DocumentPermissions>(DEFAULT_EDITOR_PERMISSIONS);
 
   // Real-time WebSocket Relay Provider & Peer Awareness State
   const [provider, setProvider] = useState<EncryptedYjsProvider | null>(null);
@@ -124,6 +126,22 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   const [awarenessUsers, setAwarenessUsers] = useState<AwarenessUser[]>([]);
   const [isJoinRoomModalOpen, setIsJoinRoomModalOpen] = useState(false);
+
+  const currentUserOptions: CollaborationUserOptions = React.useMemo(() => {
+    if (session) {
+      const tagStr = session.userProfile.userTag ? ` ${session.userProfile.userTag}` : '';
+      return {
+        name: `${session.userProfile.displayName}${tagStr}`,
+        color: session.userProfile.avatarColor,
+        avatar: session.userProfile.displayName.charAt(0).toUpperCase()
+      };
+    }
+    return {
+      name: 'Bạn (Cục bộ) #0001',
+      color: '#2563eb',
+      avatar: 'B'
+    };
+  }, [session]);
 
   // Helper to save shared doc key into sessionStorage
   const saveSharedDocKey = React.useCallback(async (docId: string, key: CryptoKey) => {
@@ -154,6 +172,98 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     } catch {
       return null;
     }
+  }, []);
+
+  // Shared Folder Background Providers Registry
+  const sharedFolderProvidersRef = React.useRef<Map<string, EncryptedYjsProvider>>(new Map());
+  const sharedFolderDocsRef = React.useRef<Map<string, Y.Doc>>(new Map());
+
+  // Helper to ensure an active background EncryptedYjsProvider for a shared folder
+  const ensureSharedFolderProvider = React.useCallback((folderId: string, folderKey?: CryptoKey | null) => {
+    if (sharedFolderProvidersRef.current.has(folderId)) {
+      return sharedFolderProvidersRef.current.get(folderId)!;
+    }
+
+    const key = folderKey || documentKeysRef.current.get(folderId) || session?.vaultRootKey;
+    if (!key) return null;
+
+    const wsUrl = getRelayWsUrl();
+    const cleanFolderRoomId = folderId.startsWith('folder-') ? folderId : `folder-${folderId}`;
+    const folderDoc = new Y.Doc();
+    sharedFolderDocsRef.current.set(folderId, folderDoc);
+
+    const folderProvider = new EncryptedYjsProvider({
+      serverUrl: wsUrl,
+      roomId: cleanFolderRoomId,
+      yDoc: folderDoc,
+      documentKey: key,
+      epoch: 1,
+      user: currentUserOptions
+    });
+    sharedFolderProvidersRef.current.set(folderId, folderProvider);
+
+    // Seed local items into folderDoc
+    const folderItemsMap = folderDoc.getMap('shared_items');
+    const folderMetaMap = folderDoc.getMap('metadata');
+
+    const itemsInFolder = treeManager.getAllItems().filter(i => 
+      i.id === folderId || i.parentId === folderId || treeManager.isDescendantOf(i.id, folderId)
+    );
+    itemsInFolder.forEach(item => {
+      folderItemsMap.set(item.id, item);
+    });
+
+    // Observe incoming tree changes from peers in this folder
+    const handleFolderItemsChange = (event: Y.YMapEvent<any>) => {
+      for (const k of event.keysChanged) {
+        const item = folderItemsMap.get(k) as FileSystemItem | undefined;
+        if (item) {
+          treeManager.syncItem(item);
+          if (item.type === 'document' && !documentKeysRef.current.has(item.id) && key) {
+            documentKeysRef.current.set(item.id, key);
+          }
+          if (item.isTrash && item.id === activeDocId) {
+            const remainingDocs = treeManager.getAllItems().filter(i => i.type === 'document' && !i.isTrash && i.id !== activeDocId);
+            if (remainingDocs.length > 0 && remainingDocs[0]) {
+              setActiveDocId(remainingDocs[0].id);
+            }
+          }
+        } else {
+          if (treeManager.getItem(k)) {
+            treeManager.permanentDelete(k);
+          }
+        }
+      }
+      setTreeVersion(v => v + 1);
+    };
+
+    folderItemsMap.observe(handleFolderItemsChange);
+
+    // Observe live permissions from peers/owner
+    const handleFolderMetaChange = () => {
+      const roomPerms = folderMetaMap.get('room_permissions');
+      if (roomPerms) {
+        const decoded = typeof roomPerms === 'string' ? PermissionsEngine.decodePermissions(roomPerms) : (roomPerms as DocumentPermissions);
+        permissionsMapRef.current.set(folderId, decoded);
+        const related = treeManager.getAllItems().filter(i => i.id === folderId || i.parentId === folderId || treeManager.isDescendantOf(i.id, folderId));
+        related.forEach(item => permissionsMapRef.current.set(item.id, decoded));
+        if (related.some(i => i.id === activeDocId)) {
+          setCurrentPermissions(decoded);
+        }
+      }
+    };
+
+    folderMetaMap.observe(handleFolderMetaChange);
+    return folderProvider;
+  }, [session?.vaultRootKey, currentUserOptions, treeManager, activeDocId]);
+
+  // Clean up all shared folder providers on unmount
+  useEffect(() => {
+    return () => {
+      sharedFolderProvidersRef.current.forEach(p => p.destroy());
+      sharedFolderProvidersRef.current.clear();
+      sharedFolderDocsRef.current.clear();
+    };
   }, []);
 
   // Helper to extract or restore pending share information (supports both single doc and folder sharing)
@@ -276,6 +386,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               await saveSharedDocKey(firstDocId, importedKey);
               setDocumentKey(importedKey);
             }
+
+            // Connect background shared folder provider
+            ensureSharedFolderProvider(folderId, importedKey);
           } catch (err) {
             console.error('Lỗi nhập khóa thư mục chia sẻ:', err);
           }
@@ -391,22 +504,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     setCommentEngine(new InlineCommentAnchorEngine(currentYDoc));
     setChatEngine(new RoomChatEngine(currentYDoc));
   }, [activeDocId]);
-
-  const currentUserOptions: CollaborationUserOptions = React.useMemo(() => {
-    if (session) {
-      const tagStr = session.userProfile.userTag ? ` ${session.userProfile.userTag}` : '';
-      return {
-        name: `${session.userProfile.displayName}${tagStr}`,
-        color: session.userProfile.avatarColor,
-        avatar: session.userProfile.displayName.charAt(0).toUpperCase()
-      };
-    }
-    return {
-      name: 'Bạn (Cục bộ) #0001',
-      color: '#2563eb',
-      avatar: 'B'
-    };
-  }, [session]);
 
   // Connect EncryptedYjsProvider whenever documentKey or activeDocId changes
   useEffect(() => {
@@ -676,11 +773,128 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           }
         }
       }
+
+      // 3. Synchronize Live Permissions across peers
+      if (event.keysChanged.has('room_permissions')) {
+        const roomPerms = metaMap.get('room_permissions');
+        if (roomPerms) {
+          const decoded = typeof roomPerms === 'string' ? PermissionsEngine.decodePermissions(roomPerms) : (roomPerms as DocumentPermissions);
+          setGuestRoomPermissions(decoded);
+          if (currentPermissions.role !== 'owner') {
+            setCurrentPermissions(decoded);
+            permissionsMapRef.current.set(targetDocId, decoded);
+          }
+        }
+      }
     };
 
     metaMap.observe(handleMetaChange);
     return () => metaMap.unobserve(handleMetaChange);
-  }, [yDoc, activeDocId, treeManager]);
+  }, [yDoc, activeDocId, treeManager, currentPermissions.role]);
+
+  // Listen for real-time shared tree item updates (Creating, Renaming, Moving, Trashing, Restoring, Deleting)
+  useEffect(() => {
+    const sharedItemsMap = yDoc.getMap('shared_items');
+
+    // Initial hydration from sharedItemsMap
+    sharedItemsMap.forEach((rawItem: any) => {
+      if (rawItem && typeof rawItem === 'object') {
+        treeManager.syncItem(rawItem as FileSystemItem);
+      }
+    });
+
+    const handleSharedItemsChange = (event: Y.YMapEvent<any>) => {
+      for (const key of event.keysChanged) {
+        const item = sharedItemsMap.get(key) as FileSystemItem | undefined;
+        if (item) {
+          treeManager.syncItem(item);
+          if (item.isTrash && item.id === activeDocId) {
+            const remainingDocs = treeManager.getAllItems().filter(i => i.type === 'document' && !i.isTrash && i.id !== activeDocId);
+            if (remainingDocs.length > 0 && remainingDocs[0]) {
+              setActiveDocId(remainingDocs[0].id);
+            }
+          }
+        } else {
+          // Permanently deleted from CRDT map
+          if (treeManager.getItem(key)) {
+            treeManager.permanentDelete(key);
+          }
+        }
+      }
+      setTreeVersion(v => v + 1);
+    };
+
+    sharedItemsMap.observe(handleSharedItemsChange);
+    return () => sharedItemsMap.unobserve(handleSharedItemsChange);
+  }, [yDoc, treeManager, activeDocId]);
+
+  const handleTreeMutation = React.useCallback((
+    action: 'create' | 'rename' | 'move' | 'trash' | 'restore' | 'delete',
+    item: any
+  ) => {
+    // 1. Local active doc Y.Map update
+    const sharedItemsMap = yDoc.getMap('shared_items');
+    if (action === 'delete') {
+      if (item && item.id) {
+        sharedItemsMap.delete(item.id);
+      }
+    } else if (item && item.id) {
+      const currentItem = treeManager.getItem(item.id);
+      if (currentItem) {
+        sharedItemsMap.set(item.id, currentItem);
+      } else {
+        sharedItemsMap.set(item.id, item);
+      }
+    }
+
+    // 2. Broadcast to all active shared folder background providers
+    if (item && item.id) {
+      sharedFolderDocsRef.current.forEach((folderDoc, folderId) => {
+        const isRelated = item.id === folderId || item.parentId === folderId || treeManager.isDescendantOf(item.id, folderId);
+        if (isRelated) {
+          const folderItemsMap = folderDoc.getMap('shared_items');
+          if (action === 'delete') {
+            folderItemsMap.delete(item.id);
+          } else {
+            const currentItem = treeManager.getItem(item.id);
+            if (currentItem) {
+              folderItemsMap.set(item.id, currentItem);
+            } else {
+              folderItemsMap.set(item.id, item);
+            }
+          }
+        }
+      });
+    }
+  }, [yDoc, treeManager]);
+
+  const handleUpdateLivePermissions = React.useCallback((
+    targetId: string,
+    newPerms: DocumentPermissions
+  ) => {
+    setGuestRoomPermissions(newPerms);
+    if (currentPermissions.role !== 'owner') {
+      setCurrentPermissions(newPerms);
+    }
+    permissionsMapRef.current.set(targetId, newPerms);
+
+    // If target is in sharedFolderDocsRef, update folder metadata
+    const folderDoc = sharedFolderDocsRef.current.get(targetId);
+    if (folderDoc) {
+      folderDoc.getMap('metadata').set('room_permissions', newPerms);
+      const itemsInFolder = treeManager.getAllItems().filter(i => 
+        i.id === targetId || treeManager.isDescendantOf(i.id, targetId) || i.parentId === targetId
+      );
+      itemsInFolder.forEach(item => {
+        if (currentPermissions.role !== 'owner') {
+          permissionsMapRef.current.set(item.id, newPerms);
+        }
+      });
+    }
+
+    // Also broadcast to active document's metadata
+    yDoc.getMap('metadata').set('room_permissions', newPerms);
+  }, [yDoc, treeManager, currentPermissions.role]);
 
   const handleSelectDoc = (id: string) => {
     const item = treeManager.getItem(id);
@@ -796,6 +1010,20 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         documentKeysRef.current.set(folderId, key);
       }
     }
+
+    // Connect background shared folder provider
+    ensureSharedFolderProvider(folderId, key);
+
+    // Seed shared folder and all child items into shared_items CRDT map
+    const sharedItemsMap = yDoc.getMap('shared_items');
+    const folderItem = treeManager.getItem(folderId);
+    if (folderItem) sharedItemsMap.set(folderId, folderItem);
+    if (manifest && Array.isArray(manifest.items)) {
+      for (const child of manifest.items) {
+        sharedItemsMap.set(child.id, child);
+      }
+    }
+
     setShareModalConfig({
       isOpen: true,
       targetId: folderId,
@@ -816,10 +1044,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   ) => {
     const activePerms = permissions || DEFAULT_OWNER_PERMISSIONS;
     permissionsMapRef.current.set(roomId, activePerms);
+    const sharedItemsMap = yDoc.getMap('shared_items');
 
     if (isFolder) {
       const folderTitle = title || manifestData?.folder?.name || 'Thư Mục Cộng Tác';
-      treeManager.ensureItem(roomId, folderTitle, 'folder', null, 'Folder');
+      const createdFolder = treeManager.ensureItem(roomId, folderTitle, 'folder', null, 'Folder');
+      sharedItemsMap.set(roomId, createdFolder);
       if (key) {
         documentKeysRef.current.set(roomId, key);
         await saveSharedDocKey(roomId, key);
@@ -828,7 +1058,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       let firstDocId: string | null = null;
       if (manifestData && Array.isArray(manifestData.items)) {
         for (const item of manifestData.items) {
-          treeManager.ensureItem(item.id, item.name, item.type, item.parentId || roomId, item.icon);
+          const childItem = treeManager.ensureItem(item.id, item.name, item.type, item.parentId || roomId, item.icon);
+          sharedItemsMap.set(item.id, childItem);
           permissionsMapRef.current.set(item.id, activePerms);
           if (key) {
             documentKeysRef.current.set(item.id, key);
@@ -839,6 +1070,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           }
         }
       }
+
+      // Connect background shared folder provider
+      ensureSharedFolderProvider(roomId, key);
 
       if (firstDocId) {
         if (key) {
@@ -858,7 +1092,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       setDocumentKey(key);
     }
     const cleanTitle = title || 'Tài Liệu Cộng Tác';
-    treeManager.ensureItem(roomId, cleanTitle, 'document', null, 'Share2');
+    const createdDoc = treeManager.ensureItem(roomId, cleanTitle, 'document', null, 'Share2');
+    sharedItemsMap.set(roomId, createdDoc);
     handleSelectDoc(roomId);
     setTreeVersion(v => v + 1);
   };
@@ -1087,6 +1322,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           onSelectDoc={handleSelectDoc}
           onExportDoc={handleExportDoc}
           onShareFolder={handleShareFolder}
+          onTreeMutation={handleTreeMutation}
+          permissions={currentPermissions}
           treeManager={treeManager}
           onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
           onOpenJoinRoomModal={() => setIsJoinRoomModalOpen(true)}
@@ -1105,6 +1342,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           providerStatus={providerStatus}
           awarenessUsers={awarenessUsers}
           permissions={currentPermissions}
+          guestPermissions={guestRoomPermissions}
+          isOwner={currentPermissions.role === 'owner'}
+          onUpdatePermissions={(perms) => handleUpdateLivePermissions(activeDocId, perms)}
           saveStatus={saveStatus}
           lastSavedTime={lastSavedTime}
           isDocHydrated={isDocHydrated}
@@ -1172,6 +1412,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         documentKey={shareModalConfig.key || documentKey}
         awarenessUsers={awarenessUsers}
         currentUser={currentUserOptions}
+        onUpdateLivePermissions={handleUpdateLivePermissions}
       />
 
       {/* MODAL: Tham Gia Phòng Bằng Mã Rút Gọn Hoặc Liên Kết (Join Room) */}

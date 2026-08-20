@@ -11,7 +11,7 @@ test.describe('VaultSync Enterprise Production E2E Test Suite (11/10 Precision)'
     await page.waitForSelector('input[placeholder*="Lê Anh Quang"]', { timeout: 10000 });
     await page.fill('input[placeholder*="Lê Anh Quang"]', 'Lê Anh Quang');
     await page.click('button[title="Xanh Lục"]');
-    await page.click('button:has-text("Tiếp tục: Mật khẩu chủ")');
+    await page.click('button:has-text("Tiếp tục: Mật khẩu bảo vệ")');
 
     // Step 2: Master Password setup
     await page.waitForTimeout(400);
@@ -38,7 +38,7 @@ test.describe('VaultSync Enterprise Production E2E Test Suite (11/10 Precision)'
     // Fast onboarding
     await page.waitForSelector('input[placeholder*="Lê Anh Quang"]', { timeout: 10000 });
     await page.fill('input[placeholder*="Lê Anh Quang"]', 'Lê Anh Quang');
-    await page.click('button:has-text("Tiếp tục: Mật khẩu chủ")');
+    await page.click('button:has-text("Tiếp tục: Mật khẩu bảo vệ")');
     await page.waitForTimeout(300);
     await page.fill('input[placeholder*="mật khẩu an toàn"]', 'Passphrase2026!Strong');
     await page.fill('input[placeholder*="chính xác mật khẩu"]', 'Passphrase2026!Strong');
@@ -76,7 +76,7 @@ test.describe('VaultSync Enterprise Production E2E Test Suite (11/10 Precision)'
     // Quick onboarding
     await page.waitForSelector('input[placeholder*="Lê Anh Quang"]', { timeout: 10000 });
     await page.fill('input[placeholder*="Lê Anh Quang"]', 'Lê Anh Quang');
-    await page.click('button:has-text("Tiếp tục: Mật khẩu chủ")');
+    await page.click('button:has-text("Tiếp tục: Mật khẩu bảo vệ")');
     await page.waitForTimeout(300);
     await page.fill('input[placeholder*="mật khẩu an toàn"]', 'Passphrase2026!Strong');
     await page.fill('input[placeholder*="chính xác mật khẩu"]', 'Passphrase2026!Strong');
@@ -112,7 +112,7 @@ test.describe('VaultSync Enterprise Production E2E Test Suite (11/10 Precision)'
     // Quick onboarding
     await page.waitForSelector('input[placeholder*="Lê Anh Quang"]', { timeout: 10000 });
     await page.fill('input[placeholder*="Lê Anh Quang"]', 'Lê Anh Quang');
-    await page.click('button:has-text("Tiếp tục: Mật khẩu chủ")');
+    await page.click('button:has-text("Tiếp tục: Mật khẩu bảo vệ")');
     await page.waitForTimeout(300);
     await page.fill('input[placeholder*="mật khẩu an toàn"]', 'Passphrase2026!Strong');
     await page.fill('input[placeholder*="chính xác mật khẩu"]', 'Passphrase2026!Strong');
@@ -126,11 +126,11 @@ test.describe('VaultSync Enterprise Production E2E Test Suite (11/10 Precision)'
     // Open Settings Modal
     const settingsBtn = page.locator('button[title*="Cài đặt kho lưu trữ"]');
     await settingsBtn.click();
-    await expect(page.locator('text=Hồ Sơ & Danh Tính Mật Mã')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('text=Hồ Sơ & Danh Tính Tài Khoản')).toBeVisible({ timeout: 5000 });
 
     // Switch to Security Tab
     await page.click('text=Bảo Mật & Khóa');
-    await expect(page.locator('text=Đổi Mật Khẩu Chủ')).toBeVisible();
+    await expect(page.locator('text=Đổi Mật Khẩu')).toBeVisible();
 
     // Switch to Storage Tab
     await page.click('text=Bộ Nhớ & Sao Lưu');
@@ -154,7 +154,7 @@ test.describe('VaultSync Enterprise Production E2E Test Suite (11/10 Precision)'
 
     // Close settings modal
     await page.click('button[title="Đóng cài đặt (Esc)"]');
-    await expect(page.locator('text=Hồ Sơ & Danh Tính Mật Mã')).not.toBeVisible();
+    await expect(page.locator('text=Hồ Sơ & Danh Tính Tài Khoản')).not.toBeVisible();
   });
 
   test('5. Real-Time Multi-User E2EE Collaboration & Peer Synchronization', async ({ browser }) => {
@@ -168,7 +168,7 @@ test.describe('VaultSync Enterprise Production E2E Test Suite (11/10 Precision)'
     // User A onboard
     await pageA.waitForSelector('input[placeholder*="Lê Anh Quang"]', { timeout: 10000 });
     await pageA.fill('input[placeholder*="Lê Anh Quang"]', 'Alice Admin');
-    await pageA.click('button:has-text("Tiếp tục: Mật khẩu chủ")');
+    await pageA.click('button:has-text("Tiếp tục: Mật khẩu bảo vệ")');
     await pageA.waitForTimeout(300);
     await pageA.fill('input[placeholder*="mật khẩu an toàn"]', 'Passphrase2026!Strong');
     await pageA.fill('input[placeholder*="chính xác mật khẩu"]', 'Passphrase2026!Strong');
@@ -188,7 +188,7 @@ test.describe('VaultSync Enterprise Production E2E Test Suite (11/10 Precision)'
     // User B onboard
     await pageB.waitForSelector('input[placeholder*="Lê Anh Quang"]', { timeout: 10000 });
     await pageB.fill('input[placeholder*="Lê Anh Quang"]', 'Bob Collaborator');
-    await pageB.click('button:has-text("Tiếp tục: Mật khẩu chủ")');
+    await pageB.click('button:has-text("Tiếp tục: Mật khẩu bảo vệ")');
     await pageB.waitForTimeout(300);
     await pageB.fill('input[placeholder*="mật khẩu an toàn"]', 'Passphrase2026!Strong');
     await pageB.fill('input[placeholder*="chính xác mật khẩu"]', 'Passphrase2026!Strong');

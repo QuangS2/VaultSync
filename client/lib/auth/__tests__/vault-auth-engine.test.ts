@@ -79,7 +79,7 @@ describe('VaultAuthEngine — Zero-Knowledge Identity & Authentication (11/10 Ri
           displayName: 'Tester',
           masterPassword: '123'
         })
-      ).rejects.toThrow('Mật khẩu chủ phải có ít nhất 6 ký tự.');
+      ).rejects.toThrow('Mật khẩu phải có ít nhất 6 ký tự.');
     });
   });
 
@@ -115,7 +115,7 @@ describe('VaultAuthEngine — Zero-Knowledge Identity & Authentication (11/10 Ri
 
       await expect(
         VaultAuthEngine.unlockVaultWithPassword(created.record, 'WrongPassword!456')
-      ).rejects.toThrow('Mật khẩu chủ không chính xác.');
+      ).rejects.toThrow('Mật khẩu không chính xác.');
     });
   });
 
@@ -148,7 +148,7 @@ describe('VaultAuthEngine — Zero-Knowledge Identity & Authentication (11/10 Ri
       // And verify OLD password fails
       await expect(
         VaultAuthEngine.unlockVaultWithPassword(recoveryResult.updatedRecord!, 'OldForgottenPassword!1')
-      ).rejects.toThrow('Mật khẩu chủ không chính xác.');
+      ).rejects.toThrow('Mật khẩu không chính xác.');
     });
 
     it('decrypts and reveals the true 12-word mnemonic with correct master password', async () => {
@@ -169,7 +169,7 @@ describe('VaultAuthEngine — Zero-Knowledge Identity & Authentication (11/10 Ri
       // Wrong password fails
       await expect(
         VaultAuthEngine.revealRecoveryPhrase(created.record, 'WrongPassword!')
-      ).rejects.toThrow('Mật khẩu chủ không chính xác.');
+      ).rejects.toThrow('Mật khẩu không chính xác.');
     });
 
     it('derives identical root keys and vault IDs from the same 12-word phrase across devices', async () => {
@@ -230,7 +230,7 @@ describe('VaultAuthEngine — Zero-Knowledge Identity & Authentication (11/10 Ri
       // Old password fails
       await expect(
         VaultAuthEngine.unlockVaultWithPassword(updatedRecord, 'InitialPassword123!')
-      ).rejects.toThrow('Mật khẩu chủ không chính xác.');
+      ).rejects.toThrow('Mật khẩu không chính xác.');
     });
   });
 

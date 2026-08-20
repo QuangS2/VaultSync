@@ -27,7 +27,7 @@ async function setupAndOnboard(page: any) {
   // Step 1: User Profile
   await page.waitForSelector('input[placeholder*="Lê Anh Quang"]', { timeout: 10000 });
   await page.fill('input[placeholder*="Lê Anh Quang"]', 'Kiểm Thử Viên (Tester)');
-  await page.click('button:has-text("Tiếp tục: Mật khẩu chủ")');
+  await page.click('button:has-text("Tiếp tục: Mật khẩu bảo vệ")');
 
   // Step 2: Master Password
   await page.waitForTimeout(300);

@@ -129,7 +129,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleRevealSeed = async () => {
     setSecurityError(null);
     if (!seedVerifyPassword) {
-      setSecurityError('Vui lòng nhập mật khẩu chủ để xem 12 từ khóa khôi phục.');
+      setSecurityError('Vui lòng nhập mật khẩu để xem 12 từ khóa khôi phục.');
       return;
     }
 
@@ -146,7 +146,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setIsRevealingSeed(false);
       setSeedVerifyPassword('');
     } catch (err: any) {
-      setSecurityError(err.message || 'Mật khẩu chủ không chính xác. Không thể mở khóa từ khôi phục.');
+      setSecurityError(err.message || 'Mật khẩu không chính xác. Không thể mở khóa từ khôi phục.');
     }
   };
 
@@ -167,7 +167,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
     try {
       // Re-encrypt root key with new PBKDF2 password
-      setSecuritySuccess('Đã cập nhật mật khẩu chủ thành công!');
+      setSecuritySuccess('Đã cập nhật mật khẩu thành công!');
       setNewPassword('');
       setConfirmPassword('');
     } catch (err: any) {
@@ -262,8 +262,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           {/* Content Header */}
           <div className="p-4 sm:p-5 border-b border-theme-border flex items-center justify-between">
             <h2 className="text-sm sm:text-base font-semibold text-theme-text">
-              {activeTab === 'profile' && 'Hồ Sơ & Danh Tính Mật Mã'}
-              {activeTab === 'security' && 'Bảo Mật & Mật Khẩu Chủ'}
+              {activeTab === 'profile' && 'Hồ Sơ & Danh Tính Tài Khoản'}
+              {activeTab === 'security' && 'Bảo Mật & Mật Khẩu'}
               {activeTab === 'storage' && 'Bộ Nhớ Cục Bộ & Sao Lưu'}
               {activeTab === 'appearance' && 'Giao Diện & Phím Tắt Tiện Ích'}
             </h2>
@@ -297,7 +297,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         {session?.userProfile?.userTag || '#1024'}
                       </span>
                     </span>
-                    <span className="text-xs text-theme-text-muted">Chủ sở hữu kho lưu trữ</span>
+                    <span className="text-xs text-theme-text-muted">Tài khoản kho lưu trữ</span>
                   </div>
                 </div>
 
@@ -332,7 +332,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-medium text-theme-text flex items-center gap-1.5">
                       <Lock className="w-3.5 h-3.5 text-theme-accent" />
-                      <span>Khóa Công Khai Mật Mã (Bảo vệ bằng Mật Khẩu Chủ):</span>
+                      <span>Mã Định Danh Bảo Mật (Được bảo vệ bằng Mật Khẩu):</span>
                     </label>
                     <button
                       type="button"
@@ -362,11 +362,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                   {isPromptingKeyPass && !isKeyUnlocked && (
                     <div className="p-3 rounded-lg bg-theme-card border border-theme-border flex flex-col gap-2 animate-in fade-in duration-150">
-                      <span className="text-[11px] text-theme-text-muted">Nhập mật khẩu chủ để xác minh danh tính và hiển thị khóa công khai:</span>
+                      <span className="text-[11px] text-theme-text-muted">Nhập mật khẩu để xác minh danh tính và hiển thị mã định danh:</span>
                       <div className="flex items-center gap-2">
                         <Input
                           type="password"
-                          placeholder="Mật khẩu chủ..."
+                          placeholder="Mật khẩu..."
                           value={keyVerifyPassword}
                           onChange={(e) => setKeyVerifyPassword(e.target.value)}
                           className="text-xs"
@@ -386,7 +386,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 setKeyAuthError(null);
                               }
                             } catch {
-                              setKeyAuthError('Mật khẩu chủ không chính xác.');
+                              setKeyAuthError('Mật khẩu không chính xác.');
                             }
                           }}
                         >
@@ -419,7 +419,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           setTimeout(() => setCopiedKey(false), 2000);
                         }
                       }}
-                      title={isKeyUnlocked ? "Sao chép khóa công khai" : "Yêu cầu mật khẩu chủ để sao chép"}
+                      title={isKeyUnlocked ? "Sao chép mã định danh" : "Yêu cầu mật khẩu để sao chép"}
                     >
                       {copiedKey ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                     </Button>
@@ -453,7 +453,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <form onSubmit={handleChangePassword} className="flex flex-col gap-3 p-3.5 rounded-xl bg-theme-card border border-theme-border">
                   <span className="text-xs font-semibold text-theme-text flex items-center gap-1.5">
                     <KeyRound className="w-4 h-4 text-theme-accent" />
-                    Đổi Mật Khẩu Chủ
+                    Đổi Mật Khẩu
                   </span>
 
                   <div className="flex flex-col gap-1">
@@ -532,12 +532,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                   ) : isRevealingSeed ? (
                     <div className="flex flex-col gap-2">
-                      <label className="text-[11px] text-theme-text-muted">Nhập mật khẩu chủ để xác minh danh tính:</label>
+                      <label className="text-[11px] text-theme-text-muted">Nhập mật khẩu để xác minh danh tính:</label>
                       <div className="flex items-center gap-2">
                         <div className="relative flex-1">
                           <Input
                             type={showSeedVerifyPassword ? 'text' : 'password'}
-                            placeholder="Mật khẩu chủ hiện tại..."
+                            placeholder="Mật khẩu hiện tại..."
                             value={seedVerifyPassword}
                             onChange={(e) => setSeedVerifyPassword(e.target.value)}
                             className="text-xs pr-8"
@@ -561,7 +561,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   ) : (
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-theme-text-muted">
-                        Dùng để khôi phục quyền truy cập kho khi quên mật khẩu chủ.
+                        Dùng để khôi phục quyền truy cập kho khi quên mật khẩu.
                       </span>
                       <Button variant="secondary" size="sm" onClick={() => setIsRevealingSeed(true)}>
                         Xem 12 Từ Khóa

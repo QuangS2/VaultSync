@@ -12,6 +12,8 @@ import { Button } from '../ui/Button';
 import { TreeView } from '../tree/TreeView';
 import { TreeStateManager } from '../../lib/tree/tree-state-manager';
 
+import { DocumentPermissions } from '../../lib/auth/permissions';
+
 export interface LeftSidebarProps {
   isOpen: boolean;
   onClose?: (() => void) | undefined;
@@ -19,6 +21,8 @@ export interface LeftSidebarProps {
   onSelectDoc: (id: string) => void;
   onExportDoc?: ((docId: string, docTitle: string) => void) | undefined;
   onShareFolder?: ((folderId: string, folderTitle: string) => void) | undefined;
+  onTreeMutation?: ((action: 'create' | 'rename' | 'move' | 'trash' | 'restore' | 'delete', item: any) => void) | undefined;
+  permissions?: DocumentPermissions | undefined;
   treeManager?: TreeStateManager | undefined;
   onOpenCommandPalette?: (() => void) | undefined;
   onOpenJoinRoomModal?: (() => void) | undefined;
@@ -33,6 +37,8 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onSelectDoc,
   onExportDoc,
   onShareFolder,
+  onTreeMutation,
+  permissions,
   treeManager: externalTreeManager,
   onOpenCommandPalette,
   onOpenJoinRoomModal,
@@ -71,7 +77,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
       <div className="p-3 border-b border-theme-border flex items-center justify-between">
         <div className="flex items-center gap-2 overflow-hidden min-w-0">
           <div className="w-6 h-6 rounded bg-theme-accent-subtle text-theme-accent flex items-center justify-center text-xs font-bold shrink-0">
-            <HardDrive className="w-3.5 h-3.5" />
+            <FileText className="w-3.5 h-3.5" />
           </div>
           <span className="font-semibold text-xs text-theme-text truncate">
             {vaultName || 'Kho Lưu Trữ Chính'}
@@ -179,6 +185,8 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
           onSelectDoc={onSelectDoc}
           onExportDoc={onExportDoc}
           onShareFolder={onShareFolder}
+          onTreeMutation={onTreeMutation}
+          permissions={permissions}
           searchQuery={searchQuery}
           viewFilter={viewFilter}
           unreadDocIds={unreadDocIds}

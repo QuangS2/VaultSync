@@ -18,12 +18,16 @@ import {
   Trash2
 } from 'lucide-react';
 
+import { DocumentPermissions } from '../../lib/auth/permissions';
+
 export interface TreeViewProps {
   treeManager: TreeStateManager;
   activeDocId: string;
   onSelectDoc: (docId: string) => void;
   onExportDoc?: ((docId: string, docTitle: string) => void) | undefined;
   onShareFolder?: ((folderId: string, folderTitle: string) => void) | undefined;
+  onTreeMutation?: ((action: 'create' | 'rename' | 'move' | 'trash' | 'restore' | 'delete', item: any) => void) | undefined;
+  permissions?: DocumentPermissions | undefined;
   searchQuery?: string | undefined;
   viewFilter?: ('all' | 'favorites' | 'trash') | undefined;
   className?: string | undefined;
@@ -56,6 +60,8 @@ export const TreeView: React.FC<TreeViewProps> = ({
   onSelectDoc,
   onExportDoc,
   onShareFolder,
+  onTreeMutation,
+  permissions,
   searchQuery = '',
   viewFilter = 'all',
   className = '',
@@ -146,26 +152,39 @@ export const TreeView: React.FC<TreeViewProps> = ({
   };
 
   const handleCreateDoc = (parentId: string | null = null) => {
+    if (permissions && permissions.role !== 'owner' && !permissions.canEdit) {
+      return;
+    }
     const newDoc = treeManager.createItem('Tài liệu mới', 'document', parentId);
     onSelectDoc(newDoc.id);
     if (parentId) {
       setExpandedFolders(prev => new Set(prev).add(parentId));
     }
     setRenamingItemId(newDoc.id);
+    onTreeMutation?.('create', newDoc);
   };
 
   const handleCreateFolder = (parentId: string | null = null) => {
+    if (permissions && permissions.role !== 'owner' && !permissions.canEdit) {
+      return;
+    }
     const newFolder = treeManager.createItem('Thư mục mới', 'folder', parentId);
     setExpandedFolders(prev => new Set(prev).add(newFolder.id));
     if (parentId) {
       setExpandedFolders(prev => new Set(prev).add(parentId));
     }
     setRenamingItemId(newFolder.id);
+    onTreeMutation?.('create', newFolder);
   };
 
   const handleMoveItem = (draggedId: string, targetParentId: string | null) => {
+    if (permissions && permissions.role !== 'owner' && !permissions.canEdit) {
+      return;
+    }
     try {
       treeManager.moveItem(draggedId, targetParentId);
+      const item = treeManager.getItem(draggedId);
+      if (item) onTreeMutation?.('move', item);
       refreshTree();
     } catch (err: any) {
       console.warn('Cannot move item:', err.message);
@@ -174,11 +193,20 @@ export const TreeView: React.FC<TreeViewProps> = ({
 
   // --- Inline Rename Handlers ---
   const handleStartRename = (id: string) => {
+    if (permissions && permissions.role !== 'owner' && !permissions.canEdit) {
+      return;
+    }
     setRenamingItemId(id);
   };
 
   const handleRenameSubmit = (id: string, newName: string) => {
+    if (permissions && permissions.role !== 'owner' && !permissions.canEdit) {
+      setRenamingItemId(null);
+      return;
+    }
     treeManager.renameItem(id, newName);
+    const item = treeManager.getItem(id);
+    if (item) onTreeMutation?.('rename', item);
     setRenamingItemId(null);
     refreshTree();
   };
@@ -217,9 +245,15 @@ export const TreeView: React.FC<TreeViewProps> = ({
 
   // --- Duplicate Handler ---
   const handleDuplicate = (item: TreeNode) => {
+    if (permissions && permissions.role !== 'owner' && !permissions.canEdit) {
+      return;
+    }
     const duplicated = treeManager.duplicateItem(item.id);
-    if (duplicated && duplicated.type === 'document') {
-      onSelectDoc(duplicated.id);
+    if (duplicated) {
+      onTreeMutation?.('create', duplicated);
+      if (duplicated.type === 'document') {
+        onSelectDoc(duplicated.id);
+      }
     }
     refreshTree();
   };
@@ -246,7 +280,12 @@ export const TreeView: React.FC<TreeViewProps> = ({
 
   // --- Trash Operations ---
   const handleRestoreItem = (item: TreeNode) => {
+    if (permissions && permissions.role !== 'owner' && !permissions.canDelete) {
+      return;
+    }
     treeManager.restoreFromTrash(item.id);
+    const restored = treeManager.getItem(item.id);
+    if (restored) onTreeMutation?.('restore', restored);
     if (item.type === 'document') {
       onSelectDoc(item.id);
     }
@@ -254,11 +293,22 @@ export const TreeView: React.FC<TreeViewProps> = ({
   };
 
   const handlePermanentDelete = (item: TreeNode) => {
+    if (permissions && permissions.role !== 'owner' && !permissions.canDelete) {
+      return;
+    }
     treeManager.permanentDelete(item.id);
+    onTreeMutation?.('delete', { id: item.id });
     refreshTree();
   };
 
   const handleConfirmEmptyTrash = () => {
+    if (permissions && permissions.role !== 'owner' && !permissions.canDelete) {
+      return;
+    }
+    const trashItems = treeManager.getTrashItems();
+    for (const item of trashItems) {
+      onTreeMutation?.('delete', { id: item.id });
+    }
     treeManager.emptyTrash();
     setEmptyTrashModal({ isOpen: false });
     refreshTree();
@@ -266,6 +316,9 @@ export const TreeView: React.FC<TreeViewProps> = ({
 
   // --- Delete Handlers ---
   const handleDeletePrompt = (item: TreeNode) => {
+    if (permissions && permissions.role !== 'owner' && !permissions.canDelete) {
+      return;
+    }
     const descendantIds = treeManager.getAllDescendantIds(item.id);
     if (item.type === 'folder' && descendantIds.length > 0) {
       setDeleteModal({
@@ -279,8 +332,13 @@ export const TreeView: React.FC<TreeViewProps> = ({
   };
 
   const performDelete = (id: string) => {
+    if (permissions && permissions.role !== 'owner' && !permissions.canDelete) {
+      return;
+    }
     const isDeletingActive = activeDocId === id || treeManager.isDescendantOf(activeDocId, id);
     treeManager.moveToTrash(id);
+    const item = treeManager.getItem(id);
+    if (item) onTreeMutation?.('trash', item);
 
     // If active document is deleted, switch active doc immediately
     if (isDeletingActive) {
@@ -292,6 +350,7 @@ export const TreeView: React.FC<TreeViewProps> = ({
       } else {
         const newDoc = treeManager.createItem('Tài liệu mới', 'document', null);
         onSelectDoc(newDoc.id);
+        onTreeMutation?.('create', newDoc);
       }
     }
     setDeleteModal({ isOpen: false, item: null, descendantCount: 0 });

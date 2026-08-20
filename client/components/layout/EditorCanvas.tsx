@@ -23,6 +23,9 @@ export interface EditorCanvasProps {
   providerStatus?: ProviderConnectionStatus | undefined;
   awarenessUsers?: AwarenessUser[] | undefined;
   permissions?: DocumentPermissions | undefined;
+  guestPermissions?: DocumentPermissions | undefined;
+  isOwner?: boolean | undefined;
+  onUpdatePermissions?: ((perms: DocumentPermissions) => void) | undefined;
   saveStatus?: 'saved' | 'saving' | 'error' | undefined;
   lastSavedTime?: number | undefined;
   onAddInlineComment?: ((draft: { from: number; to: number; quotedText: string }) => void) | undefined;
@@ -45,6 +48,9 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   user,
   awarenessUsers = [],
   permissions,
+  guestPermissions,
+  isOwner,
+  onUpdatePermissions,
   saveStatus = 'saved',
   lastSavedTime,
   isDocHydrated = true,
@@ -112,6 +118,10 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
               onClose={() => setIsCollaboratorsOpen(false)}
               users={awarenessUsers}
               currentUser={user ? { name: user.name, color: user.color, avatar: user.avatar, isLocal: true } : undefined}
+              isOwner={isOwner}
+              permissions={guestPermissions || permissions}
+              onUpdatePermissions={onUpdatePermissions}
+              onOpenPermissionsModal={onOpenShareModal}
             />
           </div>
 

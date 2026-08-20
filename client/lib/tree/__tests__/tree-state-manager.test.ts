@@ -162,4 +162,49 @@ describe('TreeStateManager — CRDT Hierarchical Workspace Unit Tests', () => {
     expect(manifest?.items.some(i => i.id === doc1.id)).toBe(true);
     expect(manifest?.items.some(i => i.id === doc2.id)).toBe(true);
   });
+
+  it('should synchronize complete item lifecycle and state via syncItem across peers', () => {
+    const docA = new Y.Doc();
+    const managerA = new TreeStateManager(docA);
+
+    const docB = new Y.Doc();
+    const managerB = new TreeStateManager(docB);
+
+    // 1. Create a shared folder on peer A
+    const sharedFolder = managerA.createItem('Thư Mục Dự Án', 'folder', null);
+    const subDoc = managerA.createItem('Kế Hoạch.md', 'document', sharedFolder.id);
+
+    // 2. Sync to peer B via syncItem
+    managerB.syncItem(sharedFolder);
+    managerB.syncItem(subDoc);
+
+    expect(managerB.getItem(sharedFolder.id)?.name).toBe('Thư Mục Dự Án');
+    expect(managerB.getItem(subDoc.id)?.name).toBe('Kế Hoạch.md');
+    expect(managerB.getChildren(sharedFolder.id).length).toBe(1);
+
+    // 3. Rename item on peer A and sync to peer B
+    managerA.renameItem(subDoc.id, 'Kế Hoạch 2026.md');
+    const updatedSubDoc = managerA.getItem(subDoc.id)!;
+    managerB.syncItem(updatedSubDoc);
+    expect(managerB.getItem(subDoc.id)?.name).toBe('Kế Hoạch 2026.md');
+
+    // 4. Move to trash on peer A and sync to peer B
+    managerA.moveToTrash(sharedFolder.id);
+    const trashedFolder = managerA.getItem(sharedFolder.id)!;
+    const trashedSubDoc = managerA.getItem(subDoc.id)!;
+    managerB.syncItem(trashedFolder);
+    managerB.syncItem(trashedSubDoc);
+
+    expect(managerB.getItem(sharedFolder.id)?.isTrash).toBe(true);
+    expect(managerB.getItem(subDoc.id)?.isTrash).toBe(true);
+    expect(managerB.getTrashItems().some(i => i.id === sharedFolder.id)).toBe(true);
+
+    // 5. Restore from trash on peer A and sync to peer B
+    managerA.restoreFromTrash(sharedFolder.id);
+    managerB.syncItem(managerA.getItem(sharedFolder.id)!);
+    managerB.syncItem(managerA.getItem(subDoc.id)!);
+
+    expect(managerB.getItem(sharedFolder.id)?.isTrash).toBe(false);
+    expect(managerB.getItem(subDoc.id)?.isTrash).toBe(false);
+  });
 });

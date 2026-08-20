@@ -148,6 +148,33 @@ export class TreeStateManager {
   }
 
   /**
+   * Synchronizes an item's complete state across peers (used for CRDT shared tree replication).
+   */
+  public syncItem(item: FileSystemItem): FileSystemItem {
+    const existing = this.yMap.get(item.id);
+    if (!existing) {
+      this.yMap.set(item.id, { ...item });
+      return item;
+    }
+
+    const merged: FileSystemItem = {
+      ...existing,
+      name: item.name !== undefined ? item.name : existing.name,
+      parentId: item.parentId !== undefined ? item.parentId : existing.parentId,
+      type: item.type || existing.type,
+      icon: item.icon || existing.icon,
+      isTrash: item.isTrash !== undefined ? item.isTrash : existing.isTrash,
+      trashedAt: item.trashedAt !== undefined ? item.trashedAt : existing.trashedAt,
+      isFavorite: item.isFavorite !== undefined ? item.isFavorite : existing.isFavorite,
+      order: item.order !== undefined ? item.order : existing.order,
+      updatedAt: Math.max(item.updatedAt || 0, existing.updatedAt || 0, Date.now())
+    };
+
+    this.yMap.set(item.id, merged);
+    return merged;
+  }
+
+  /**
    * Renames an existing file or folder.
    */
   public renameItem(id: string, newName: string): boolean {
