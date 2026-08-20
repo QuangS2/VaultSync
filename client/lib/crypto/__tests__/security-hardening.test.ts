@@ -4,7 +4,6 @@ import { ExportPipeline } from '../../export/export-pipeline';
 import { VaultArchiveManager } from '../../export/vault-archive-manager';
 import { BinaryCodec, MessageType } from '../../../../shared/protocol/binary-codec';
 import { WebCryptoEngine } from '../web-crypto-engine';
-import { BinaryUtils } from '../binary-utils';
 
 describe('VaultSync Defensive Security Hardening Suite (4 Vulnerabilities Tested)', () => {
   describe('VULN-1: Dual-Envelope Key Recovery & Anti-Data Loss Verification', () => {
