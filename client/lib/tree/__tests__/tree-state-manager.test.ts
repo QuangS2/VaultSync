@@ -8,11 +8,10 @@ describe('TreeStateManager — CRDT Hierarchical Workspace Unit Tests', () => {
     const manager = new TreeStateManager(yDoc);
 
     const rootItems = manager.getChildren(null);
-    expect(rootItems.length).toBeGreaterThanOrEqual(2);
+    expect(rootItems.length).toBeGreaterThanOrEqual(1);
 
     const allItems = manager.getAllItems();
-    expect(allItems.some(item => item.name === 'Ghi Chú Nhanh & Việc Cần Làm')).toBe(true);
-    expect(allItems.some(item => item.name === 'Hướng Dẫn Mời Bạn Bè & Cộng Tác')).toBe(true);
+    expect(allItems.some(item => item.name === 'Ghi chú mới')).toBe(true);
   });
 
   it('should create new folders and child documents cleanly', () => {

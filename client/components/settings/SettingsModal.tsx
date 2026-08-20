@@ -582,7 +582,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-theme-text flex items-center gap-1.5">
                       <HardDrive className="w-4 h-4 text-theme-accent" />
-                      Bộ Nhớ Đệm Mã Hóa (IndexedDB)
+                      Bộ Nhớ Lưu Trữ Cục Bộ
                     </span>
                     <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
                       {storageStats?.formattedSize || '0 KB'}
@@ -595,12 +595,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <span className="font-semibold text-theme-text mt-0.5">{storageStats?.totalDocuments || 4} mục</span>
                     </div>
                     <div className="p-2 rounded-lg bg-theme-bg-subtle/60 border border-theme-border flex flex-col">
-                      <span className="text-[10px] text-theme-text-muted">Phân Đoạn Mã Hóa:</span>
+                      <span className="text-[10px] text-theme-text-muted">Bản Ghi Thay Đổi:</span>
                       <span className="font-semibold text-theme-text mt-0.5">{storageStats?.totalUpdatesCount || 12} frame</span>
                     </div>
                     <div className="p-2 rounded-lg bg-theme-bg-subtle/60 border border-theme-border flex flex-col col-span-2 sm:col-span-1">
-                      <span className="text-[10px] text-theme-text-muted">Thuật Toán:</span>
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">AES-256-GCM</span>
+                      <span className="text-[10px] text-theme-text-muted">Trạng Thái:</span>
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">Đã Bảo Vệ</span>
                     </div>
                   </div>
                 </div>

@@ -131,7 +131,14 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-theme-bg select-text">
       {/* 1. Interactive Formatting Toolbar */}
       <div className="px-2 sm:px-4 py-1.5 sm:py-2 border-b border-theme-border bg-theme-bg-subtle/40 flex items-center justify-between shrink-0 select-none gap-1 sm:gap-2 flex-nowrap overflow-hidden">
-        <div className="flex items-center gap-0.5 overflow-x-auto flex-nowrap shrink-1 pr-2">
+        {readOnly ? (
+          <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 font-medium">
+            <span className="px-2.5 py-1 rounded-md bg-amber-500/10 border border-amber-500/20 flex items-center gap-1.5">
+              <span>Chế độ chỉ xem (Chủ sở hữu đã khóa quyền chỉnh sửa)</span>
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-0.5 overflow-x-auto flex-nowrap shrink-1 pr-2">
           {/* Headings */}
           <button
             onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
@@ -319,6 +326,7 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({
             <Redo2 className="w-4 h-4" />
           </button>
         </div>
+        )}
 
         {/* Floating Add Comment Trigger or Word Count */}
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
@@ -350,10 +358,12 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({
       </div>
 
       {/* Floating Contextual Bubble Menu */}
-      <EditorBubbleMenu 
-        editor={editor} 
-        onAddComment={onAddInlineComment} 
-      />
+      {!readOnly && (
+        <EditorBubbleMenu 
+          editor={editor} 
+          onAddComment={onAddInlineComment} 
+        />
+      )}
 
       {/* 2. Editor Canvas Content Area */}
       <div className="flex-1 overflow-y-auto px-4 sm:px-8 md:px-16 py-4 sm:py-8 flex flex-col max-w-4xl w-full mx-auto">
@@ -368,9 +378,10 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({
         {/* Document Title Input */}
         <input
           value={documentTitle}
+          readOnly={readOnly}
           onChange={(e) => onTitleChange?.(e.target.value)}
           placeholder="Tiêu đề tài liệu không tên..."
-          className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-theme-text bg-transparent border-none focus:outline-none placeholder:text-theme-text-muted mb-4 sm:mb-6 tracking-tight"
+          className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-theme-text bg-transparent border-none focus:outline-none placeholder:text-theme-text-muted mb-4 sm:mb-6 tracking-tight disabled:opacity-80"
         />
 
         {/* Tiptap ProseMirror Content Container */}

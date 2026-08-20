@@ -170,6 +170,10 @@ test.describe('Fix-15 Verification Suite: Precise Quickstart Persistence, Inline
     const shot2 = path.join(evidenceDirs.fix15_4, '02_mobile_files_drawer.png');
     await page.screenshot({ path: shot2 });
 
+    // Close files drawer
+    await page.click('button[title="Đóng thanh điều hướng"]');
+    await page.waitForTimeout(200);
+
     // 4. Open Discussion Drawer via bottom navigation
     await discussBtn.click();
     await page.waitForTimeout(300);

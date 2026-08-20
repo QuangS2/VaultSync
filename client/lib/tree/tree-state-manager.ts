@@ -47,31 +47,18 @@ export class TreeStateManager {
    */
   public initDefaultTree(): void {
     this.yDoc.transact(() => {
-      // 1. Root Note: Ghi Chú Nhanh & Việc Cần Làm
-      const quicknotesDoc: FileSystemItem = {
-        id: 'doc-quicknotes',
+      // Create a single clean initial blank note
+      const defaultDoc: FileSystemItem = {
+        id: 'doc-default',
         parentId: null,
-        name: 'Ghi Chú Nhanh & Việc Cần Làm',
+        name: 'Ghi chú mới',
         type: 'document',
-        icon: 'Sparkles',
-        createdAt: Date.now() - 3600000,
-        updatedAt: Date.now() - 1800000,
+        icon: 'FileText',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
         order: 10
       };
-      this.yMap.set(quicknotesDoc.id, quicknotesDoc);
-
-      // 2. Root Note: Hướng Dẫn Mời Bạn Bè & Cộng Tác
-      const collabDoc: FileSystemItem = {
-        id: 'doc-collab-guide',
-        parentId: null,
-        name: 'Hướng Dẫn Mời Bạn Bè & Cộng Tác',
-        type: 'document',
-        icon: 'Users',
-        createdAt: Date.now() - 7200000,
-        updatedAt: Date.now() - 3600000,
-        order: 20
-      };
-      this.yMap.set(collabDoc.id, collabDoc);
+      this.yMap.set(defaultDoc.id, defaultDoc);
     });
   }
 
