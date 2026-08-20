@@ -20,6 +20,8 @@ import { EncryptedYjsProvider } from '../../lib/yjs/encrypted-yjs-provider';
 import { ProviderConnectionStatus, AwarenessUser, CollaborationUserOptions } from '../../lib/yjs/types';
 import { EncryptedIndexedDBStorage } from '../../lib/storage/encrypted-indexeddb-storage';
 import { BinaryUtils } from '../../lib/crypto/binary-utils';
+import { MobileBottomNavBar } from './MobileBottomNavBar';
+import { DiscussionReadTracker } from '../../lib/yjs/discussion-read-tracker';
 
 function getRelayWsUrl(): string {
   if (typeof window === 'undefined') return 'ws://localhost:1234';
@@ -91,6 +93,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [commentDraft, setCommentDraft] = useState<{ from: number; to: number; quotedText: string } | null>(null);
   const [hasUnreadActiveDiscussion, setHasUnreadActiveDiscussion] = useState(false);
   const [unreadDocIds, setUnreadDocIds] = useState<string[]>([]);
+  const [readTracker] = useState(() => new DiscussionReadTracker());
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Document encryption key registry
   const documentKeysRef = React.useRef<Map<string, CryptoKey>>(new Map());
@@ -654,6 +658,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     const item = treeManager.getItem(id);
     if (item && item.type === 'document') {
       setActiveDocId(id);
+      readTracker.markAsRead(id, 'all');
       setUnreadDocIds(prev => prev.filter(docId => docId !== id));
       // Auto-close left navigation drawer on mobile screens
       if (typeof window !== 'undefined' && window.innerWidth < 768) {
@@ -662,32 +667,50 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     }
   };
 
+  // Dynamically calculate unread status per document
+  const updateUnreadState = React.useCallback(() => {
+    const threads = commentEngine.getAllThreads().map(t => t.thread);
+    const messages = chatEngine.getMessages();
+    const currentUserId = session?.userProfile.userId || session?.userProfile.displayName || 'user_local';
+
+    // 1. Check unread status for currently active document
+    const activeUnread = readTracker.getUnreadCounts(activeDocId, currentUserId, threads, messages);
+    setHasUnreadActiveDiscussion(activeUnread.hasUnread && !isRightSidebarOpen);
+
+    // 2. Check unread status for other documents in the file tree
+    const allDocs = treeManager.getAllItems().filter(i => i.type === 'document' && !i.isTrash);
+    const unreadIds: string[] = [];
+    for (const doc of allDocs) {
+      if (doc.id !== activeDocId) {
+        const docThreads = threads.filter(t => t.documentId === doc.id);
+        const docUnread = readTracker.getUnreadCounts(doc.id, currentUserId, docThreads, []);
+        if (docUnread.hasUnread) {
+          unreadIds.push(doc.id);
+        }
+      }
+    }
+    setUnreadDocIds(unreadIds);
+  }, [commentEngine, chatEngine, activeDocId, isRightSidebarOpen, readTracker, session, treeManager]);
+
   // Subscribe to live comment/chat updates to trigger unread indicators
   useEffect(() => {
-    const unsubComments = commentEngine.onThreadsChange((threads) => {
-      if (!isRightSidebarOpen && threads.length > 0) {
-        setHasUnreadActiveDiscussion(true);
-      }
-    });
-
-    const unsubChat = chatEngine.onMessagesChange((messages) => {
-      if (!isRightSidebarOpen && messages.length > 0) {
-        setHasUnreadActiveDiscussion(true);
-      }
-    });
+    updateUnreadState();
+    const unsubComments = commentEngine.onThreadsChange(() => updateUnreadState());
+    const unsubChat = chatEngine.onMessagesChange(() => updateUnreadState());
 
     return () => {
       unsubComments();
       unsubChat();
     };
-  }, [commentEngine, chatEngine, isRightSidebarOpen]);
+  }, [updateUnreadState, commentEngine, chatEngine]);
 
-  // When Right Sidebar is opened, clear unread status for active doc
+  // When Right Sidebar is opened, mark active doc discussion as read
   useEffect(() => {
     if (isRightSidebarOpen) {
+      readTracker.markAsRead(activeDocId, 'all');
       setHasUnreadActiveDiscussion(false);
     }
-  }, [isRightSidebarOpen]);
+  }, [isRightSidebarOpen, activeDocId, readTracker]);
 
   const activeItem = treeManager.getItem(activeDocId);
   const activeDocTitle = activeItem?.name || 'Chào mừng đến với VaultSync';
@@ -1009,6 +1032,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         awarenessUsers={awarenessUsers}
         currentUser={currentUserOptions}
         hasUnreadDiscussion={hasUnreadActiveDiscussion}
+        isMobileMenuOpen={isMobileMenuOpen}
+        onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
       />
 
       {/* 2. Main 3-Pane Body */}
@@ -1075,6 +1100,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           chatEngine={chatEngine}
           activeThreadId={activeCommentThreadId}
           onSelectThread={handleSelectThreadFromSidebar}
+          onJumpToThread={(threadId) => {
+            setActiveCommentThreadId(threadId);
+          }}
           commentDraft={commentDraft}
           onClearCommentDraft={() => setCommentDraft(null)}
           currentAuthor={{
@@ -1085,6 +1113,19 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           }}
         />
       </div>
+
+      {/* Mobile-First Native App Bottom Navigation Bar */}
+      <MobileBottomNavBar
+        isLeftSidebarOpen={isLeftSidebarOpen}
+        isRightSidebarOpen={isRightSidebarOpen}
+        onToggleLeftSidebar={() => setIsLeftSidebarOpen(prev => !prev)}
+        onToggleRightSidebar={() => setIsRightSidebarOpen(prev => !prev)}
+        onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
+        onCreateNewNote={handleCreateNewNote}
+        onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
+        hasUnreadDiscussion={hasUnreadActiveDiscussion}
+        activeDocCount={treeManager.getAllItems().filter(i => i.type === 'document' && !i.isTrash).length}
+      />
 
       {/* MODAL: Chia Sẻ Quyền Cộng Tác Chuẩn Thương Mại (Document & Folder Multi-room Share) */}
       <ShareModal

@@ -16,6 +16,7 @@ import {
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Badge } from '../ui/Badge';
+import { VaultSyncBrandLogo } from '../ui/VaultSyncBrandLogo';
 import { AppTheme } from '../../App';
 import { EncryptedVaultRecord, UnlockedVaultSession } from '../../lib/auth/types';
 import { VaultAuthEngine } from '../../lib/auth/vault-auth-engine';
@@ -105,10 +106,8 @@ export const VaultUnlockScreen: React.FC<VaultUnlockScreenProps> = ({
       {/* Top Header Controls: Logo & Theme Switcher */}
       <header className="h-14 px-6 flex items-center justify-between z-10">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-theme-accent text-white flex items-center justify-center shadow-xs">
-            <Lock className="w-4 h-4" />
-          </div>
-          <span className="font-bold text-sm tracking-tight text-theme-text">VaultSync</span>
+          <VaultSyncBrandLogo size="sm" animated />
+          <span className="font-bold text-sm tracking-tight text-theme-text font-sans">VaultSync</span>
           <Badge variant="accent" size="sm">Zero-Knowledge Workspace</Badge>
         </div>
 

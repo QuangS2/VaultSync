@@ -3,8 +3,6 @@ import {
   Lock, 
   Folder, 
   ChevronRight,
-  Wifi,
-  WifiOff,
   RefreshCw,
   CheckCircle2
 } from 'lucide-react';
@@ -84,7 +82,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   const isConnecting = providerStatus?.connecting ?? false;
 
   return (
-    <div className="flex-1 bg-theme-bg flex flex-col h-full overflow-hidden select-text">
+    <div className="flex-1 bg-theme-bg flex flex-col h-full overflow-hidden select-text pb-14 sm:pb-0">
       {/* Top Breadcrumb & Document Metadata Toolbar */}
       <div className="h-11 px-3 sm:px-6 border-b border-theme-border flex items-center justify-between shrink-0 bg-theme-bg-subtle/50 select-none gap-2">
         {/* Breadcrumb Path */}
@@ -95,16 +93,16 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
           <span className="text-theme-text font-medium truncate max-w-[140px] sm:max-w-[240px] md:max-w-[360px]">{currentTitle}</span>
         </div>
 
-        {/* Live Collaborators Presence & Security Indicators */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {/* Live Collaborators Presence & Room Security Indicators */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {/* Active Collaborators Presence Stack */}
           {awarenessUsers.length > 0 ? (
             <div className="flex items-center -space-x-1.5 overflow-hidden">
               {awarenessUsers.map((u, i) => (
                 <div 
                   key={i}
-                  title={`${u.name} (Đang trực tuyến)`}
-                  className="w-6 h-6 rounded-full text-white flex items-center justify-center text-[10px] font-bold ring-2 ring-theme-bg select-none shadow-xs"
+                  title={`${u.name} (Đang trực tuyến trong phòng này)`}
+                  className="w-5.5 h-5.5 rounded-full text-white flex items-center justify-center text-[9px] font-bold ring-1.5 ring-theme-bg select-none shadow-xs"
                   style={{ backgroundColor: u.color || '#2563eb' }}
                 >
                   {u.avatar || u.name.charAt(0).toUpperCase()}
@@ -115,30 +113,30 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
             <div className="flex items-center -space-x-1.5 overflow-hidden">
               <div 
                 title="Bạn (Cục bộ)"
-                className="w-6 h-6 rounded-full bg-theme-accent text-white flex items-center justify-center text-[10px] font-bold ring-2 ring-theme-bg select-none"
+                className="w-5.5 h-5.5 rounded-full bg-theme-accent text-white flex items-center justify-center text-[9px] font-bold ring-1.5 ring-theme-bg select-none"
               >
                 {user?.name?.charAt(0).toUpperCase() || 'B'}
               </div>
             </div>
           )}
 
-          {/* Connection Indicator */}
-          <div className="flex items-center gap-1 text-[11px] text-theme-text-muted font-mono">
+          {/* Room Online Presence Status Badge */}
+          <div className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-theme-card border border-theme-border text-[11px] text-theme-text-muted font-mono">
             {isConnected ? (
-              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                <Wifi className="w-3 h-3 shrink-0" />
-                <span className="hidden sm:inline">Đã kết nối</span>
-              </span>
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <span>{awarenessUsers.length > 0 ? awarenessUsers.length : 1} online</span>
+              </>
             ) : isConnecting ? (
-              <span className="flex items-center gap-1 text-amber-500 animate-pulse">
-                <RefreshCw className="w-3 h-3 animate-spin shrink-0" />
-                <span className="hidden sm:inline">Đang kết nối...</span>
-              </span>
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping shrink-0" />
+                <span>kết nối...</span>
+              </>
             ) : (
-              <span className="flex items-center gap-1 text-theme-text-muted">
-                <WifiOff className="w-3 h-3 shrink-0" />
-                <span className="hidden sm:inline">Ngoại tuyến</span>
-              </span>
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                <span>offline</span>
+              </>
             )}
           </div>
 

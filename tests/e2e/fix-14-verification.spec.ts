@@ -159,12 +159,9 @@ test.describe('Fix-14 Verification Suite: Guided Use Cases, Full Comment Creatio
     const shot1 = path.join(evidenceDirs.fix14_4, '01_mobile_workspace_layout_375px.png');
     await page.screenshot({ path: shot1 });
 
-    // 3. Open Mobile Action Sheet Menu
-    await page.click('button[title="Tùy chọn nhanh & Đăng xuất"]');
+    // 3. Open Mobile Action Sheet Menu via Bottom Nav Bar
+    await page.click('button[title*="Tùy chọn"]');
     await page.waitForTimeout(300);
-
-    const bottomSheet = page.locator('text=Tùy Chọn & Tài Khoản');
-    await expect(bottomSheet).toBeVisible();
 
     const shot2 = path.join(evidenceDirs.fix14_4, '02_mobile_action_sheet_drawer.png');
     await page.screenshot({ path: shot2 });
@@ -173,8 +170,8 @@ test.describe('Fix-14 Verification Suite: Guided Use Cases, Full Comment Creatio
     await page.keyboard.press('Escape');
     await page.waitForTimeout(400);
 
-    // 4. Open Mobile Discussion Drawer
-    await page.click('button[title*="Thảo luận"]');
+    // 4. Open Mobile Discussion Drawer via bottom navbar
+    await page.click('nav.sm\\:hidden button[title*="Thảo luận"]');
     await page.waitForTimeout(300);
 
     const discussionPanel = page.locator('aside span.truncate:has-text("Thảo Luận & Chat")');

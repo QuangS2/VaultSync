@@ -79,6 +79,8 @@ export class InlineCommentAnchorEngine {
       createdAt: Date.now()
     };
 
+    const isGeneralComment = from === 0 && to === 0 || (!quotedText || quotedText.startsWith('[Ghi chú:') || quotedText.startsWith('[Toàn bộ'));
+
     const thread: InlineCommentThread = {
       id: threadId,
       documentId,
@@ -91,6 +93,7 @@ export class InlineCommentAnchorEngine {
       updatedAt: Date.now(),
       isResolved: false,
       isOrphaned: false,
+      isGeneralComment,
       replies: [initialReply],
       lastResolvedRange: { from, to }
     };
@@ -139,7 +142,9 @@ export class InlineCommentAnchorEngine {
    */
   public toggleResolved(threadId: string, isResolved?: boolean): boolean {
     const rawThread = this.yCommentsMap.get(threadId);
-    if (!rawThread) return false;
+    if (!rawThread) {
+      throw new Error(`Comment thread "${threadId}" not found.`);
+    }
 
     const thread: InlineCommentThread = typeof rawThread === 'string' ? JSON.parse(rawThread) : rawThread;
     thread.isResolved = isResolved !== undefined ? isResolved : !thread.isResolved;
@@ -173,12 +178,14 @@ export class InlineCommentAnchorEngine {
     if (!rawThread) return null;
 
     const thread: InlineCommentThread = typeof rawThread === 'string' ? JSON.parse(rawThread) : rawThread;
+    const isGeneralComment = Boolean(thread.isGeneralComment || (thread.quotedText?.startsWith('[Ghi chú:') || thread.quotedText?.startsWith('[Toàn bộ') || !thread.quotedText));
     const liveRange = RelativePositionManager.resolveSerializedRange(thread.relativeRange, this.yDoc);
-    const isOrphaned = liveRange ? liveRange.isOrphaned : true;
+    const isOrphaned = isGeneralComment ? false : (liveRange ? liveRange.isOrphaned : true);
 
     return {
       thread: {
         ...thread,
+        isGeneralComment,
         isOrphaned,
         lastResolvedRange: liveRange ? { from: liveRange.from, to: liveRange.to } : thread.lastResolvedRange
       },
@@ -196,12 +203,14 @@ export class InlineCommentAnchorEngine {
     this.yCommentsMap.forEach((rawThread: any) => {
       try {
         const thread: InlineCommentThread = typeof rawThread === 'string' ? JSON.parse(rawThread) : rawThread;
+        const isGeneralComment = Boolean(thread.isGeneralComment || (thread.quotedText?.startsWith('[Ghi chú:') || thread.quotedText?.startsWith('[Toàn bộ') || !thread.quotedText));
         const liveRange = RelativePositionManager.resolveSerializedRange(thread.relativeRange, this.yDoc);
-        const isOrphaned = liveRange ? liveRange.isOrphaned : true;
+        const isOrphaned = isGeneralComment ? false : (liveRange ? liveRange.isOrphaned : true);
 
         results.push({
           thread: {
             ...thread,
+            isGeneralComment,
             isOrphaned,
             lastResolvedRange: liveRange ? { from: liveRange.from, to: liveRange.to } : thread.lastResolvedRange
           },

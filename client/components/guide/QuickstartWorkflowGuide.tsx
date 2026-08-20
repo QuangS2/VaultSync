@@ -19,21 +19,41 @@ export interface QuickstartWorkflowGuideProps {
   onOpenShare: () => void;
   onOpenDiscussions: () => void;
   onOpenCommandPalette: () => void;
+  forceVisible?: boolean | undefined;
+  onClose?: (() => void) | undefined;
 }
+
+const STORAGE_KEY = 'vaultsync_quickstart_dismissed';
 
 export const QuickstartWorkflowGuide: React.FC<QuickstartWorkflowGuideProps> = ({
   onCreateNote,
   onOpenShare,
   onOpenDiscussions,
-  onOpenCommandPalette
+  onOpenCommandPalette,
+  forceVisible = false,
+  onClose
 }) => {
-  const [isDismissed, setIsDismissed] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(() => {
+    if (forceVisible) return false;
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return localStorage.getItem(STORAGE_KEY) === 'true';
+    }
+    return false;
+  });
   const [isExpanded, setIsExpanded] = useState(true);
 
-  if (isDismissed) return null;
+  if (isDismissed && !forceVisible) return null;
+
+  const handleDismiss = () => {
+    setIsDismissed(true);
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.setItem(STORAGE_KEY, 'true');
+    }
+    if (onClose) onClose();
+  };
 
   return (
-    <div className="mb-6 rounded-2xl border border-theme-border bg-theme-card/60 backdrop-blur-md shadow-xs p-4 sm:p-5 transition-all animate-in fade-in slide-in-from-top-2 duration-200">
+    <div className="mb-4 sm:mb-6 rounded-2xl border border-theme-border bg-theme-card/70 backdrop-blur-md shadow-xs p-3 sm:p-5 transition-all animate-in fade-in slide-in-from-top-2 duration-200">
       {/* Header Row */}
       <div className="flex items-center justify-between gap-3 pb-3 border-b border-theme-border/60">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -62,7 +82,7 @@ export const QuickstartWorkflowGuide: React.FC<QuickstartWorkflowGuideProps> = (
             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
           <button
-            onClick={() => setIsDismissed(true)}
+            onClick={handleDismiss}
             title="Đóng hướng dẫn"
             className="p-1.5 rounded-lg text-theme-text-muted hover:text-theme-text hover:bg-theme-bg transition-colors cursor-pointer"
           >

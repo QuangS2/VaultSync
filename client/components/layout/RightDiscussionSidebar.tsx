@@ -33,6 +33,7 @@ export interface RightDiscussionSidebarProps {
   chatEngine?: RoomChatEngine | undefined;
   activeThreadId?: string | null | undefined;
   onSelectThread?: ((threadId: string | null) => void) | undefined;
+  onJumpToThread?: ((threadId: string, from?: number, to?: number) => void) | undefined;
   commentDraft?: CommentDraft | null | undefined;
   onClearCommentDraft?: (() => void) | undefined;
   currentAuthor?: {
@@ -51,6 +52,7 @@ export const RightDiscussionSidebar: React.FC<RightDiscussionSidebarProps> = ({
   chatEngine,
   activeThreadId,
   onSelectThread,
+  onJumpToThread,
   commentDraft,
   onClearCommentDraft,
   currentAuthor = {
@@ -407,32 +409,45 @@ export const RightDiscussionSidebar: React.FC<RightDiscussionSidebarProps> = ({
             )}
 
             {/* Thread Cards List */}
-            {filteredThreads.map(({ thread, isOrphaned }) => {
+            {filteredThreads.map(({ thread, liveRange, isOrphaned }) => {
               const isSelected = activeThreadId === thread.id;
 
               return (
                 <div
                   key={thread.id}
                   ref={el => { threadCardRefs.current[thread.id] = el; }}
-                  onClick={() => onSelectThread && onSelectThread(thread.id)}
+                  onClick={() => {
+                    if (onSelectThread) onSelectThread(thread.id);
+                    if (onJumpToThread && !thread.isGeneralComment) {
+                      onJumpToThread(thread.id, liveRange?.from, liveRange?.to);
+                    }
+                  }}
                   className={`group rounded-lg border p-3 transition-all cursor-pointer ${
                     isSelected
                       ? 'border-amber-500/80 bg-theme-bg shadow-sm ring-1 ring-amber-500/30'
                       : 'border-theme-border bg-theme-bg hover:border-theme-border-strong hover:shadow-xs'
                   }`}
                 >
-                  {/* Quoted Text Preview Banner */}
-                  <div className="mb-2.5 pl-2.5 border-l-2 border-amber-500/80 py-0.5 bg-amber-500/5 rounded-r">
-                    <p className="text-[11px] font-serif italic text-theme-text line-clamp-2 leading-relaxed">
-                      "{thread.quotedText}"
-                    </p>
-                    {isOrphaned && (
-                      <div className="flex items-center gap-1 mt-1 text-[10px] text-amber-600 dark:text-amber-400 font-sans font-medium">
-                        <AlertTriangle className="w-3 h-3 shrink-0" />
-                        <span>Đoạn văn bản gốc đã bị xóa khỏi tài liệu</span>
-                      </div>
-                    )}
-                  </div>
+                  {/* Quoted Text Preview / General Doc Comment Badge */}
+                  {thread.isGeneralComment ? (
+                    <div className="mb-2.5 pl-2.5 border-l-2 border-theme-accent py-0.5 bg-theme-accent/5 rounded-r flex items-center justify-between">
+                      <span className="text-[11px] font-medium text-theme-accent">
+                        📌 Bình luận chung cho tài liệu
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="mb-2.5 pl-2.5 border-l-2 border-amber-500/80 py-0.5 bg-amber-500/5 rounded-r">
+                      <p className="text-[11px] font-serif italic text-theme-text line-clamp-2 leading-relaxed">
+                        "{thread.quotedText}"
+                      </p>
+                      {isOrphaned && (
+                        <div className="flex items-center gap-1 mt-1 text-[10px] text-amber-600 dark:text-amber-400 font-sans font-medium">
+                          <AlertTriangle className="w-3 h-3 shrink-0" />
+                          <span>Đoạn văn bản gốc đã bị xóa khỏi tài liệu</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Message Replies Flow */}
                   <div className="space-y-2.5 divide-y divide-theme-border/30">
