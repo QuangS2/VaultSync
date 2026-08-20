@@ -94,6 +94,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const [hasUnreadActiveDiscussion, setHasUnreadActiveDiscussion] = useState(false);
   const [unreadDocIds, setUnreadDocIds] = useState<string[]>([]);
   const [readTracker] = useState(() => new DiscussionReadTracker());
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Document encryption key registry
   const documentKeysRef = React.useRef<Map<string, CryptoKey>>(new Map());
@@ -1031,6 +1032,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         awarenessUsers={awarenessUsers}
         currentUser={currentUserOptions}
         hasUnreadDiscussion={hasUnreadActiveDiscussion}
+        isMobileMenuOpen={isMobileMenuOpen}
+        onCloseMobileMenu={() => setIsMobileMenuOpen(false)}
       />
 
       {/* 2. Main 3-Pane Body */}
@@ -1119,7 +1122,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         onToggleRightSidebar={() => setIsRightSidebarOpen(prev => !prev)}
         onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
         onCreateNewNote={handleCreateNewNote}
-        onOpenMobileMenu={() => setIsSettingsModalOpen(true)}
+        onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
         hasUnreadDiscussion={hasUnreadActiveDiscussion}
         activeDocCount={treeManager.getAllItems().filter(i => i.type === 'document' && !i.isTrash).length}
       />

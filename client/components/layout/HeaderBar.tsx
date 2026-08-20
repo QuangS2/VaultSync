@@ -17,14 +17,13 @@ import {
   Search,
   Settings,
   LogOut,
-  MoreVertical,
   X,
   ChevronRight
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
 import { AppTheme } from '../../App';
-import { ProviderConnectionStatus, AwarenessUser } from '../../lib/yjs/types';
+import { ProviderConnectionStatus, AwarenessUser, CollaborationUserOptions } from '../../lib/yjs/types';
 import { OnlineCollaboratorsPopover } from './OnlineCollaboratorsPopover';
 
 export interface HeaderBarProps {
@@ -39,11 +38,13 @@ export interface HeaderBarProps {
   onOpenCommandPalette?: (() => void) | undefined;
   onOpenSettingsModal?: (() => void) | undefined;
   onLockVault?: (() => void) | undefined;
-  activeCollaboratorCount?: number | undefined;
   providerStatus?: ProviderConnectionStatus | undefined;
   awarenessUsers?: AwarenessUser[] | undefined;
-  currentUser?: AwarenessUser | undefined;
+  currentUser?: CollaborationUserOptions | undefined;
   hasUnreadDiscussion?: boolean | undefined;
+  isMobileMenuOpen?: boolean | undefined;
+  onCloseMobileMenu?: (() => void) | undefined;
+  activeCollaboratorCount?: number | undefined;
 }
 
 export const HeaderBar: React.FC<HeaderBarProps> = ({
@@ -62,10 +63,17 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
   providerStatus,
   awarenessUsers = [],
   currentUser,
-  hasUnreadDiscussion
+  hasUnreadDiscussion,
+  isMobileMenuOpen: controlledMobileMenuOpen,
+  onCloseMobileMenu
 }) => {
   const [isCollaboratorsOpen, setIsCollaboratorsOpen] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [internalMobileMenuOpen, setInternalMobileMenuOpen] = useState(false);
+  const isMobileMenuOpen = controlledMobileMenuOpen !== undefined ? controlledMobileMenuOpen : internalMobileMenuOpen;
+  const setIsMobileMenuOpen = (open: boolean) => {
+    setInternalMobileMenuOpen(open);
+    if (!open && onCloseMobileMenu) onCloseMobileMenu();
+  };
 
   const isConnected = providerStatus?.connected ?? false;
   const isConnecting = providerStatus?.connecting ?? false;
@@ -100,7 +108,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           size="icon"
           onClick={onToggleLeftSidebar}
           title={isLeftSidebarOpen ? 'Thu gọn thanh bên (Ctrl+B)' : 'Mở thanh bên (Ctrl+B)'}
-          className="text-theme-text-secondary h-8 w-8 shrink-0"
+          className="hidden sm:inline-flex text-theme-text-secondary h-8 w-8 shrink-0"
         >
           <PanelLeft className="w-4 h-4" />
         </Button>
@@ -109,7 +117,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           <div className="w-6.5 h-6.5 rounded-md bg-theme-accent text-white flex items-center justify-center shadow-xs shrink-0">
             <Lock className="w-3.5 h-3.5" />
           </div>
-          <span className="font-semibold text-sm tracking-tight text-theme-text hidden sm:inline">VaultSync</span>
+          <span className="font-semibold text-sm tracking-tight text-theme-text">VaultSync</span>
           <Badge variant="accent" size="sm" className="hidden lg:inline-flex text-[10px] py-0 px-1.5">
             Bảo Mật Riêng Tư
           </Badge>
@@ -261,26 +269,13 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
           )}
         </div>
 
-        {/* Mobile Quick Actions Menu Trigger (< 640px) */}
-        <div className="flex sm:hidden items-center gap-1">
-          <Button
-            variant="secondary"
-            size="icon"
-            onClick={() => setIsMobileMenuOpen(true)}
-            title="Tùy chọn nhanh & Đăng xuất"
-            className="text-theme-text h-8 w-8 shrink-0"
-          >
-            <MoreVertical className="w-4 h-4" />
-          </Button>
-        </div>
-
-        {/* Discussion Panel Toggle Button (Always visible on mobile & desktop) */}
+        {/* Discussion Panel Toggle Button (Desktop >= 640px) */}
         <Button
           variant={isRightSidebarOpen ? 'primary' : 'secondary'}
           size="icon"
           onClick={onToggleRightSidebar}
           title={isRightSidebarOpen ? 'Đóng Thảo luận (Ctrl+Shift+D)' : 'Mở Thảo luận (Ctrl+Shift+D)'}
-          className="relative h-8 w-8 shrink-0 cursor-pointer"
+          className="hidden sm:inline-flex relative h-8 w-8 shrink-0 cursor-pointer"
         >
           <MessageSquare className="w-3.5 h-3.5" />
           {hasUnreadDiscussion && !isRightSidebarOpen && (
