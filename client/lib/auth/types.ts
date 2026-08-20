@@ -30,9 +30,14 @@ export interface EncryptedVaultRecord {
   passwordVerifier: string; // Base64 combined ciphertext of VERIFIER_MAGIC
   recoveryVerifier: string; // Base64 combined ciphertext of VERIFIER_MAGIC
   
-  // Encrypted Secrets
+  // Encrypted Secrets under Master Key (Password)
   encryptedVaultRootKey: string; // Base64 combined ciphertext (encrypted by Master Key)
-  encryptedUserPrivateKey: string; // Base64 combined ciphertext of Private Key JWK
+  encryptedUserPrivateKey: string; // Base64 combined ciphertext of Private Key JWK (encrypted by Master Key)
+  
+  // Dual-Envelope Encrypted Secrets under Recovery Key (BIP-39 Mnemonic)
+  recoveryVaultRootKey?: string | undefined; // Base64 combined ciphertext (encrypted by Recovery Key)
+  recoveryUserPrivateKey?: string | undefined; // Base64 combined ciphertext of Private Key JWK (encrypted by Recovery Key)
+  
   userPublicKeySPKI: string; // Base64 SPKI string of ECDH Public Key
   
   // Plaintext Metadata

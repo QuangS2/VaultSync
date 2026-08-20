@@ -27,7 +27,9 @@ export class BinaryCodec {
   public static readonly MAGIC = 0x56;   // 'V'
   public static readonly VERSION = 0x01; // Protocol version 1
   public static readonly HEADER_SIZE = 10;
+  public static readonly MAX_ROOM_ID_LENGTH = 128; // Strict room length cap to prevent memory exhaustion
   public static readonly MAX_PAYLOAD_SIZE = 10 * 1024 * 1024; // 10MB safety cap
+  public static readonly VALID_ROOM_ID_REGEX = /^[a-zA-Z0-9_.:\-]+$/;
 
   /**
    * Encodes a frame into a compact binary ArrayBuffer.
@@ -41,8 +43,12 @@ export class BinaryCodec {
     const roomLen = roomBytes.length;
     const payloadLen = payload.length;
 
-    if (roomLen > 65535) {
-      throw new Error(`Room ID is too long: ${roomLen} bytes (max 65535)`);
+    if (roomLen > BinaryCodec.MAX_ROOM_ID_LENGTH) {
+      throw new Error(`Room ID is too long: ${roomLen} bytes (max ${BinaryCodec.MAX_ROOM_ID_LENGTH})`);
+    }
+
+    if (roomId && !BinaryCodec.VALID_ROOM_ID_REGEX.test(roomId)) {
+      throw new Error(`Invalid Room ID characters: "${roomId}". Must contain only alphanumeric, dash, underscore, colon, dot.`);
     }
 
     if (payloadLen > BinaryCodec.MAX_PAYLOAD_SIZE) {
@@ -102,6 +108,10 @@ export class BinaryCodec {
       throw new Error(`Unsupported protocol version: ${version} (expected ${BinaryCodec.VERSION})`);
     }
 
+    if (roomLen > BinaryCodec.MAX_ROOM_ID_LENGTH) {
+      throw new Error(`Room ID in frame exceeds maximum allowed length of ${BinaryCodec.MAX_ROOM_ID_LENGTH} bytes (${roomLen} bytes declared).`);
+    }
+
     const expectedTotal = BinaryCodec.HEADER_SIZE + roomLen + payloadLen;
     if (expectedTotal > view.byteLength) {
       throw new Error(`Frame truncated: declared total size ${expectedTotal} bytes exceeds received buffer size ${view.byteLength} bytes.`);
@@ -109,6 +119,10 @@ export class BinaryCodec {
 
     const roomBytes = uint8.subarray(BinaryCodec.HEADER_SIZE, BinaryCodec.HEADER_SIZE + roomLen);
     const roomId = new TextDecoder().decode(roomBytes);
+
+    if (roomId && !BinaryCodec.VALID_ROOM_ID_REGEX.test(roomId)) {
+      throw new Error(`Invalid Room ID format in received frame: "${roomId}"`);
+    }
 
     const payloadOffset = BinaryCodec.HEADER_SIZE + roomLen;
     const payload = uint8.subarray(payloadOffset, payloadOffset + payloadLen);

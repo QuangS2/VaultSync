@@ -14,6 +14,33 @@ export interface DocumentExportMetadata {
 
 export class ExportPipeline {
   /**
+   * Sanitizes untrusted text strings to prevent HTML and Script Injection (Anti-XSS).
+   */
+  public static escapeHTML(str: string): string {
+    if (!str) return '';
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  /**
+   * Strips dangerous script tags and inline event handlers from user HTML.
+   */
+  public static sanitizeHTML(html: string): string {
+    if (!html) return '';
+    return html
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '')
+      .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '')
+      .replace(/<embed\b[^<]*(?:(?!<\/embed>)<[^<]*)*<\/embed>/gi, '')
+      .replace(/\s+on\w+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '')
+      .replace(/javascript:/gi, 'blocked:');
+  }
+
+  /**
    * Exports a document to standard Markdown format with structured YAML Frontmatter.
    */
   public static exportToMarkdown(rawContent: string, meta: DocumentExportMetadata): string {
@@ -38,13 +65,19 @@ export class ExportPipeline {
   }
 
   /**
-   * Exports a document as a self-contained, standalone HTML page with embedded styling (Zero external dependencies).
+   * Exports a document as a self-contained, standalone HTML page with embedded styling and strict CSP (Zero external dependencies).
    */
   public static exportToStandaloneHTML(
     htmlBody: string, 
     meta: DocumentExportMetadata, 
     theme: 'sun' | 'cloud' | 'night' = 'night'
   ): string {
+    const safeTitle = ExportPipeline.escapeHTML(meta.title);
+    const safeAuthor = ExportPipeline.escapeHTML(meta.author || 'VaultSync User');
+    const safeFolderName = ExportPipeline.escapeHTML(meta.folderName || 'Engineering Vault');
+    const safeDocId = ExportPipeline.escapeHTML(meta.documentId);
+    const sanitizedBody = ExportPipeline.sanitizeHTML(htmlBody);
+
     const themeStyles = {
       sun: {
         bg: '#fbf9f5',
@@ -83,7 +116,8 @@ export class ExportPipeline {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${meta.title} — VaultSync Export</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; font-src data:; img-src data: https:;">
+  <title>${safeTitle} — VaultSync Export</title>
   <style>
     :root {
       color-scheme: ${theme === 'night' ? 'dark' : 'light'};
@@ -150,73 +184,58 @@ export class ExportPipeline {
     main {
       font-size: 15px;
     }
-    main h1, main h2, main h3, main h4 {
-      color: ${themeStyles.text};
+    h2, h3, h4 {
       margin-top: 24px;
       margin-bottom: 12px;
-      font-weight: 600;
+      color: ${themeStyles.text};
     }
-    main p {
+    p {
       margin-bottom: 16px;
     }
-    main ul, main ol {
-      margin-bottom: 16px;
-      padding-left: 24px;
-    }
-    main li {
-      margin-bottom: 6px;
-    }
-    main blockquote {
-      border-left: 3px solid ${themeStyles.accent};
-      padding: 10px 16px;
-      margin: 16px 0;
-      background: rgba(0, 0, 0, 0.03);
-      border-radius: 0 8px 8px 0;
-      color: ${themeStyles.textMuted};
-      font-style: italic;
-    }
-    main code {
-      background: rgba(125, 125, 125, 0.15);
-      padding: 2px 6px;
-      border-radius: 4px;
+    code {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 13px;
+      background: ${themeStyles.badgeBg};
+      color: ${themeStyles.accent};
+      padding: 2px 6px;
+      border-radius: 4px;
     }
-    main pre {
-      background: #0d1117;
-      color: #c9d1d9;
+    pre {
+      background: ${theme === 'night' ? '#000000' : '#f1f5f9'};
       padding: 16px;
       border-radius: 8px;
       overflow-x: auto;
-      margin: 16px 0;
+      margin-bottom: 16px;
+      border: 1px solid ${themeStyles.border};
     }
-    main pre code {
+    pre code {
       background: transparent;
       padding: 0;
-      color: inherit;
+      color: ${themeStyles.text};
+    }
+    blockquote {
+      border-left: 4px solid ${themeStyles.accent};
+      padding-left: 16px;
+      margin-bottom: 16px;
+      color: ${themeStyles.textMuted};
+      font-style: italic;
+    }
+    ul, ol {
+      margin-bottom: 16px;
+      padding-left: 24px;
+    }
+    li {
+      margin-bottom: 6px;
     }
     footer {
       margin-top: 40px;
       padding-top: 20px;
       border-top: 1px solid ${themeStyles.border};
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       font-size: 11px;
       color: ${themeStyles.textMuted};
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    @media print {
-      body {
-        background: white !important;
-        color: black !important;
-        padding: 0;
-      }
-      .container {
-        border: none;
-        box-shadow: none;
-        padding: 0;
-        max-width: 100%;
-      }
     }
   </style>
 </head>
@@ -224,23 +243,23 @@ export class ExportPipeline {
   <div class="container">
     <header>
       <div class="badge-bar">
-        <span class="badge">🔒 VaultSync E2EE Standalone</span>
-        <span class="badge">Zero-Knowledge Verified</span>
+        <span class="badge">🔒 VaultSync E2EE Export</span>
+        <span class="badge">📁 ${safeFolderName}</span>
       </div>
-      <h1>${meta.title}</h1>
+      <h1>${safeTitle}</h1>
       <div class="metadata">
-        <span>Tác giả: <strong>${meta.author || 'Thành viên VaultSync'}</strong></span>
-        <span>Thư mục: <strong>${meta.folderName || 'Engineering Vault'}</strong></span>
-        <span>Cập nhật: <strong>${new Date(meta.updatedAt).toLocaleString('vi-VN')}</strong></span>
-        <span>Mã tài liệu: <code>${meta.documentId}</code></span>
+        <span>Tác giả: <strong>${safeAuthor}</strong></span>
+        <span>ID: <code>${safeDocId}</code></span>
+        <span>Tạo ngày: ${new Date(meta.createdAt).toLocaleDateString('vi-VN')}</span>
+        <span>Cập nhật: ${new Date(meta.updatedAt).toLocaleDateString('vi-VN')}</span>
       </div>
     </header>
     <main>
-      ${htmlBody}
+      ${sanitizedBody}
     </main>
     <footer>
-      <span>Trang HTML độc lập không phụ thuộc máy chủ (Self-contained offline document)</span>
-      <span>Được tạo bởi VaultSync Cryptographic Core</span>
+      <span>Được xuất tự động bởi VaultSync Zero-Knowledge Architecture</span>
+      <span>Bản sao lưu ngoại tuyến an toàn</span>
     </footer>
   </div>
 </body>

@@ -140,13 +140,15 @@ export class VaultAuthEngine {
     const encPassVerifier = await WebCryptoEngine.encryptAESGCM(masterKey, verifierBytes);
     const encRecVerifier = await WebCryptoEngine.encryptAESGCM(recoveryKey, verifierBytes);
 
-    // 7. Encrypt Vault Root Key with Master Key
+    // 7. Encrypt Vault Root Key with Master Key AND Recovery Key (Dual Envelope)
     const rawRootKey = await crypto.subtle.exportKey('raw', vaultRootKey);
     const encRootKey = await WebCryptoEngine.encryptAESGCM(masterKey, new Uint8Array(rawRootKey));
+    const recRootKey = await WebCryptoEngine.encryptAESGCM(recoveryKey, new Uint8Array(rawRootKey));
 
-    // 8. Encrypt User Private Key JWK with Master Key
+    // 8. Encrypt User Private Key JWK with Master Key AND Recovery Key (Dual Envelope)
     const privateKeyJWKBytes = BinaryUtils.stringToBytes(JSON.stringify(privateKeyJWK));
     const encUserPrivKey = await WebCryptoEngine.encryptAESGCM(masterKey, privateKeyJWKBytes);
+    const recUserPrivKey = await WebCryptoEngine.encryptAESGCM(recoveryKey, privateKeyJWKBytes);
 
     // 9. Construct Encrypted Vault Record
     const vaultId = `vault_${BinaryUtils.bufferToHex(KeyDerivation.generateSalt(8))}`;
@@ -174,7 +176,9 @@ export class VaultAuthEngine {
       passwordVerifier: BinaryUtils.bufferToBase64Url(encPassVerifier.combinedBinary),
       recoveryVerifier: BinaryUtils.bufferToBase64Url(encRecVerifier.combinedBinary),
       encryptedVaultRootKey: BinaryUtils.bufferToBase64Url(encRootKey.combinedBinary),
+      recoveryVaultRootKey: BinaryUtils.bufferToBase64Url(recRootKey.combinedBinary),
       encryptedUserPrivateKey: BinaryUtils.bufferToBase64Url(encUserPrivKey.combinedBinary),
+      recoveryUserPrivateKey: BinaryUtils.bufferToBase64Url(recUserPrivKey.combinedBinary),
       userPublicKeySPKI,
       userProfile
     };
@@ -240,13 +244,11 @@ export class VaultAuthEngine {
       ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
     );
 
-    // 3. Decrypt and Import ECDH Private Key
+    // 3. Decrypt User ECDH Private Key
     const encPrivKeyBytes = BinaryUtils.base64UrlToBytes(record.encryptedUserPrivateKey);
     const privKeyJWKBytes = await WebCryptoEngine.decryptCombined(masterKey, encPrivKeyBytes);
     const privKeyJWK = JSON.parse(BinaryUtils.bytesToString(privKeyJWKBytes)) as JsonWebKey;
     const userPrivateKey = await IdentityKeys.importJWK(privKeyJWK, 'ECDH', true);
-
-    // 4. Import ECDH Public Key
     const userPublicKey = await IdentityKeys.importPublicKeySPKI(record.userPublicKeySPKI, 'ECDH');
 
     // Update last unlocked timestamp
@@ -365,8 +367,8 @@ export class VaultAuthEngine {
   }
 
   /**
-   * Recovers and unlocks a vault using the 12-word Recovery Phrase.
-   * If newMasterPassword is provided, automatically resets and re-encrypts the vault with the new password.
+   * Recovers and unlocks a vault using the 12-word Recovery Phrase with Dual-Envelope unwrap.
+   * If newMasterPassword is provided, re-encrypts the true Root Key and Private Key under the new password.
    */
   public static async unlockVaultWithRecoveryPhrase(
     record: EncryptedVaultRecord,
@@ -396,38 +398,98 @@ export class VaultAuthEngine {
       throw new Error('12 từ khóa khôi phục không khớp với kho lưu trữ này.');
     }
 
-    // 2. If newMasterPassword is provided, reset master password
+    // 2. Unwrap the real Vault Root Key and User Private Key from the Recovery Envelope
+    let vaultRootKey: CryptoKey;
+    let userPrivateKey: CryptoKey;
+
+    if (record.recoveryVaultRootKey && record.recoveryUserPrivateKey) {
+      const recRootKeyBytes = BinaryUtils.base64UrlToBytes(record.recoveryVaultRootKey);
+      const rawRootKey = await WebCryptoEngine.decryptCombined(recoveryKey, recRootKeyBytes);
+      vaultRootKey = await crypto.subtle.importKey(
+        'raw',
+        rawRootKey as BufferSource,
+        { name: 'AES-GCM', length: 256 },
+        true,
+        ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
+      );
+
+      const recPrivKeyBytes = BinaryUtils.base64UrlToBytes(record.recoveryUserPrivateKey);
+      const privKeyJWKBytes = await WebCryptoEngine.decryptCombined(recoveryKey, recPrivKeyBytes);
+      const privKeyJWK = JSON.parse(BinaryUtils.bytesToString(privKeyJWKBytes)) as JsonWebKey;
+      userPrivateKey = await IdentityKeys.importJWK(privKeyJWK, 'ECDH', true);
+    } else {
+      // Legacy compatibility fallback
+      vaultRootKey = await KeyDerivation.deriveMasterKeyPBKDF2(cleanPhrase, recoverySalt);
+      userPrivateKey = (await IdentityKeys.generateECDHKeyPair(true)).privateKey;
+    }
+
+    const userPublicKey = await IdentityKeys.importPublicKeySPKI(record.userPublicKeySPKI, 'ECDH');
+    const now = Date.now();
+
+    // 3. If newMasterPassword is provided, reset master password without losing existing keys
     if (newMasterPassword && newMasterPassword.length >= 6) {
-      const newSession = await VaultAuthEngine.createVault({
-        vaultName: record.vaultName,
-        displayName: record.userProfile.displayName,
-        avatarColor: record.userProfile.avatarColor,
-        masterPassword: newMasterPassword,
-        customRecoveryPhrase: cleanPhrase,
-        kdfIterations: record.kdfIterations
+      const newMasterSalt = KeyDerivation.generateSalt(16);
+      const newMasterSaltHex = BinaryUtils.bufferToHex(newMasterSalt);
+
+      const newMasterKey = await KeyDerivation.deriveMasterKeyPBKDF2(newMasterPassword, newMasterSalt, {
+        iterations: record.kdfIterations
       });
 
+      // Encrypt new password verifier
+      const verifierMagicBytes = BinaryUtils.stringToBytes(VaultAuthEngine.VERIFIER_MAGIC);
+      const encPassVerifier = await WebCryptoEngine.encryptAESGCM(newMasterKey, verifierMagicBytes);
+
+      // Re-encrypt the existing Vault Root Key with New Master Key
+      const rawRootKey = await crypto.subtle.exportKey('raw', vaultRootKey);
+      const encRootKey = await WebCryptoEngine.encryptAESGCM(newMasterKey, new Uint8Array(rawRootKey));
+
+      // Re-encrypt the existing User Private Key JWK with New Master Key
+      const privateKeyJWK = await IdentityKeys.exportJWK(userPrivateKey);
+      const privateKeyJWKBytes = BinaryUtils.stringToBytes(JSON.stringify(privateKeyJWK));
+      const encUserPrivKey = await WebCryptoEngine.encryptAESGCM(newMasterKey, privateKeyJWKBytes);
+
+      const updatedRecord: EncryptedVaultRecord = {
+        ...record,
+        masterSaltHex: newMasterSaltHex,
+        passwordVerifier: BinaryUtils.bufferToBase64Url(encPassVerifier.combinedBinary),
+        encryptedVaultRootKey: BinaryUtils.bufferToBase64Url(encRootKey.combinedBinary),
+        encryptedUserPrivateKey: BinaryUtils.bufferToBase64Url(encUserPrivKey.combinedBinary),
+        lastUnlockedAt: now
+      };
+
+      await VaultAuthEngine.saveVaultRecord(updatedRecord);
+      await VaultAuthEngine.persistSessionToStorage(newMasterKey);
+
       return {
-        session: newSession.session,
-        updatedRecord: newSession.record
+        session: {
+          vaultId: record.vaultId,
+          vaultName: record.vaultName,
+          userProfile: record.userProfile,
+          masterKey: newMasterKey,
+          vaultRootKey,
+          userECDHKeyPair: {
+            publicKey: userPublicKey,
+            privateKey: userPrivateKey
+          },
+          userPublicKeySPKI: record.userPublicKeySPKI,
+          unlockedAt: now
+        },
+        updatedRecord
       };
     }
 
-    // Fallback: unlock session using recoveryKey as temporary masterKey
-    const userPublicKey = await IdentityKeys.importPublicKeySPKI(record.userPublicKeySPKI, 'ECDH');
-    const dummyKey = await KeyDerivation.deriveMasterKeyPBKDF2(cleanPhrase, recoverySalt);
-
-    const now = Date.now();
+    // Direct recovery session
+    await VaultAuthEngine.persistSessionToStorage(recoveryKey);
     return {
       session: {
         vaultId: record.vaultId,
         vaultName: record.vaultName,
         userProfile: record.userProfile,
         masterKey: recoveryKey,
-        vaultRootKey: dummyKey,
+        vaultRootKey,
         userECDHKeyPair: {
           publicKey: userPublicKey,
-          privateKey: userPublicKey // placeholder until password is reset
+          privateKey: userPrivateKey
         },
         userPublicKeySPKI: record.userPublicKeySPKI,
         unlockedAt: now
