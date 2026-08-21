@@ -190,8 +190,8 @@ export const OnlineCollaboratorsPopover: React.FC<OnlineCollaboratorsPopoverProp
                 </div>
 
                 {isLocalSession ? (
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-theme-accent/10 text-theme-accent shrink-0">
-                    Chủ phòng
+                  <span className={`text-[10px] font-medium px-2 py-0.5 rounded shrink-0 ${isOwner ? 'bg-theme-accent/10 text-theme-accent' : 'bg-theme-card border border-theme-border text-theme-text-muted'}`}>
+                    {isOwner ? 'Chủ phòng' : 'Khách (Bạn)'}
                   </span>
                 ) : (
                   <div className="flex items-center gap-1 shrink-0">
