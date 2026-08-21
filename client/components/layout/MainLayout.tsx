@@ -109,6 +109,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       const urlParams = new URLSearchParams(window.location.search);
       const permsParam = urlParams.get('perms');
       if (permsParam) return PermissionsEngine.decodePermissions(permsParam);
+
+      const keyParam = urlParams.get('key');
+      // If a guest joins via a share link (which has a key) or directly to a room without perms, they should default to Viewer, not Owner.
+      if (keyParam) {
+        return DEFAULT_VIEWER_PERMISSIONS;
+      }
     }
     return DEFAULT_OWNER_PERMISSIONS;
   });
@@ -396,11 +402,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       manifest?: string | null;
       perms?: string | null;
     }) {
-      const decodedPerms = PermissionsEngine.decodePermissions(info.perms);
-      if (info.perms) {
-        setCurrentPermissions(decodedPerms);
-        setGuestRoomPermissions(decodedPerms);
-      }
+      const decodedPerms = info.perms ? PermissionsEngine.decodePermissions(info.perms) : DEFAULT_VIEWER_PERMISSIONS;
+      setCurrentPermissions(decodedPerms);
+      setGuestRoomPermissions(decodedPerms);
 
       if (info.isFolder && info.folderId) {
         // Folder Sharing Provisioning
@@ -988,8 +992,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     setGuestRoomPermissions(newPerms);
     if (currentPermissions.role !== 'owner') {
       setCurrentPermissions(newPerms);
+      permissionsMapRef.current.set(targetId, newPerms);
     }
-    permissionsMapRef.current.set(targetId, newPerms);
 
     // 1. If target is a shared folder, update folder metadata and all descendant docs
     const folderDoc = sharedFolderDocsRef.current.get(targetId);
@@ -999,7 +1003,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         i.id === targetId || treeManager.isDescendantOf(i.id, targetId) || i.parentId === targetId
       );
       itemsInFolder.forEach(item => {
-        permissionsMapRef.current.set(item.id, newPerms);
+        if (currentPermissions.role !== 'owner') {
+          permissionsMapRef.current.set(item.id, newPerms);
+        }
         const childYDoc = yDocsRef.current.get(item.id);
         if (childYDoc) {
           childYDoc.getMap('metadata').set('room_permissions', newPerms);

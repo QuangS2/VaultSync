@@ -163,7 +163,7 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
         }
       }
 
-      const decodedPermissions = PermissionsEngine.decodePermissions(permsStr);
+      const decodedPermissions = permsStr ? PermissionsEngine.decodePermissions(permsStr) : DEFAULT_VIEWER_PERMISSIONS;
       onJoinRoom(roomId, roomTitle, importedKey, isFolder, manifestData, decodedPermissions);
       onClose();
     } catch (err) {
