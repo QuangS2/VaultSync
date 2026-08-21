@@ -33,7 +33,7 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const rawInput = inputVal.trim();
+    let rawInput = inputVal.trim().replace(/^["']|["']$/g, '');
 
     if (!rawInput) {
       setError('Vui lòng nhập mã phòng rút gọn hoặc liên kết chia sẻ.');
@@ -44,16 +44,20 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
     try {
       let roomId = rawInput;
       let roomTitle = 'Tài Liệu Cộng Tác';
-      let rawKeyStr = keyInput.trim();
+      let rawKeyStr = keyInput.trim().replace(/^["']|["']$/g, '');
       let isUrl = false;
       let isFolder = false;
       let manifestData: any = null;
       let permsStr: string | null = null;
 
-      // Check if user pasted a full URL (doc or folder)
+      // 1. Check if user pasted a full URL (doc or folder)
       if (rawInput.includes('?room=') || rawInput.includes('?folder=') || rawInput.startsWith('http://') || rawInput.startsWith('https://')) {
         try {
-          const url = new URL(rawInput, window.location.origin);
+          let urlStr = rawInput;
+          if (!urlStr.startsWith('http://') && !urlStr.startsWith('https://')) {
+            urlStr = `http://${urlStr}`;
+          }
+          const url = new URL(urlStr, window.location.origin);
           const roomParam = url.searchParams.get('room');
           const folderParam = url.searchParams.get('folder');
           const titleParam = url.searchParams.get('title');
@@ -87,7 +91,7 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
         }
       }
 
-      // Check if user entered a unified self-contained passcode
+      // 2. Check if user entered a unified self-contained passcode
       if (!isUrl && (rawInput.startsWith('VS-KEY:') || rawInput.startsWith('VS-DIR:') || rawInput.includes('#'))) {
         const isDir = rawInput.startsWith('VS-DIR:');
         const payload = rawInput.replace(/^VS-(KEY|DIR|PASS):/, '');
@@ -128,7 +132,7 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
         isUrl = true;
       }
 
-      // Format room ID if raw short code was entered
+      // 3. Format room ID if raw short code was entered
       if (!isUrl) {
         roomId = roomId.trim();
         if (roomId.toUpperCase().startsWith('VS-DIR-')) {
@@ -138,8 +142,8 @@ export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({
         } else if (roomId.toUpperCase().startsWith('VS-')) {
           roomId = roomId.slice(3).toLowerCase();
         }
-        if (!roomId.startsWith('doc-') && !roomId.startsWith('item-') && !roomId.startsWith('folder-') && !isFolder) {
-          roomId = `doc-${roomId.toLowerCase()}`;
+        if (!roomId.startsWith('doc-') && !roomId.startsWith('item-') && !roomId.startsWith('folder-')) {
+          roomId = isFolder ? `folder-${roomId.toLowerCase()}` : `doc-${roomId.toLowerCase()}`;
         }
       }
 

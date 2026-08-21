@@ -28,6 +28,7 @@ export interface LeftSidebarProps {
   onOpenJoinRoomModal?: (() => void) | undefined;
   unreadDocIds?: string[] | undefined;
   vaultName?: string | undefined;
+  treeVersion?: number | undefined;
 }
 
 export const LeftSidebar: React.FC<LeftSidebarProps> = ({
@@ -43,9 +44,11 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onOpenCommandPalette,
   onOpenJoinRoomModal,
   unreadDocIds,
-  vaultName
+  vaultName,
+  treeVersion
 }) => {
-  const [treeManager] = useState(() => externalTreeManager || new TreeStateManager());
+  const [internalTreeManager] = useState(() => new TreeStateManager());
+  const treeManager = externalTreeManager || internalTreeManager;
   const [searchQuery, setSearchQuery] = useState('');
   const [viewFilter, setViewFilter] = useState<'all' | 'favorites' | 'trash'>('all');
   const [counts, setCounts] = useState({
@@ -67,7 +70,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
       updateCounts();
     });
     return () => unobserve();
-  }, [treeManager]);
+  }, [treeManager, treeVersion]);
 
   if (!isOpen) return null;
 
@@ -190,6 +193,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
           searchQuery={searchQuery}
           viewFilter={viewFilter}
           unreadDocIds={unreadDocIds}
+          treeVersion={treeVersion}
         />
       </div>
     </aside>
