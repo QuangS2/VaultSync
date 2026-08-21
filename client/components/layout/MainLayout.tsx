@@ -1032,7 +1032,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   const handleShareFolder = (folderId: string, folderTitle: string) => {
     const key = documentKeysRef.current.get(folderId) || documentKey;
     const itemsInFolder = treeManager.getAllItems().filter(i => 
-      i.id === folderId || i.parentId === folderId || treeManager.isDescendantOf(i.id, folderId)
+      i.id !== folderId && !i.isTrash && (i.parentId === folderId || treeManager.isDescendantOf(i.id, folderId))
     );
 
     const manifest = {
