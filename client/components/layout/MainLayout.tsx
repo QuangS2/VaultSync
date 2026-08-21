@@ -184,7 +184,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       return sharedFolderProvidersRef.current.get(folderId)!;
     }
 
-    const key = folderKey || documentKeysRef.current.get(folderId) || session?.vaultRootKey;
+    const key = folderKey || documentKeysRef.current.get(folderId) || documentKey || session?.vaultRootKey;
     if (!key) return null;
 
     const wsUrl = getRelayWsUrl();
@@ -228,6 +228,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       for (const k of event.keysChanged) {
         const item = folderItemsMap.get(k) as FileSystemItem | undefined;
         if (item) {
+          // STRICT BOUNDARY CHECK: Item MUST be the folder itself or be a descendant of this folder
+          const isBelongingToFolder = item.id === folderId || item.parentId === folderId || treeManager.isDescendantOf(item.id, folderId);
+          if (!isBelongingToFolder) {
+            continue;
+          }
+
           treeManager.syncItem(item);
           if (item.type === 'document' && !documentKeysRef.current.has(item.id) && key) {
             documentKeysRef.current.set(item.id, key);
@@ -239,13 +245,19 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             }
           }
         } else {
-          if (treeManager.getItem(k)) {
-            const wasActive = k === activeDocId;
-            treeManager.permanentDelete(k);
-            if (wasActive) {
-              const remainingDocs = treeManager.getAllItems().filter(i => i.type === 'document' && !i.isTrash && i.id !== k);
-              if (remainingDocs.length > 0 && remainingDocs[0]) {
-                setActiveDocId(remainingDocs[0].id);
+          // Deletion event: STRICT BOUNDARY CHECK
+          // Only permanently delete item if it belongs to this shared folder hierarchy
+          const existing = treeManager.getItem(k);
+          if (existing) {
+            const isDescendantOrSelf = k === folderId || existing.parentId === folderId || treeManager.isDescendantOf(k, folderId);
+            if (isDescendantOrSelf) {
+              const wasActive = k === activeDocId;
+              treeManager.permanentDelete(k);
+              if (wasActive) {
+                const remainingDocs = treeManager.getAllItems().filter(i => i.type === 'document' && !i.isTrash && i.id !== k);
+                if (remainingDocs.length > 0 && remainingDocs[0]) {
+                  setActiveDocId(remainingDocs[0].id);
+                }
               }
             }
           }
@@ -880,10 +892,34 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       if (isDirectChildOrDescendant || alreadyInFolderMap) {
         if (action === 'delete') {
           folderItemsMap.delete(item.id);
+          if (item.type === 'folder') {
+            const descIds = treeManager.getAllDescendantIds(item.id);
+            for (const descId of descIds) {
+              folderItemsMap.delete(descId);
+            }
+          }
         } else if (action === 'trash') {
           folderItemsMap.set(item.id, { ...currentItem, isTrash: true, trashedAt: Date.now(), updatedAt: Date.now() });
+          if (item.type === 'folder') {
+            const descIds = treeManager.getAllDescendantIds(item.id);
+            for (const descId of descIds) {
+              const desc = treeManager.getItem(descId);
+              if (desc) {
+                folderItemsMap.set(descId, { ...desc, isTrash: true, trashedAt: Date.now(), updatedAt: Date.now() });
+              }
+            }
+          }
         } else if (action === 'restore') {
           folderItemsMap.set(item.id, { ...currentItem, isTrash: false, trashedAt: undefined, updatedAt: Date.now() });
+          if (item.type === 'folder') {
+            const descIds = treeManager.getAllDescendantIds(item.id);
+            for (const descId of descIds) {
+              const desc = treeManager.getItem(descId);
+              if (desc) {
+                folderItemsMap.set(descId, { ...desc, isTrash: false, trashedAt: undefined, updatedAt: Date.now() });
+              }
+            }
+          }
         } else {
           folderItemsMap.set(item.id, { ...currentItem, updatedAt: Date.now() });
         }
@@ -1029,8 +1065,20 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     });
   };
 
-  const handleShareFolder = (folderId: string, folderTitle: string) => {
-    const key = documentKeysRef.current.get(folderId) || documentKey;
+  const handleShareFolder = async (folderId: string, folderTitle: string) => {
+    let key = documentKeysRef.current.get(folderId) || documentKey || session?.vaultRootKey;
+    if (!key) {
+      try {
+        key = await crypto.subtle.generateKey(
+          { name: 'AES-GCM', length: 256 },
+          true,
+          ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']
+        );
+      } catch {
+        // fallback
+      }
+    }
+
     const itemsInFolder = treeManager.getAllItems().filter(i => 
       i.id !== folderId && !i.isTrash && (i.parentId === folderId || treeManager.isDescendantOf(i.id, folderId))
     );
@@ -1055,13 +1103,16 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       }
     }
 
+    // Connect background shared folder provider for the Owner
+    ensureSharedFolderProvider(folderId, key);
+
     setShareModalConfig({
       isOpen: true,
       targetId: folderId,
       targetTitle: folderTitle,
       targetType: 'folder',
       folderManifest: manifest,
-      key
+      key: key || null
     });
   };
 
