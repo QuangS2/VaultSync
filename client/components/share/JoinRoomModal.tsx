@@ -3,7 +3,7 @@ import { LogIn, Key, AlertTriangle, Hash, Sparkles, X } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { BinaryUtils } from '../../lib/crypto/binary-utils';
-import { PermissionsEngine, DocumentPermissions } from '../../lib/auth/permissions';
+import { PermissionsEngine, DocumentPermissions, DEFAULT_VIEWER_PERMISSIONS } from '../../lib/auth/permissions';
 
 export interface JoinRoomModalProps {
   isOpen: boolean;
