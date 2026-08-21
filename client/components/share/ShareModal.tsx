@@ -189,7 +189,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 {isFolder ? 'Thư mục: ' : 'Tài liệu: '}<strong className="text-theme-text">{documentTitle}</strong>
                 {isFolder && folderManifest?.items && (
                   <span className="ml-1.5 text-[10px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-600 dark:text-amber-400 font-mono">
-                    {folderManifest.items.length} tệp con
+                    {folderManifest.items.filter(i => i.id !== documentId).length} tệp con
                   </span>
                 )}
               </span>

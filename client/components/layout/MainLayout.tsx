@@ -74,7 +74,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     return 'doc-default';
   });
   const [exportDocTitle, setExportDocTitle] = useState('Ghi chú mới');
-  const [, setTreeVersion] = useState(0);
+  const [treeVersion, setTreeVersion] = useState(0);
 
   // Zero-Knowledge Offline-First Persistent Storage
   const [storage] = useState(() => new EncryptedIndexedDBStorage());
@@ -213,6 +213,16 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       folderItemsMap.set(item.id, item);
     });
 
+    // Initial sync of existing remote folder items into local treeManager
+    folderItemsMap.forEach((rawItem: any) => {
+      if (rawItem && typeof rawItem === 'object') {
+        treeManager.syncItem(rawItem as FileSystemItem);
+        if (rawItem.type === 'document' && !documentKeysRef.current.has(rawItem.id) && key) {
+          documentKeysRef.current.set(rawItem.id, key);
+        }
+      }
+    });
+
     // Observe incoming tree changes from peers in this folder
     const handleFolderItemsChange = (event: Y.YMapEvent<any>) => {
       for (const k of event.keysChanged) {
@@ -230,7 +240,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           }
         } else {
           if (treeManager.getItem(k)) {
+            const wasActive = k === activeDocId;
             treeManager.permanentDelete(k);
+            if (wasActive) {
+              const remainingDocs = treeManager.getAllItems().filter(i => i.type === 'document' && !i.isTrash && i.id !== k);
+              if (remainingDocs.length > 0 && remainingDocs[0]) {
+                setActiveDocId(remainingDocs[0].id);
+              }
+            }
           }
         }
       }
@@ -441,17 +458,25 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         setTreeVersion(v => v + 1);
       }
 
-      // Clean URL query parameters and clear pending share to prevent trapping user
+      // Clean URL query parameters if present
       if (window.location.search) {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
-      sessionStorage.removeItem('vaultsync_pending_share');
+
+      if (session?.vaultRootKey) {
+        try {
+          const treeBytes = treeManager.encodeState();
+          await storage.saveTreeSnapshot(treeBytes, session.vaultRootKey);
+        } catch (err) {
+          console.error('Lỗi lưu cây thư mục sau khi nạp share:', err);
+        }
+      }
     }
 
     if (shareInfo) {
       void processIncomingShare(shareInfo);
     }
-  }, [treeManager, getPendingShareInfo, saveSharedDocKey, ensureSharedFolderProvider]);
+  }, [treeManager, getPendingShareInfo, saveSharedDocKey, ensureSharedFolderProvider, session?.vaultRootKey, storage]);
 
   // Update active document key when activeDocId changes, checking memory, sessionStorage, parent folder, or fallback to vaultRootKey
   useEffect(() => {
@@ -523,15 +548,16 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   // Connect EncryptedYjsProvider whenever documentKey or activeDocId changes
   useEffect(() => {
-    if (!documentKey) return;
+    if (!documentKey || !activeDocId) return;
 
     const wsUrl = getRelayWsUrl();
     const cleanRoomId = activeDocId.startsWith('doc-') ? activeDocId : `doc-${activeDocId}`;
+    const targetYDoc = yDocsRef.current.get(activeDocId) || yDoc;
 
     const newProvider = new EncryptedYjsProvider({
       serverUrl: wsUrl,
       roomId: cleanRoomId,
-      yDoc,
+      yDoc: targetYDoc,
       documentKey,
       epoch: 1,
       user: currentUserOptions,
@@ -583,24 +609,25 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
             if (!pendingShare.isFolder) {
               setActiveDocId(targetId);
             }
-            setTreeVersion(v => v + 1);
           }
 
           if (typeof window !== 'undefined') {
             if (window.location.search) {
               window.history.replaceState({}, document.title, window.location.pathname);
             }
-            sessionStorage.removeItem('vaultsync_pending_share');
           }
-        } else {
-          // Validate active document exists, is not trash, and is a document
-          const currentItem = treeManager.getItem(activeDocId);
-          if (!currentItem || currentItem.isTrash || currentItem.type !== 'document') {
-            const validDocs = treeManager.getAllItems().filter(i => i.type === 'document' && !i.isTrash);
-            if (validDocs.length > 0 && validDocs[0] && isMounted) {
-              setActiveDocId(validDocs[0].id);
-            }
+        }
+
+        // Validate active document exists, is not trash, and is a document
+        const currentItem = treeManager.getItem(activeDocId);
+        if (!currentItem || currentItem.isTrash || currentItem.type !== 'document') {
+          const validDocs = treeManager.getAllItems().filter(i => i.type === 'document' && !i.isTrash);
+          if (validDocs.length > 0 && validDocs[0] && isMounted) {
+            setActiveDocId(validDocs[0].id);
           }
+        }
+        if (isMounted) {
+          setTreeVersion(v => v + 1);
         }
       } catch (err) {
         console.error('Lỗi khôi phục cây thư mục từ IndexedDB:', err);
@@ -615,7 +642,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   // 2. Restore active document state from IndexedDB whenever activeDocId or yDoc changes
   useEffect(() => {
-    if (!documentKey || !activeDocId) return;
+    if (!activeDocId) return;
     const currentKey = documentKey;
     const targetDocId = activeDocId;
     const targetYDoc = yDoc;
@@ -624,13 +651,15 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     async function restoreActiveDocument() {
       setIsDocHydrated(false);
       try {
-        const docState = await storage.loadDocumentState(targetDocId, currentKey);
-        if (isMounted) {
-          if (docState.snapshot && docState.snapshot.length > 0) {
-            Y.applyUpdate(targetYDoc, docState.snapshot);
-          }
-          for (const update of docState.updates) {
-            Y.applyUpdate(targetYDoc, update);
+        if (currentKey) {
+          const docState = await storage.loadDocumentState(targetDocId, currentKey);
+          if (isMounted) {
+            if (docState.snapshot && docState.snapshot.length > 0) {
+              Y.applyUpdate(targetYDoc, docState.snapshot);
+            }
+            for (const update of docState.updates) {
+              Y.applyUpdate(targetYDoc, update);
+            }
           }
         }
       } catch (err) {
@@ -650,7 +679,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   // Auto-save Document Snapshot to Encrypted IndexedDB on change (Debounced 300ms)
   useEffect(() => {
-    if (!documentKey || !isDocHydrated || !activeDocId) return;
+    if (!documentKey || !activeDocId) return;
     const currentKey = documentKey;
     const targetDocId = activeDocId;
     const targetYDoc = yDoc;
@@ -659,8 +688,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
     const performSave = async () => {
       try {
-        const stateBytes = Y.encodeStateAsUpdate(targetYDoc);
-        await storage.saveDocumentSnapshot(targetDocId, stateBytes, currentKey);
+        setSaveStatus('saving');
+        const snapshot = Y.encodeStateAsUpdate(targetYDoc);
+        await storage.saveDocumentSnapshot(targetDocId, snapshot, currentKey);
         setSaveStatus('saved');
         setLastSavedTime(Date.now());
       } catch (err) {
@@ -670,22 +700,16 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     };
 
     const handleYDocUpdate = () => {
-      setSaveStatus('saving');
       if (saveTimer) clearTimeout(saveTimer);
-      saveTimer = setTimeout(performSave, 300);
+      saveTimer = setTimeout(() => {
+        void performSave();
+      }, 300);
     };
 
-    // Save immediately before page unloads / reloads
-    const handleBeforeUnload = () => {
-      void performSave();
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
     targetYDoc.on('update', handleYDocUpdate);
 
     return () => {
       if (saveTimer) clearTimeout(saveTimer);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
       targetYDoc.off('update', handleYDocUpdate);
       void performSave();
     };
@@ -1005,28 +1029,29 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     });
   };
 
-  const handleShareFolder = async (folderId: string, folderTitle: string) => {
-    const manifest = treeManager.getFolderManifest(folderId);
-    let key = documentKeysRef.current.get(folderId);
-    if (!key) {
-      if (session?.vaultRootKey) {
-        key = session.vaultRootKey;
-      } else {
-        key = await EnvelopeEncryptionManager.generateDocumentKey();
-        documentKeysRef.current.set(folderId, key);
-      }
-    }
+  const handleShareFolder = (folderId: string, folderTitle: string) => {
+    const key = documentKeysRef.current.get(folderId) || documentKey;
+    const itemsInFolder = treeManager.getAllItems().filter(i => 
+      i.id !== folderId && !i.isTrash && (i.parentId === folderId || treeManager.isDescendantOf(i.id, folderId))
+    );
 
-    // Connect background shared folder provider
-    ensureSharedFolderProvider(folderId, key);
+    const manifest = {
+      folder: { id: folderId, name: folderTitle },
+      items: itemsInFolder.map(i => ({
+        id: i.id,
+        name: i.name,
+        type: i.type,
+        parentId: i.parentId,
+        icon: i.icon
+      }))
+    };
 
-    // Seed shared folder and all child items into shared_items CRDT map
-    const sharedItemsMap = yDoc.getMap('shared_items');
-    const folderItem = treeManager.getItem(folderId);
-    if (folderItem) sharedItemsMap.set(folderId, folderItem);
-    if (manifest && Array.isArray(manifest.items)) {
-      for (const child of manifest.items) {
-        sharedItemsMap.set(child.id, child);
+    if (key) {
+      documentKeysRef.current.set(folderId, key);
+      void saveSharedDocKey(folderId, key);
+      for (const item of itemsInFolder) {
+        documentKeysRef.current.set(item.id, key);
+        void saveSharedDocKey(item.id, key);
       }
     }
 
@@ -1052,22 +1077,47 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     permissionsMapRef.current.set(roomId, activePerms);
     setCurrentPermissions(activePerms);
     setGuestRoomPermissions(activePerms);
-    const sharedItemsMap = yDoc.getMap('shared_items');
+
+    let keyB64: string | null = null;
+    if (key) {
+      try {
+        const raw = await crypto.subtle.exportKey('raw', key);
+        keyB64 = BinaryUtils.bufferToBase64Url(new Uint8Array(raw));
+      } catch {
+        // ignore
+      }
+    }
+
+    // 1. Store pending share data in sessionStorage for reload persistence
+    const shareData = {
+      isFolder: Boolean(isFolder),
+      folderId: isFolder ? roomId : null,
+      room: isFolder ? null : roomId,
+      title: title || (isFolder ? 'Thư Mục Cộng Tác' : 'Tài Liệu Cộng Tác'),
+      key: keyB64,
+      manifest: manifestData ? BinaryUtils.bufferToBase64Url(new TextEncoder().encode(JSON.stringify(manifestData))) : null,
+      perms: PermissionsEngine.encodePermissions(activePerms)
+    };
+    try {
+      sessionStorage.setItem('vaultsync_pending_share', JSON.stringify(shareData));
+    } catch {
+      // ignore
+    }
 
     if (isFolder) {
       const folderTitle = title || manifestData?.folder?.name || 'Thư Mục Cộng Tác';
-      const createdFolder = treeManager.ensureItem(roomId, folderTitle, 'folder', null, 'Folder');
-      sharedItemsMap.set(roomId, createdFolder);
+      treeManager.ensureItem(roomId, folderTitle, 'folder', null, 'Folder');
+      permissionsMapRef.current.set(roomId, activePerms);
+
       if (key) {
         documentKeysRef.current.set(roomId, key);
         await saveSharedDocKey(roomId, key);
       }
 
       let firstDocId: string | null = null;
-      if (manifestData && Array.isArray(manifestData.items)) {
+      if (manifestData && Array.isArray(manifestData.items) && manifestData.items.length > 0) {
         for (const item of manifestData.items) {
-          const childItem = treeManager.ensureItem(item.id, item.name, item.type, item.parentId || roomId, item.icon);
-          sharedItemsMap.set(item.id, childItem);
+          treeManager.ensureItem(item.id, item.name, item.type, item.parentId || roomId, item.icon);
           permissionsMapRef.current.set(item.id, activePerms);
           if (key) {
             documentKeysRef.current.set(item.id, key);
@@ -1076,6 +1126,17 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           if (item.type === 'document' && !firstDocId) {
             firstDocId = item.id;
           }
+        }
+      }
+
+      // If no child document exists in manifest, ensure a default document is created
+      if (!firstDocId) {
+        const defaultDoc = treeManager.createItem('Ghi chú mới', 'document', roomId);
+        firstDocId = defaultDoc.id;
+        permissionsMapRef.current.set(firstDocId, activePerms);
+        if (key) {
+          documentKeysRef.current.set(firstDocId, key);
+          await saveSharedDocKey(firstDocId, key);
         }
       }
 
@@ -1090,20 +1151,45 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         }
         handleSelectDoc(firstDocId);
       }
+
+      // Persist tree snapshot immediately to storage
+      if (session?.vaultRootKey) {
+        try {
+          const treeBytes = treeManager.encodeState();
+          await storage.saveTreeSnapshot(treeBytes, session.vaultRootKey);
+        } catch (err) {
+          console.error('Lỗi lưu cây thư mục sau khi tham gia:', err);
+        }
+      }
+
       setTreeVersion(v => v + 1);
+      setIsDocHydrated(true);
       return;
     }
 
+    // Single Document Room
     if (key) {
       documentKeysRef.current.set(roomId, key);
       await saveSharedDocKey(roomId, key);
       setDocumentKey(key);
     }
     const cleanTitle = title || 'Tài Liệu Cộng Tác';
-    const createdDoc = treeManager.ensureItem(roomId, cleanTitle, 'document', null, 'Share2');
-    sharedItemsMap.set(roomId, createdDoc);
+    treeManager.ensureItem(roomId, cleanTitle, 'document', null, 'Share2');
+    permissionsMapRef.current.set(roomId, activePerms);
     handleSelectDoc(roomId);
+
+    // Persist tree snapshot immediately to storage
+    if (session?.vaultRootKey) {
+      try {
+        const treeBytes = treeManager.encodeState();
+        await storage.saveTreeSnapshot(treeBytes, session.vaultRootKey);
+      } catch (err) {
+        console.error('Lỗi lưu cây thư mục sau khi tham gia:', err);
+      }
+    }
+
     setTreeVersion(v => v + 1);
+    setIsDocHydrated(true);
   };
 
   const handleTitleChange = (newTitle: string) => {
@@ -1337,6 +1423,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           onOpenJoinRoomModal={() => setIsJoinRoomModalOpen(true)}
           unreadDocIds={unreadDocIds}
           vaultName={session?.vaultName}
+          treeVersion={treeVersion}
         />
 
         {/* Center Editor Canvas */}

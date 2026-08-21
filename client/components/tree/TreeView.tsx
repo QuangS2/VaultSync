@@ -32,6 +32,7 @@ export interface TreeViewProps {
   viewFilter?: ('all' | 'favorites' | 'trash') | undefined;
   className?: string | undefined;
   unreadDocIds?: string[] | undefined;
+  treeVersion?: number | undefined;
 }
 
 const STORAGE_KEY = 'vaultsync_expanded_folders';
@@ -65,7 +66,8 @@ export const TreeView: React.FC<TreeViewProps> = ({
   searchQuery = '',
   viewFilter = 'all',
   className = '',
-  unreadDocIds
+  unreadDocIds,
+  treeVersion
 }) => {
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(() => {
     try {
@@ -120,7 +122,7 @@ export const TreeView: React.FC<TreeViewProps> = ({
       refreshTree();
     });
     return () => unobserve();
-  }, [expandedFolders, viewFilter]);
+  }, [expandedFolders, viewFilter, treeVersion]);
 
   useEffect(() => {
     try {

@@ -53,7 +53,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
   onUpdatePermissions,
   saveStatus = 'saved',
   lastSavedTime,
-  isDocHydrated = true,
+  isDocHydrated: _isDocHydrated = true,
   onAddInlineComment,
   onTitleChange,
   onCommentClick,
@@ -146,33 +146,24 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
       </div>
 
       {/* Main Tiptap ProseMirror Editor */}
-      {isDocHydrated ? (
-        <TiptapEditor
-          key={`${documentId}-${provider ? 'collab' : 'local'}`}
-          content={content}
-          documentTitle={currentTitle}
-          onTitleChange={handleTitleChange}
-          onChange={(html) => setContent(html)}
-          onAddInlineComment={onAddInlineComment}
-          yDoc={yDoc}
-          provider={provider}
-          user={user}
-          readOnly={permissions ? !permissions.canEdit : false}
-          onCommentClick={onCommentClick}
-          activeCommentThreadId={activeCommentThreadId}
-          onOpenShareModal={onOpenShareModal}
-          onOpenDiscussionSidebar={onOpenDiscussionSidebar}
-          onOpenCommandPalette={onOpenCommandPalette}
-          onCreateNewNote={onCreateNewNote}
-        />
-      ) : (
-        <div className="flex-1 flex items-center justify-center text-xs text-theme-text-muted">
-          <div className="flex items-center gap-2">
-            <RefreshCw className="w-4 h-4 animate-spin text-theme-accent" />
-            <span>Đang tải tài liệu...</span>
-          </div>
-        </div>
-      )}
+      <TiptapEditor
+        key={`${documentId}-${provider ? 'collab' : 'local'}`}
+        content={content}
+        documentTitle={currentTitle}
+        onTitleChange={handleTitleChange}
+        onChange={(html) => setContent(html)}
+        onAddInlineComment={onAddInlineComment}
+        yDoc={yDoc}
+        provider={provider}
+        user={user}
+        readOnly={permissions ? !permissions.canEdit : false}
+        onCommentClick={onCommentClick}
+        activeCommentThreadId={activeCommentThreadId}
+        onOpenShareModal={onOpenShareModal}
+        onOpenDiscussionSidebar={onOpenDiscussionSidebar}
+        onOpenCommandPalette={onOpenCommandPalette}
+        onCreateNewNote={onCreateNewNote}
+      />
     </div>
   );
 };
