@@ -279,8 +279,12 @@ export const TreeView: React.FC<TreeViewProps> = ({
   };
 
   // --- Trash Operations ---
+  const isOwner = !permissions || permissions.role === 'owner';
+  const canEdit = isOwner || Boolean(permissions?.canEdit);
+  const canDelete = isOwner || Boolean(permissions?.canDelete);
+
   const handleRestoreItem = (item: TreeNode) => {
-    if (permissions && permissions.role !== 'owner' && !permissions.canDelete) {
+    if (!canDelete && !canEdit) {
       return;
     }
     treeManager.restoreFromTrash(item.id);
@@ -293,21 +297,22 @@ export const TreeView: React.FC<TreeViewProps> = ({
   };
 
   const handlePermanentDelete = (item: TreeNode) => {
-    if (permissions && permissions.role !== 'owner' && !permissions.canDelete) {
+    if (!canDelete) {
       return;
     }
+    const fullItem = treeManager.getItem(item.id) || item;
+    onTreeMutation?.('delete', fullItem);
     treeManager.permanentDelete(item.id);
-    onTreeMutation?.('delete', { id: item.id });
     refreshTree();
   };
 
   const handleConfirmEmptyTrash = () => {
-    if (permissions && permissions.role !== 'owner' && !permissions.canDelete) {
+    if (!canDelete) {
       return;
     }
     const trashItems = treeManager.getTrashItems();
     for (const item of trashItems) {
-      onTreeMutation?.('delete', { id: item.id });
+      onTreeMutation?.('delete', item);
     }
     treeManager.emptyTrash();
     setEmptyTrashModal({ isOpen: false });
@@ -316,7 +321,7 @@ export const TreeView: React.FC<TreeViewProps> = ({
 
   // --- Delete Handlers ---
   const handleDeletePrompt = (item: TreeNode) => {
-    if (permissions && permissions.role !== 'owner' && !permissions.canDelete) {
+    if (!canDelete) {
       return;
     }
     const descendantIds = treeManager.getAllDescendantIds(item.id);
@@ -332,12 +337,13 @@ export const TreeView: React.FC<TreeViewProps> = ({
   };
 
   const performDelete = (id: string) => {
-    if (permissions && permissions.role !== 'owner' && !permissions.canDelete) {
+    if (!canDelete) {
       return;
     }
     const isDeletingActive = activeDocId === id || treeManager.isDescendantOf(activeDocId, id);
+    const existingItem = treeManager.getItem(id);
     treeManager.moveToTrash(id);
-    const item = treeManager.getItem(id);
+    const item = treeManager.getItem(id) || existingItem;
     if (item) onTreeMutation?.('trash', item);
 
     // If active document is deleted, switch active doc immediately
@@ -359,6 +365,7 @@ export const TreeView: React.FC<TreeViewProps> = ({
 
   // Root level drop handler
   const handleRootDragOver = (e: React.DragEvent) => {
+    if (!canEdit) return;
     e.preventDefault();
     setIsRootDragOver(true);
   };
@@ -368,6 +375,7 @@ export const TreeView: React.FC<TreeViewProps> = ({
   };
 
   const handleRootDrop = (e: React.DragEvent) => {
+    if (!canEdit) return;
     e.preventDefault();
     setIsRootDragOver(false);
     const draggedId = e.dataTransfer.getData('text/plain');
@@ -441,7 +449,7 @@ export const TreeView: React.FC<TreeViewProps> = ({
           <div className="flex items-center gap-1.5">
             <span>Thùng Rác ({trashItemsList.length})</span>
           </div>
-          {trashItemsList.length > 0 && (
+          {trashItemsList.length > 0 && canDelete && (
             <button
               onClick={() => setEmptyTrashModal({ isOpen: true })}
               className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 font-medium transition-colors cursor-pointer"
@@ -455,20 +463,24 @@ export const TreeView: React.FC<TreeViewProps> = ({
         <div className="flex items-center justify-between px-2 pt-2 pb-1 text-[11px] font-semibold text-theme-text-muted uppercase tracking-wider">
           <span>{viewFilter === 'favorites' ? 'Mục Yêu Thích' : 'Không Gian Làm Việc'}</span>
           <div className="flex items-center gap-1">
-            <button 
-              onClick={() => handleCreateDoc(null)} 
-              title="Tạo tài liệu gốc" 
-              className="p-1 rounded hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text cursor-pointer"
-            >
-              <FilePlus className="w-3.5 h-3.5" />
-            </button>
-            <button 
-              onClick={() => handleCreateFolder(null)} 
-              title="Tạo thư mục gốc" 
-              className="p-1 rounded hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text cursor-pointer"
-            >
-              <FolderPlus className="w-3.5 h-3.5" />
-            </button>
+            {canEdit && (
+              <>
+                <button 
+                  onClick={() => handleCreateDoc(null)} 
+                  title="Tạo tài liệu gốc" 
+                  className="p-1 rounded hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text cursor-pointer"
+                >
+                  <FilePlus className="w-3.5 h-3.5" />
+                </button>
+                <button 
+                  onClick={() => handleCreateFolder(null)} 
+                  title="Tạo thư mục gốc" 
+                  className="p-1 rounded hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text cursor-pointer"
+                >
+                  <FolderPlus className="w-3.5 h-3.5" />
+                </button>
+              </>
+            )}
             <button 
               onClick={expandedFolders.size > 0 ? handleCollapseAll : handleExpandAll} 
               title={expandedFolders.size > 0 ? "Thu gọn tất cả" : "Mở rộng tất cả"} 
@@ -511,22 +523,24 @@ export const TreeView: React.FC<TreeViewProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => handleRestoreItem({ ...item, depth: 0 })}
-                    title="Khôi phục lại không gian làm việc"
-                    className="p-1 rounded hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 cursor-pointer transition-colors"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handlePermanentDelete({ ...item, depth: 0 })}
-                    title="Xóa vĩnh viễn"
-                    className="p-1 rounded hover:bg-rose-500/10 text-rose-500 cursor-pointer transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                {canDelete && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => handleRestoreItem({ ...item, depth: 0 })}
+                      title="Khôi phục lại không gian làm việc"
+                      className="p-1 rounded hover:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 cursor-pointer transition-colors"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handlePermanentDelete({ ...item, depth: 0 })}
+                      title="Xóa vĩnh viễn"
+                      className="p-1 rounded hover:bg-rose-500/10 text-rose-500 cursor-pointer transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -555,6 +569,7 @@ export const TreeView: React.FC<TreeViewProps> = ({
               activeDocId={activeDocId}
               isExpanded={expandedFolders.has(node.id)}
               renamingItemId={renamingItemId}
+              permissions={permissions}
               onToggleExpand={handleToggleExpand}
               onSelectDoc={onSelectDoc}
               onCreateDoc={handleCreateDoc}
@@ -586,6 +601,7 @@ export const TreeView: React.FC<TreeViewProps> = ({
         position={{ x: contextMenu.x, y: contextMenu.y }}
         targetItem={contextMenu.targetItem}
         isRootContext={contextMenu.isRootContext}
+        permissions={permissions}
         onClose={handleCloseContextMenu}
         onRename={(item) => handleStartRename(item.id)}
         onDuplicate={handleDuplicate}

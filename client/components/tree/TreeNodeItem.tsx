@@ -13,12 +13,14 @@ import {
   Star
 } from 'lucide-react';
 import { TreeNode } from '../../lib/tree/types';
+import { DocumentPermissions } from '../../lib/auth/permissions';
 
 export interface TreeNodeItemProps {
   node: TreeNode;
   activeDocId: string;
   isExpanded: boolean;
   renamingItemId: string | null;
+  permissions?: DocumentPermissions | undefined;
   onToggleExpand: (folderId: string) => void;
   onSelectDoc: (docId: string) => void;
   onCreateDoc: (parentId: string | null) => void;
@@ -38,6 +40,7 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
   activeDocId,
   isExpanded,
   renamingItemId,
+  permissions,
   onToggleExpand,
   onSelectDoc,
   onCreateDoc,
@@ -51,6 +54,8 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
   hasUnread,
   unreadDocIds
 }) => {
+  const isOwner = !permissions || permissions.role === 'owner';
+  const canEdit = isOwner || Boolean(permissions?.canEdit);
   const [isDragOver, setIsDragOver] = useState(false);
   const [isInvalidDrop, setIsInvalidDrop] = useState(false);
   const [editName, setEditName] = useState(node.name);
@@ -176,7 +181,7 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
       >
         {/* Folder Header Row */}
         <div 
-          draggable={!isRenaming}
+          draggable={!isRenaming && canEdit}
           onDragStart={handleDragStart}
           onContextMenu={handleItemContextMenu}
           className={`group flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-medium transition-all duration-150 cursor-pointer ${
@@ -191,7 +196,7 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
             onClick={() => !isRenaming && onToggleExpand(node.id)}
             onDoubleClick={(e) => {
               e.stopPropagation();
-              onStartRename(node.id);
+              if (canEdit) onStartRename(node.id);
             }}
             className="flex items-center gap-1.5 overflow-hidden flex-1 text-left"
           >
@@ -231,26 +236,30 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
 
           {/* Folder Actions (Quick Create & Item Count & More Menu) */}
           <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onCreateDoc(node.id);
-              }}
-              title="Tạo tài liệu con"
-              className="p-0.5 rounded hover:bg-theme-bg text-theme-text-muted hover:text-theme-text cursor-pointer"
-            >
-              <FilePlus className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onCreateFolder(node.id);
-              }}
-              title="Tạo thư mục con"
-              className="p-0.5 rounded hover:bg-theme-bg text-theme-text-muted hover:text-theme-text cursor-pointer"
-            >
-              <FolderPlus className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
-            </button>
+            {canEdit && (
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCreateDoc(node.id);
+                  }}
+                  title="Tạo tài liệu con"
+                  className="p-0.5 rounded hover:bg-theme-bg text-theme-text-muted hover:text-theme-text cursor-pointer"
+                >
+                  <FilePlus className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCreateFolder(node.id);
+                  }}
+                  title="Tạo thư mục con"
+                  className="p-0.5 rounded hover:bg-theme-bg text-theme-text-muted hover:text-theme-text cursor-pointer"
+                >
+                  <FolderPlus className="w-3.5 h-3.5 sm:w-3 sm:h-3" />
+                </button>
+              </>
+            )}
             <button
               onClick={handleMoreButtonClick}
               title="Thao tác khác"
@@ -274,6 +283,7 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
                 activeDocId={activeDocId}
                 isExpanded={child.isExpanded ?? false}
                 renamingItemId={renamingItemId}
+                permissions={permissions}
                 onToggleExpand={onToggleExpand}
                 onSelectDoc={onSelectDoc}
                 onCreateDoc={onCreateDoc}
@@ -297,13 +307,13 @@ export const TreeNodeItem: React.FC<TreeNodeItemProps> = ({
   // Document Item
   return (
     <div
-      draggable={!isRenaming}
+      draggable={!isRenaming && canEdit}
       onDragStart={handleDragStart}
       onContextMenu={handleItemContextMenu}
       onClick={() => !isRenaming && onSelectDoc(node.id)}
       onDoubleClick={(e) => {
         e.stopPropagation();
-        onStartRename(node.id);
+        if (canEdit) onStartRename(node.id);
       }}
       className={`group flex items-center justify-between px-2 py-1 rounded-md text-xs transition-colors cursor-pointer select-none ${
         isActive 
