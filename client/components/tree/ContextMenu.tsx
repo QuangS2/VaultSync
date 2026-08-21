@@ -11,16 +11,19 @@ import {
   FolderOpen, 
   FolderClosed,
   RotateCw,
-  CornerDownRight
+  CornerDownRight,
+  Share2, 
+  RotateCcw 
 } from 'lucide-react';
 import { TreeNode } from '../../lib/tree/types';
-import { Share2, RotateCcw } from 'lucide-react';
+import { DocumentPermissions } from '../../lib/auth/permissions';
 
 export interface ContextMenuProps {
   isOpen: boolean;
   position: { x: number; y: number };
   targetItem: TreeNode | null;
   isRootContext?: boolean | undefined;
+  permissions?: DocumentPermissions | undefined;
   onClose: () => void;
   onRename?: ((item: TreeNode) => void) | undefined;
   onDuplicate?: ((item: TreeNode) => void) | undefined;
@@ -45,6 +48,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   position,
   targetItem,
   isRootContext = false,
+  permissions,
   onClose,
   onRename,
   onDuplicate,
@@ -64,6 +68,11 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   onPermanentDelete
 }) => {
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const isOwner = !permissions || permissions.role === 'owner';
+  const canEdit = isOwner || Boolean(permissions?.canEdit);
+  const canDelete = isOwner || Boolean(permissions?.canDelete);
+  const canExport = isOwner || Boolean(permissions?.canExport);
 
   // Close when clicking outside or pressing Escape
   useEffect(() => {
@@ -130,28 +139,32 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           <div className="px-3 py-1 text-[10px] font-semibold text-theme-text-muted uppercase tracking-wider">
             Không Gian Làm Việc
           </div>
-          <button
-            onClick={() => handleAction(() => onCreateDoc?.(null))}
-            className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text hover:text-theme-accent transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <FilePlus className="w-3.5 h-3.5 text-theme-accent" />
-              <span>Tạo tài liệu mới</span>
-            </div>
-            <span className="text-[10px] font-mono text-theme-text-muted">⌘N</span>
-          </button>
+          {canEdit && (
+            <>
+              <button
+                onClick={() => handleAction(() => onCreateDoc?.(null))}
+                className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text hover:text-theme-accent transition-colors text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <FilePlus className="w-3.5 h-3.5 text-theme-accent" />
+                  <span>Tạo tài liệu mới</span>
+                </div>
+                <span className="text-[10px] font-mono text-theme-text-muted">⌘N</span>
+              </button>
 
-          <button
-            onClick={() => handleAction(() => onCreateFolder?.(null))}
-            className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text hover:text-theme-accent transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <FolderPlus className="w-3.5 h-3.5 text-amber-500" />
-              <span>Tạo thư mục mới</span>
-            </div>
-          </button>
+              <button
+                onClick={() => handleAction(() => onCreateFolder?.(null))}
+                className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text hover:text-theme-accent transition-colors text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <FolderPlus className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Tạo thư mục mới</span>
+                </div>
+              </button>
 
-          <div className="h-px bg-theme-border my-1" />
+              <div className="h-px bg-theme-border my-1" />
+            </>
+          )}
 
           <button
             onClick={() => handleAction(() => onExpandAll?.())}
@@ -194,28 +207,34 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             🗑️ {targetItem.name} (Thùng rác)
           </div>
 
-          <button
-            onClick={() => handleAction(() => onRestore?.(targetItem))}
-            className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-emerald-600 dark:text-emerald-400 transition-colors text-left cursor-pointer font-medium"
-          >
-            <div className="flex items-center gap-2">
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Khôi phục {targetItem.type === 'folder' ? 'thư mục' : 'tài liệu'}</span>
-            </div>
-          </button>
+          {canDelete && (
+            <button
+              onClick={() => handleAction(() => onRestore?.(targetItem))}
+              className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-emerald-600 dark:text-emerald-400 transition-colors text-left cursor-pointer font-medium"
+            >
+              <div className="flex items-center gap-2">
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Khôi phục {targetItem.type === 'folder' ? 'thư mục' : 'tài liệu'}</span>
+              </div>
+            </button>
+          )}
 
-          <div className="h-px bg-theme-border my-1" />
+          {canDelete && (
+            <>
+              <div className="h-px bg-theme-border my-1" />
 
-          <button
-            onClick={() => handleAction(() => onPermanentDelete?.(targetItem))}
-            className="flex items-center justify-between px-3 py-1.5 hover:bg-rose-500/10 text-rose-500 transition-colors text-left cursor-pointer font-medium"
-          >
-            <div className="flex items-center gap-2">
-              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-              <span>Xóa vĩnh viễn</span>
-            </div>
-            <span className="text-[10px] font-mono text-rose-400">Shift+Del</span>
-          </button>
+              <button
+                onClick={() => handleAction(() => onPermanentDelete?.(targetItem))}
+                className="flex items-center justify-between px-3 py-1.5 hover:bg-rose-500/10 text-rose-500 transition-colors text-left cursor-pointer font-medium"
+              >
+                <div className="flex items-center gap-2">
+                  <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Xóa vĩnh viễn</span>
+                </div>
+                <span className="text-[10px] font-mono text-rose-400">Shift+Del</span>
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -226,69 +245,81 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             📁 {targetItem.name}
           </div>
 
-          <button
-            onClick={() => handleAction(() => onCreateDoc?.(targetItem.id))}
-            className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text hover:text-theme-accent transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <FilePlus className="w-3.5 h-3.5 text-theme-accent" />
-              <span>Tạo tài liệu con</span>
-            </div>
-          </button>
+          {canEdit && (
+            <>
+              <button
+                onClick={() => handleAction(() => onCreateDoc?.(targetItem.id))}
+                className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text hover:text-theme-accent transition-colors text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <FilePlus className="w-3.5 h-3.5 text-theme-accent" />
+                  <span>Tạo tài liệu con</span>
+                </div>
+              </button>
 
-          <button
-            onClick={() => handleAction(() => onCreateFolder?.(targetItem.id))}
-            className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text hover:text-theme-accent transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <FolderPlus className="w-3.5 h-3.5 text-amber-500" />
-              <span>Tạo thư mục con</span>
-            </div>
-          </button>
+              <button
+                onClick={() => handleAction(() => onCreateFolder?.(targetItem.id))}
+                className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text hover:text-theme-accent transition-colors text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <FolderPlus className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Tạo thư mục con</span>
+                </div>
+              </button>
+            </>
+          )}
 
-          <button
-            onClick={() => handleAction(() => onShareFolder?.(targetItem))}
-            className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-emerald-600 dark:text-emerald-400 font-medium transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Share2 className="w-3.5 h-3.5" />
-              <span>Chia sẻ thư mục...</span>
-            </div>
-          </button>
+          {isOwner && (
+            <button
+              onClick={() => handleAction(() => onShareFolder?.(targetItem))}
+              className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-emerald-600 dark:text-emerald-400 font-medium transition-colors text-left cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Share2 className="w-3.5 h-3.5" />
+                <span>Chia sẻ thư mục...</span>
+              </div>
+            </button>
+          )}
+
+          {canEdit && (
+            <>
+              <div className="h-px bg-theme-border my-1" />
+
+              <button
+                onClick={() => handleAction(() => onRename?.(targetItem))}
+                className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text transition-colors text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Edit3 className="w-3.5 h-3.5 text-theme-text-muted" />
+                  <span>Đổi tên thư mục</span>
+                </div>
+                <span className="text-[10px] font-mono text-theme-text-muted">F2</span>
+              </button>
+
+              <button
+                onClick={() => handleAction(() => onDuplicate?.(targetItem))}
+                className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text transition-colors text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Copy className="w-3.5 h-3.5 text-theme-text-muted" />
+                  <span>Nhân bản thư mục</span>
+                </div>
+                <span className="text-[10px] font-mono text-theme-text-muted">⌘D</span>
+              </button>
+
+              <button
+                onClick={() => handleAction(() => onMove?.(targetItem))}
+                className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text transition-colors text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <CornerDownRight className="w-3.5 h-3.5 text-theme-accent" />
+                  <span>Di chuyển thư mục...</span>
+                </div>
+              </button>
+            </>
+          )}
 
           <div className="h-px bg-theme-border my-1" />
-
-          <button
-            onClick={() => handleAction(() => onRename?.(targetItem))}
-            className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Edit3 className="w-3.5 h-3.5 text-theme-text-muted" />
-              <span>Đổi tên thư mục</span>
-            </div>
-            <span className="text-[10px] font-mono text-theme-text-muted">F2</span>
-          </button>
-
-          <button
-            onClick={() => handleAction(() => onDuplicate?.(targetItem))}
-            className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Copy className="w-3.5 h-3.5 text-theme-text-muted" />
-              <span>Nhân bản thư mục</span>
-            </div>
-            <span className="text-[10px] font-mono text-theme-text-muted">⌘D</span>
-          </button>
-
-          <button
-            onClick={() => handleAction(() => onMove?.(targetItem))}
-            className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <CornerDownRight className="w-3.5 h-3.5 text-theme-accent" />
-              <span>Di chuyển thư mục...</span>
-            </div>
-          </button>
 
           <button
             onClick={() => handleAction(() => onToggleExpandBranch?.(targetItem.id))}
@@ -314,18 +345,22 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             </div>
           </button>
 
-          <div className="h-px bg-theme-border my-1" />
+          {canDelete && (
+            <>
+              <div className="h-px bg-theme-border my-1" />
 
-          <button
-            onClick={() => handleAction(() => onDelete?.(targetItem))}
-            className="flex items-center justify-between px-3 py-1.5 hover:bg-rose-500/10 text-rose-500 transition-colors text-left cursor-pointer font-medium"
-          >
-            <div className="flex items-center gap-2">
-              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-              <span>Chuyển vào thùng rác</span>
-            </div>
-            <span className="text-[10px] font-mono text-rose-400">Del</span>
-          </button>
+              <button
+                onClick={() => handleAction(() => onDelete?.(targetItem))}
+                className="flex items-center justify-between px-3 py-1.5 hover:bg-rose-500/10 text-rose-500 transition-colors text-left cursor-pointer font-medium"
+              >
+                <div className="flex items-center gap-2">
+                  <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Chuyển vào thùng rác</span>
+                </div>
+                <span className="text-[10px] font-mono text-rose-400">Del</span>
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -336,49 +371,53 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             📄 {targetItem.name}
           </div>
 
-          <button
-            onClick={() => handleAction(() => onRename?.(targetItem))}
-            className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text hover:text-theme-accent transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Edit3 className="w-3.5 h-3.5 text-theme-accent" />
-              <span>Đổi tên tài liệu</span>
-            </div>
-            <span className="text-[10px] font-mono text-theme-text-muted">F2</span>
-          </button>
+          {canEdit && (
+            <>
+              <button
+                onClick={() => handleAction(() => onRename?.(targetItem))}
+                className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text hover:text-theme-accent transition-colors text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Edit3 className="w-3.5 h-3.5 text-theme-accent" />
+                  <span>Đổi tên tài liệu</span>
+                </div>
+                <span className="text-[10px] font-mono text-theme-text-muted">F2</span>
+              </button>
 
-          <button
-            onClick={() => handleAction(() => onDuplicate?.(targetItem))}
-            className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Copy className="w-3.5 h-3.5 text-theme-text-muted" />
-              <span>Nhân bản tài liệu</span>
-            </div>
-            <span className="text-[10px] font-mono text-theme-text-muted">⌘D</span>
-          </button>
+              <button
+                onClick={() => handleAction(() => onDuplicate?.(targetItem))}
+                className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text transition-colors text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <Copy className="w-3.5 h-3.5 text-theme-text-muted" />
+                  <span>Nhân bản tài liệu</span>
+                </div>
+                <span className="text-[10px] font-mono text-theme-text-muted">⌘D</span>
+              </button>
 
-          <button
-            onClick={() => handleAction(() => onMove?.(targetItem))}
-            className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <CornerDownRight className="w-3.5 h-3.5 text-theme-accent" />
-              <span>Di chuyển tài liệu...</span>
-            </div>
-          </button>
+              <button
+                onClick={() => handleAction(() => onMove?.(targetItem))}
+                className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text transition-colors text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <CornerDownRight className="w-3.5 h-3.5 text-theme-accent" />
+                  <span>Di chuyển tài liệu...</span>
+                </div>
+              </button>
 
-          <button
-            onClick={() => handleAction(() => onCreateDoc?.(targetItem.parentId))}
-            className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <FilePlus className="w-3.5 h-3.5 text-theme-text-muted" />
-              <span>Tạo tài liệu cùng cấp</span>
-            </div>
-          </button>
+              <button
+                onClick={() => handleAction(() => onCreateDoc?.(targetItem.parentId))}
+                className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text transition-colors text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-2">
+                  <FilePlus className="w-3.5 h-3.5 text-theme-text-muted" />
+                  <span>Tạo tài liệu cùng cấp</span>
+                </div>
+              </button>
 
-          <div className="h-px bg-theme-border my-1" />
+              <div className="h-px bg-theme-border my-1" />
+            </>
+          )}
 
           <button
             onClick={() => handleAction(() => onToggleFavorite?.(targetItem))}
@@ -400,28 +439,34 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             </div>
           </button>
 
-          <button
-            onClick={() => handleAction(() => onExport?.(targetItem))}
-            className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text transition-colors text-left cursor-pointer"
-          >
-            <div className="flex items-center gap-2">
-              <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span>Xuất tài liệu...</span>
-            </div>
-          </button>
+          {canExport && (
+            <button
+              onClick={() => handleAction(() => onExport?.(targetItem))}
+              className="flex items-center justify-between px-3 py-1.5 hover:bg-theme-card-hover text-theme-text-secondary hover:text-theme-text transition-colors text-left cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Download className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Xuất tài liệu...</span>
+              </div>
+            </button>
+          )}
 
-          <div className="h-px bg-theme-border my-1" />
+          {canDelete && (
+            <>
+              <div className="h-px bg-theme-border my-1" />
 
-          <button
-            onClick={() => handleAction(() => onDelete?.(targetItem))}
-            className="flex items-center justify-between px-3 py-1.5 hover:bg-rose-500/10 text-rose-500 transition-colors text-left cursor-pointer font-medium"
-          >
-            <div className="flex items-center gap-2">
-              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-              <span>Chuyển vào thùng rác</span>
-            </div>
-            <span className="text-[10px] font-mono text-rose-400">Del</span>
-          </button>
+              <button
+                onClick={() => handleAction(() => onDelete?.(targetItem))}
+                className="flex items-center justify-between px-3 py-1.5 hover:bg-rose-500/10 text-rose-500 transition-colors text-left cursor-pointer font-medium"
+              >
+                <div className="flex items-center gap-2">
+                  <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Chuyển vào thùng rác</span>
+                </div>
+                <span className="text-[10px] font-mono text-rose-400">Del</span>
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
