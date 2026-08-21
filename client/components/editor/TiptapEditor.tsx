@@ -98,6 +98,16 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({
     }
   }, [content, editor, yDoc]);
 
+  // Update editable state dynamically when readOnly prop changes
+  useEffect(() => {
+    if (editor) {
+      const shouldBeEditable = !readOnly;
+      if (editor.isEditable !== shouldBeEditable) {
+        editor.setEditable(shouldBeEditable);
+      }
+    }
+  }, [editor, readOnly]);
+
   // Smooth scroll into view when active comment thread is selected
   useEffect(() => {
     if (!activeCommentThreadId || !editor) return;
