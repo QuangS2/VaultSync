@@ -19,6 +19,7 @@ import {
 
 export interface EditorBubbleMenuProps {
   editor: Editor | null;
+  readOnly?: boolean | undefined;
   onAddComment?: ((draft: { from: number; to: number; quotedText: string }) => void) | undefined;
 }
 
@@ -43,6 +44,7 @@ const HIGHLIGHT_COLORS = [
 
 export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
   editor,
+  readOnly = false,
   onAddComment
 }) => {
   const [isLinkOpen, setIsLinkOpen] = useState(false);
@@ -150,8 +152,8 @@ export const EditorBubbleMenu: React.FC<EditorBubbleMenuProps> = ({
         zIndex: 50
       }}
       shouldShow={({ editor: currentEditor, state, from, to }) => {
-        // Only show if editor is editable, selection is not empty, and not inside a codeBlock
-        if (!currentEditor.isEditable) return false;
+        // Only show if not readOnly, editor is editable, selection is not empty, and not inside a codeBlock
+        if (readOnly || !currentEditor.isEditable) return false;
         if (state.selection.empty || from === to) return false;
         if (currentEditor.isActive('codeBlock')) return false;
         // Don't show if whole document selected or pure whitespace

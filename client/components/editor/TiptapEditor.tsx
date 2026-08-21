@@ -77,30 +77,36 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({
     extensions,
     ...(!yDoc && content ? { content } : {}),
     editable: !readOnly,
-    onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
-      if (onChange) onChange(html);
+    onUpdate: ({ editor, transaction }) => {
+      if (!yDoc && transaction.docChanged && onChange) {
+        onChange(editor.getHTML());
+      }
     },
     onSelectionUpdate: ({ editor }) => {
+      if (editor.isDestroyed) return;
       const { from, to } = editor.state.selection;
       const text = editor.state.doc.textBetween(from, to, ' ').trim();
-      setSelectedText(text);
-      if (onSelectionChange) {
-        onSelectionChange(text);
-      }
+      queueMicrotask(() => {
+        if (!editor.isDestroyed) {
+          setSelectedText(text);
+          if (onSelectionChange) {
+            onSelectionChange(text);
+          }
+        }
+      });
     }
   }, [yDoc, provider]);
 
-  // Synchronize external content changes (e.g. switching documents)
+  // Synchronize external content changes (e.g. switching non-collaborative documents)
   useEffect(() => {
-    if (!yDoc && editor && content !== editor.getHTML()) {
+    if (!yDoc && editor && !editor.isDestroyed && content !== editor.getHTML()) {
       editor.commands.setContent(content, false);
     }
   }, [content, editor, yDoc]);
 
   // Update editable state dynamically when readOnly prop changes
   useEffect(() => {
-    if (editor) {
+    if (editor && !editor.isDestroyed) {
       const shouldBeEditable = !readOnly;
       if (editor.isEditable !== shouldBeEditable) {
         editor.setEditable(shouldBeEditable);
@@ -367,13 +373,12 @@ export const TiptapEditor: React.FC<TiptapEditorProps> = ({
         </div>
       </div>
 
-      {/* Floating Contextual Bubble Menu */}
-      {!readOnly && (
-        <EditorBubbleMenu 
-          editor={editor} 
-          onAddComment={onAddInlineComment} 
-        />
-      )}
+      {/* Floating Contextual Bubble Menu (Always mounted with internal shouldShow guard to prevent React unmount crash) */}
+      <EditorBubbleMenu 
+        editor={editor} 
+        readOnly={readOnly}
+        onAddComment={onAddInlineComment} 
+      />
 
       {/* 2. Editor Canvas Content Area */}
       <div className="flex-1 overflow-y-auto px-4 sm:px-8 md:px-16 py-4 sm:py-8 flex flex-col max-w-4xl w-full mx-auto">

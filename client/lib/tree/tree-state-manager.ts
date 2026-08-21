@@ -445,7 +445,14 @@ export class TreeStateManager {
     depth: number,
     expandedIds?: Set<string>
   ): TreeNode[] {
-    const matching = items.filter(item => item.parentId === parentId);
+    const parentIdSet = new Set(items.map(i => i.id));
+    const matching = items.filter(item => {
+      if (parentId === null) {
+        // Match root items or orphaned items whose parentId does not exist in the current tree
+        return item.parentId === null || !parentIdSet.has(item.parentId);
+      }
+      return item.parentId === parentId;
+    });
     matching.sort((a, b) => {
       // Folders first, then by order, then by name
       if (a.type !== b.type) {

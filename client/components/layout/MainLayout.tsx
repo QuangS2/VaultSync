@@ -202,16 +202,21 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     });
     sharedFolderProvidersRef.current.set(folderId, folderProvider);
 
-    // Seed local items into folderDoc
+    // Seed local items into folderDoc strictly if we are the owner of the folder
     const folderItemsMap = folderDoc.getMap('shared_items');
     const folderMetaMap = folderDoc.getMap('metadata');
 
-    const itemsInFolder = treeManager.getAllItems().filter(i => 
-      i.id === folderId || i.parentId === folderId || treeManager.isDescendantOf(i.id, folderId)
-    );
-    itemsInFolder.forEach(item => {
-      folderItemsMap.set(item.id, item);
-    });
+    const isFolderOwner = permissionsMapRef.current.get(folderId)?.role === 'owner' || (session && !permissionsMapRef.current.has(folderId));
+    if (isFolderOwner) {
+      const itemsInFolder = treeManager.getAllItems().filter(i => 
+        i.id === folderId || i.parentId === folderId || treeManager.isDescendantOf(i.id, folderId)
+      );
+      itemsInFolder.forEach(item => {
+        if (!folderItemsMap.has(item.id)) {
+          folderItemsMap.set(item.id, item);
+        }
+      });
+    }
 
     // Initial sync of existing remote folder items into local treeManager
     folderItemsMap.forEach((rawItem: any) => {
@@ -492,7 +497,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
         treeManager.ensureItem(roomId, info.title, 'document', null, 'Share2');
         const currentActive = localStorage.getItem('vaultsync_active_doc');
-        if (!currentActive || currentActive === 'doc-default') {
+        if (!currentActive || currentActive === 'doc-default' || currentActive === 'doc-welcome' || !treeManager.getItem(currentActive)) {
           setActiveDocId(roomId);
         }
         setTreeVersion(v => v + 1);
@@ -510,6 +515,12 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         } catch (err) {
           console.error('Lỗi lưu cây thư mục sau khi nạp share:', err);
         }
+      }
+
+      try {
+        sessionStorage.removeItem('vaultsync_pending_share');
+      } catch {
+        // ignore
       }
     }
 
@@ -617,6 +628,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
   // 1. Restore tree snapshot on vault unlock / mount (strictly using session.vaultRootKey)
   const hasRestoredTreeRef = React.useRef(false);
+  const isRestoringTreeRef = React.useRef(false);
   useEffect(() => {
     if (!session?.vaultRootKey) return;
     if (hasRestoredTreeRef.current) return;
@@ -627,6 +639,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
 
     async function restoreTreeData() {
       try {
+        isRestoringTreeRef.current = true;
         const treeSnapshot = await storage.loadTreeSnapshot(rootKey);
         if (treeSnapshot && treeSnapshot.length > 0 && isMounted) {
           treeManager.applyStateUpdate(treeSnapshot);
@@ -654,6 +667,13 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
               window.history.replaceState({}, document.title, window.location.pathname);
             }
           }
+
+          try {
+            const treeBytes = treeManager.encodeState();
+            await storage.saveTreeSnapshot(treeBytes, rootKey);
+          } catch {
+            // ignore
+          }
         }
 
         // Validate active document exists, is not trash, and is a document
@@ -669,6 +689,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         }
       } catch (err) {
         console.error('Lỗi khôi phục cây thư mục từ IndexedDB:', err);
+      } finally {
+        isRestoringTreeRef.current = false;
       }
     }
 
@@ -761,9 +783,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     let saveTreeTimer: ReturnType<typeof setTimeout> | null = null;
 
     const handleTreeChange = () => {
+      if (isRestoringTreeRef.current) return;
       if (saveTreeTimer) clearTimeout(saveTreeTimer);
       saveTreeTimer = setTimeout(async () => {
         try {
+          if (isRestoringTreeRef.current) return;
           const treeBytes = treeManager.encodeState();
           await storage.saveTreeSnapshot(treeBytes, rootKey);
         } catch (err) {
@@ -818,9 +842,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     const targetDocId = activeDocId;
     const metaMap = yDoc.getMap('metadata');
 
-    // Populate metadata title if empty
+    // Populate metadata title if empty strictly when owner
     const existingTitle = metaMap.get('title') as string | undefined;
-    if (!existingTitle && currentItem.name) {
+    if (!existingTitle && currentItem.name && currentPermissions.role === 'owner') {
       metaMap.set('title', currentItem.name);
     }
 
@@ -858,7 +882,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         if (roomPerms) {
           const decoded = typeof roomPerms === 'string' ? PermissionsEngine.decodePermissions(roomPerms) : (roomPerms as DocumentPermissions);
           setGuestRoomPermissions(decoded);
-          if (currentPermissions.role !== 'owner') {
+          const localRole = permissionsMapRef.current.get(targetDocId)?.role;
+          if (localRole !== 'owner') {
             setCurrentPermissions(decoded);
             permissionsMapRef.current.set(targetDocId, decoded);
           }
@@ -893,6 +918,9 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     item: any
   ) => {
     if (!item || !item.id) return;
+    if (currentPermissions.role !== 'owner' && !currentPermissions.canEdit) {
+      return;
+    }
     const currentItem = treeManager.getItem(item.id) || item;
 
     // 1. If mutating active single doc metadata, propagate to active doc room
@@ -1164,7 +1192,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     manifestData?: any,
     permissions?: DocumentPermissions
   ) => {
-    const activePerms = permissions || (session ? DEFAULT_OWNER_PERMISSIONS : DEFAULT_VIEWER_PERMISSIONS);
+    const activePerms = permissions || DEFAULT_VIEWER_PERMISSIONS;
     permissionsMapRef.current.set(roomId, activePerms);
     setCurrentPermissions(activePerms);
     setGuestRoomPermissions(activePerms);
@@ -1220,14 +1248,11 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         }
       }
 
-      // If no child document exists in manifest, ensure a default document is created
+      // If no child document was in manifest, check if existing children are in treeManager
       if (!firstDocId) {
-        const defaultDoc = treeManager.createItem('Ghi chú mới', 'document', roomId);
-        firstDocId = defaultDoc.id;
-        permissionsMapRef.current.set(firstDocId, activePerms);
-        if (key) {
-          documentKeysRef.current.set(firstDocId, key);
-          await saveSharedDocKey(firstDocId, key);
+        const existingDocs = treeManager.getChildren(roomId).filter(i => i.type === 'document' && !i.isTrash);
+        if (existingDocs.length > 0 && existingDocs[0]) {
+          firstDocId = existingDocs[0].id;
         }
       }
 
