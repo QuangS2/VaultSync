@@ -274,10 +274,29 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       if (roomPerms) {
         const decoded = typeof roomPerms === 'string' ? PermissionsEngine.decodePermissions(roomPerms) : (roomPerms as DocumentPermissions);
         permissionsMapRef.current.set(folderId, decoded);
+        setGuestRoomPermissions(decoded);
         const related = treeManager.getAllItems().filter(i => i.id === folderId || i.parentId === folderId || treeManager.isDescendantOf(i.id, folderId));
-        related.forEach(item => permissionsMapRef.current.set(item.id, decoded));
+        related.forEach(item => {
+          if (!permissionsMapRef.current.has(item.id)) {
+            permissionsMapRef.current.set(item.id, decoded);
+          }
+        });
         if (related.some(i => i.id === activeDocId)) {
-          setCurrentPermissions(decoded);
+          const currentDocPerms = permissionsMapRef.current.get(activeDocId) || decoded;
+          setCurrentPermissions(currentDocPerms);
+        }
+      }
+
+      // Observe per-document permissions stored in folder metadata
+      for (const [key, val] of folderMetaMap.entries()) {
+        if (key.startsWith('doc_permissions_')) {
+          const docId = key.replace('doc_permissions_', '');
+          const docPerms = typeof val === 'string' ? PermissionsEngine.decodePermissions(val) : (val as DocumentPermissions);
+          permissionsMapRef.current.set(docId, docPerms);
+          if (docId === activeDocId) {
+            setCurrentPermissions(docPerms);
+            setGuestRoomPermissions(docPerms);
+          }
         }
       }
     };
@@ -355,9 +374,14 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
   }, []);
 
   // Automatically register shared room document / folder from URL if present (runs once and cleans URL/sessionStorage)
+  const hasProcessedIncomingShareRef = React.useRef(false);
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    if (hasProcessedIncomingShareRef.current) return;
     const shareInfo = getPendingShareInfo();
+    if (!shareInfo) return;
+
+    hasProcessedIncomingShareRef.current = true;
     async function processIncomingShare(info: {
       isFolder?: boolean;
       room?: string | null;
@@ -437,7 +461,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
           }
         }
 
-        if (firstDocId) {
+        const currentActive = localStorage.getItem('vaultsync_active_doc');
+        if (firstDocId && (!currentActive || currentActive === 'doc-default' || !treeManager.getItem(currentActive))) {
           setActiveDocId(firstDocId);
         }
         setTreeVersion(v => v + 1);
@@ -466,7 +491,10 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         }
 
         treeManager.ensureItem(roomId, info.title, 'document', null, 'Share2');
-        setActiveDocId(roomId);
+        const currentActive = localStorage.getItem('vaultsync_active_doc');
+        if (!currentActive || currentActive === 'doc-default') {
+          setActiveDocId(roomId);
+        }
         setTreeVersion(v => v + 1);
       }
 
@@ -485,9 +513,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
       }
     }
 
-    if (shareInfo) {
-      void processIncomingShare(shareInfo);
-    }
+    void processIncomingShare(shareInfo);
   }, [treeManager, getPendingShareInfo, saveSharedDocKey, ensureSharedFolderProvider, session?.vaultRootKey, storage]);
 
   // Update active document key when activeDocId changes, checking memory, sessionStorage, parent folder, or fallback to vaultRootKey
@@ -937,7 +963,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
     }
     permissionsMapRef.current.set(targetId, newPerms);
 
-    // If target is in sharedFolderDocsRef, update folder metadata
+    // 1. If target is a shared folder, update folder metadata and all descendant docs
     const folderDoc = sharedFolderDocsRef.current.get(targetId);
     if (folderDoc) {
       folderDoc.getMap('metadata').set('room_permissions', newPerms);
@@ -945,14 +971,28 @@ export const MainLayout: React.FC<MainLayoutProps> = ({
         i.id === targetId || treeManager.isDescendantOf(i.id, targetId) || i.parentId === targetId
       );
       itemsInFolder.forEach(item => {
-        if (currentPermissions.role !== 'owner') {
-          permissionsMapRef.current.set(item.id, newPerms);
+        permissionsMapRef.current.set(item.id, newPerms);
+        const childYDoc = yDocsRef.current.get(item.id);
+        if (childYDoc) {
+          childYDoc.getMap('metadata').set('room_permissions', newPerms);
         }
       });
     }
 
-    // Also broadcast to active document's metadata
-    yDoc.getMap('metadata').set('room_permissions', newPerms);
+    // 2. If target is a child doc of a shared folder, broadcast in parent folder metadata
+    const currentItem = treeManager.getItem(targetId);
+    if (currentItem?.parentId) {
+      const parentFolderDoc = sharedFolderDocsRef.current.get(currentItem.parentId);
+      if (parentFolderDoc) {
+        parentFolderDoc.getMap('metadata').set(`doc_permissions_${targetId}`, newPerms);
+      }
+    }
+
+    // 3. Broadcast to target Y.Doc and active Y.Doc
+    const targetYDoc = yDocsRef.current.get(targetId) || yDoc;
+    if (targetYDoc) {
+      targetYDoc.getMap('metadata').set('room_permissions', newPerms);
+    }
   }, [yDoc, treeManager, currentPermissions.role]);
 
   const handleSelectDoc = (id: string) => {
