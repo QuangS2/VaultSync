@@ -59,18 +59,20 @@ export class RoomChatEngine {
    * Returns all chat messages sorted chronologically.
    */
   public getMessages(): RoomChatMessage[] {
-    const messages: RoomChatMessage[] = [];
+    const messagesMap = new Map<string, RoomChatMessage>();
 
     this.yChatArray.forEach((rawJson) => {
       try {
         const msg: RoomChatMessage = typeof rawJson === 'string' ? JSON.parse(rawJson) : rawJson;
-        messages.push(msg);
+        if (msg && msg.id) {
+          messagesMap.set(msg.id, msg);
+        }
       } catch (err) {
         console.error('[RoomChatEngine] Failed to parse chat message JSON:', err);
       }
     });
 
-    return messages.sort((a, b) => a.createdAt - b.createdAt);
+    return Array.from(messagesMap.values()).sort((a, b) => a.createdAt - b.createdAt);
   }
 
   /**

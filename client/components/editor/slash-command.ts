@@ -341,6 +341,7 @@ export const SlashCommandExtension = Extension.create({
       suggestion: {
         char: '/',
         pluginKey: SlashCommandPluginKey,
+        allow: ({ editor }: any) => editor.isEditable,
         command: ({ editor, range, props }: any) => {
           props.command({ editor, range });
         },

@@ -57,23 +57,39 @@ test.describe('Fix-22 Verification Suite: Join Room No Black Screen & Persistenc
     await page.setViewportSize({ width: 1280, height: 800 });
     await setupAndOnboard(page, 'Cộng tác viên 1');
 
-    // 1. Click "Tham gia phòng" button in sidebar
+    // 1. Create a new document to share
+    const docTitle = 'Tài Liệu Dự Án Kỹ Thuật 2026.md';
+    const createDocBtn = page.locator('button[title*="Tạo tài liệu gốc"]').first();
+    await createDocBtn.click();
+    await page.waitForTimeout(200);
+    await page.keyboard.type(docTitle);
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(300);
+
+    // 2. Open Share modal to get genuine passcode
+    await page.locator('button:has-text("Chia Sẻ"), button[title*="Chia sẻ"]').first().click();
+    await page.waitForTimeout(300);
+    const pwdInput = page.locator('input[type="password"]');
+    if (await pwdInput.isVisible()) {
+      await pwdInput.fill('Passphrase2026!Strong');
+      await page.click('button:has-text("Cấp Quyền & Mở Chia Sẻ")');
+      await page.waitForTimeout(400);
+    }
+    await page.click('button:has-text("Mã Ghép Nối")');
+    await page.waitForTimeout(200);
+
+    const passcodeInput = page.locator('.fixed.inset-0 input.font-mono').first();
+    await expect(passcodeInput).not.toHaveValue('', { timeout: 5000 });
+    const passcode = await passcodeInput.inputValue();
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(200);
+
+    // 3. Open Join Room modal and paste passcode
     const joinBtn = page.locator('button:has-text("Tham gia phòng")').first();
     await expect(joinBtn).toBeVisible();
     await joinBtn.click();
     await page.waitForTimeout(300);
 
-    // 2. Ensure Join Room Modal is open
-    const modal = page.locator('h3:has-text("Tham Gia Phòng Cộng Tác")').first();
-    await expect(modal).toBeVisible();
-
-    // Generate a valid AES-GCM 256 key base64 for passcode
-    const rawKey = 'dGVzdGtleTI1NmJpdHNhZXNnY21zZWN1cmVwYXNz'; // 32 bytes base64
-    const docId = `doc-joined-test-${Date.now()}`;
-    const docTitle = 'Tài Liệu Dự Án Kỹ Thuật 2026';
-    const passcode = `VS-KEY:${docId}#${rawKey}#${encodeURIComponent(docTitle)}#viewer`;
-
-    // 3. Paste passcode into input
     const input = page.locator('input[placeholder*="VS-"]').first();
     await input.fill(passcode);
     await page.waitForTimeout(200);
@@ -94,9 +110,10 @@ test.describe('Fix-22 Verification Suite: Join Room No Black Screen & Persistenc
     fs.copyFileSync(shot1, path.join(evidenceDirs.task22, '01_join_room_via_passcode_success.png'));
 
     // 6. Reload page (F5) to test persistence
+    await page.waitForTimeout(1000);
     await page.reload();
     await page.waitForSelector('.tiptap.ProseMirror', { timeout: 20000 });
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1000);
 
     // 7. Verify document is still in tree and selected
     await expect(page.locator(`span:has-text("${docTitle}")`).first()).toBeVisible({ timeout: 10000 });

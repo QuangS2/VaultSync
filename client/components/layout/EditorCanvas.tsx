@@ -151,7 +151,7 @@ export const EditorCanvas: React.FC<EditorCanvasProps> = ({
         content={content}
         documentTitle={currentTitle}
         onTitleChange={handleTitleChange}
-        onChange={(html) => setContent(html)}
+        onChange={!yDoc ? ((html) => setContent(html)) : undefined}
         onAddInlineComment={onAddInlineComment}
         yDoc={yDoc}
         provider={provider}
